@@ -1,37 +1,37 @@
-import { emit } from './core.js';
+import { emit } from "./core.js";
 
 /* =========================
    LOGGER FACTORY
 ========================= */
 
-export function createLogger(context = 'app') {
+export function createLogger(context = "app") {
     return {
         debug(message: string | string[]) {
-            emit('debug', message, context, false, true);
+            emit("debug", message, context, false, true);
         },
 
         default(message: string | string[]) {
-            emit('info', message, context, true);
+            emit("info", message, context, true);
         },
 
         error(message: string | string[]) {
-            emit('error', message, context);
+            emit("error", message, context);
         },
 
         info(message: string | string[]) {
-            emit('info', message, context);
+            emit("info", message, context);
         },
 
         success(message: string | string[]) {
-            emit('success', message, context);
+            emit("success", message, context);
         },
 
         verbose(message: string | string[]) {
-            emit('info', message, context, true, true);
+            emit("info", message, context, true, true);
         },
 
         warn(message: string | string[]) {
-            emit('warn', message, context);
+            emit("warn", message, context);
         },
     };
 }
@@ -40,4 +40,4 @@ export function createLogger(context = 'app') {
    PUBLIC API (default context: "app")
 ========================= */
 
-export const log = createLogger('app');
+export const log = createLogger("app");

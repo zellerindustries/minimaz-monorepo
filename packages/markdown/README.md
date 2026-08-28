@@ -11,7 +11,7 @@ npm install @minimaz/markdown
 ## Usage
 
 ```ts
-import { MdToHtml, MdToPdf, validateMd } from '@minimaz/markdown';
+import { MdToHtml, MdToPdf, validateMd } from "@minimaz/markdown";
 
 const fragment = MdToHtml(markdownSource);
 const fullPage = MdToHtml(markdownSource, { full: true }); // wraps in a complete <html> document

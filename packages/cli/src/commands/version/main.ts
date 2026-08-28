@@ -1,5 +1,5 @@
-import { readJsonFile } from '@minimaz/core';
-import { log } from '@minimaz/logger';
+import { readJsonFile } from "@minimaz/core";
+import { log } from "@minimaz/logger";
 
 /**
  * Prints `@minimaz/cli`'s own version, read from `pkgPath` (its
@@ -11,8 +11,8 @@ import { log } from '@minimaz/logger';
 export async function version(pkgPath: string): Promise<void> {
     const data = await readJsonFile<{ version?: unknown }>(pkgPath);
 
-    if (typeof data.version !== 'string') {
-        throw new Error('Invalid or missing version in package.json');
+    if (typeof data.version !== "string") {
+        throw new Error("Invalid or missing version in package.json");
     }
 
     log.default(data.version);

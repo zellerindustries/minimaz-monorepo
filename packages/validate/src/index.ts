@@ -1,5 +1,5 @@
-export { validateCss, CssValidationError } from './css.js';
-export { validateHtml, HtmlValidationError } from './html.js';
-export { validateJson, JsonValidationError } from './json.js';
-export { validateJs, JsValidationError } from './js.js';
-export { validateTs, TsValidationError } from './ts.js';
+export { validateCss, CssValidationError } from "./css.js";
+export { validateHtml, HtmlValidationError } from "./html.js";
+export { validateJson, JsonValidationError } from "./json.js";
+export { validateJs, JsValidationError } from "./js.js";
+export { validateTs, TsValidationError } from "./ts.js";

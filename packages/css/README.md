@@ -11,11 +11,11 @@ npm install @minimaz/css
 ## Usage
 
 ```ts
-import { minifyCss, bundleCss } from '@minimaz/css';
+import { minifyCss, bundleCss } from "@minimaz/css";
 
 const minified = minifyCss(cssSource);
 
-const { code, inputs } = await bundleCss('src/styles/entry.css');
+const { code, inputs } = await bundleCss("src/styles/entry.css");
 // code: entry.css with all @import statements inlined
 // inputs: absolute paths of every file that was inlined, including the entry file
 ```

@@ -1,4 +1,4 @@
-import type { Style } from './types.js';
+import type { Style } from "./types.js";
 
 export const PAGE_WIDTH = 595;
 export const PAGE_HEIGHT = 842;
@@ -16,15 +16,15 @@ export const BODY_SIZE = 11;
 export const CODE_SIZE = 10;
 
 export const FONT_RESOURCE: Record<Style, string> = {
-    regular: '/F1',
-    bold: '/F2',
-    italic: '/F3',
-    boldItalic: '/F4',
+    regular: "/F1",
+    bold: "/F2",
+    italic: "/F3",
+    boldItalic: "/F4",
 };
 
 export const FONT_BASENAME: Record<Style, string> = {
-    regular: 'Courier',
-    bold: 'Courier-Bold',
-    italic: 'Courier-Oblique',
-    boldItalic: 'Courier-BoldOblique',
+    regular: "Courier",
+    bold: "Courier-Bold",
+    italic: "Courier-Oblique",
+    boldItalic: "Courier-BoldOblique",
 };

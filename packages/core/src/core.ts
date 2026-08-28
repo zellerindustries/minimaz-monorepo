@@ -1,8 +1,17 @@
-import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+    cp,
+    lstat,
+    mkdir,
+    readdir,
+    readFile,
+    rm,
+    stat,
+    writeFile,
+} from "node:fs/promises";
 
-import { dirname } from 'node:path';
+import { dirname } from "node:path";
 
-import { log } from '@minimaz/logger';
+import { log } from "@minimaz/logger";
 
 /* =========================================================
     VALIDATION / INSPECTION
@@ -49,15 +58,18 @@ export async function readJsonFile<T>(file: string): Promise<T> {
     }
 
     try {
-        const content = await readFile(file, 'utf8');
+        const content = await readFile(file, "utf8");
 
         return JSON.parse(content) as T;
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
 
-        throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
-            cause: error,
-        });
+        throw new Error(
+            `PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`,
+            {
+                cause: error,
+            },
+        );
     }
 }
 
@@ -130,7 +142,11 @@ export async function ensureDir(path: string): Promise<void> {
  * @param {string} dest - Destination path
  * @param {boolean} [overwrite=false] - Replace existing targets when true
  */
-export async function copy(src: string, dest: string, overwrite = false): Promise<void> {
+export async function copy(
+    src: string,
+    dest: string,
+    overwrite = false,
+): Promise<void> {
     if (overwrite) {
         log.debug(`${dest} exists, removing...`);
         await rm(dest, { recursive: true, force: true });
@@ -167,7 +183,7 @@ export async function outputFile(
     });
 
     // Default to UTF-8 for text content
-    await writeFile(path, data, options ?? 'utf8');
+    await writeFile(path, data, options ?? "utf8");
 }
 /**
  * Checks if a path is a directory.
@@ -194,10 +210,10 @@ export async function isDirectory(path: string): Promise<boolean> {
  */
 export async function getFileContent(path: string): Promise<string> {
     try {
-        return await readFile(path, 'utf8');
+        return await readFile(path, "utf8");
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         log.error(`Failed to read file at "${path}": ${message}`);
-        return '';
+        return "";
     }
 }

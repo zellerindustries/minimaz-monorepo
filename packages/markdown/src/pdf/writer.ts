@@ -10,9 +10,9 @@ and encoding it as UTF-8 later can't corrupt anything.
 */
 
 const pdfEscapes: Record<string, string> = {
-    '\\': '\\\\',
-    '(': '\\(',
-    ')': '\\)',
+    "\\": "\\\\",
+    "(": "\\(",
+    ")": "\\)",
 };
 
 export function escapePdfString(text: string): string {
@@ -27,7 +27,7 @@ export class PdfWriter {
     private objects: string[] = [];
 
     reserve(): number {
-        this.objects.push('');
+        this.objects.push("");
         return this.objects.length;
     }
 
@@ -42,11 +42,11 @@ export class PdfWriter {
     }
 
     serialize(rootObjectNumber: number): string {
-        let out = '%PDF-1.4\n';
+        let out = "%PDF-1.4\n";
         const offsets: number[] = [0];
         for (let idx = 0; idx < this.objects.length; idx++) {
             offsets.push(out.length);
-            out += `${String(idx + 1)} 0 obj\n${this.objects[idx] ?? ''}\nendobj\n`;
+            out += `${String(idx + 1)} 0 obj\n${this.objects[idx] ?? ""}\nendobj\n`;
         }
         const count = this.objects.length + 1;
         const xrefOffset = out.length;
@@ -56,7 +56,7 @@ export class PdfWriter {
         let xref = `xref\n0 ${String(count)}\n0000000000 65535 f \n`;
         for (let i = 1; i < count; i++) {
             const offset = offsets[i] ?? 0;
-            xref += `${String(offset).padStart(10, '0')} 00000 n \n`;
+            xref += `${String(offset).padStart(10, "0")} 00000 n \n`;
         }
         out += xref;
         out += `trailer\n<< /Size ${String(count)} /Root ${String(rootObjectNumber)} 0 R >>\nstartxref\n${String(xrefOffset)}\n%%EOF`;

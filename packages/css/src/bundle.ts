@@ -1,23 +1,23 @@
-import { dirname, relative, resolve } from 'node:path';
-import { getFileContent, pathExists } from '@minimaz/core';
+import { dirname, relative, resolve } from "node:path";
+import { getFileContent, pathExists } from "@minimaz/core";
 
 function isRelativeSpecifier(spec: string): boolean {
-    return spec.startsWith('./') || spec.startsWith('../');
+    return spec.startsWith("./") || spec.startsWith("../");
 }
 
 function isUntouchableUrl(spec: string): boolean {
     return (
-        spec.startsWith('http://') ||
-        spec.startsWith('https://') ||
-        spec.startsWith('//') ||
-        spec.startsWith('data:') ||
-        spec.startsWith('#') ||
-        spec.startsWith('/')
+        spec.startsWith("http://") ||
+        spec.startsWith("https://") ||
+        spec.startsWith("//") ||
+        spec.startsWith("data:") ||
+        spec.startsWith("#") ||
+        spec.startsWith("/")
     );
 }
 
 function toPosix(path: string): string {
-    return path.split('\\').join('/');
+    return path.split("\\").join("/");
 }
 
 function importPattern(): RegExp {
@@ -33,7 +33,7 @@ function rewriteUrls(code: string, fileDir: string, entryDir: string): string {
             }
             const absolute = resolve(fileDir, spec);
             let rewritten = toPosix(relative(entryDir, absolute));
-            if (!rewritten.startsWith('.')) {
+            if (!rewritten.startsWith(".")) {
                 rewritten = `./${rewritten}`;
             }
             return `url(${quote}${rewritten}${quote})`;
@@ -52,12 +52,12 @@ async function inlineImports(
 
     if (stack.includes(resolvedPath)) {
         throw new Error(
-            `bundleCss: circular @import detected: ${[...stack, resolvedPath].join(' -> ')}`,
+            `bundleCss: circular @import detected: ${[...stack, resolvedPath].join(" -> ")}`,
         );
     }
 
     if (!(await pathExists(resolvedPath))) {
-        const context = importedFrom ? ` (imported from ${importedFrom})` : '';
+        const context = importedFrom ? ` (imported from ${importedFrom})` : "";
         throw new Error(`bundleCss: file not found: ${resolvedPath}${context}`);
     }
 
@@ -102,12 +102,20 @@ async function inlineImports(
  * @param {string} entryPath - Path to the entry CSS file
  * @returns {Promise<{ code: string; inputs: string[] }>} Bundled CSS and every file touched (entry included, as absolute paths)
  */
-export async function bundleCss(entryPath: string): Promise<{ code: string; inputs: string[] }> {
+export async function bundleCss(
+    entryPath: string,
+): Promise<{ code: string; inputs: string[] }> {
     const resolvedEntry = resolve(entryPath);
     const entryDir = dirname(resolvedEntry);
     const visited = new Set<string>();
 
-    const code = await inlineImports(resolvedEntry, entryDir, visited, [], undefined);
+    const code = await inlineImports(
+        resolvedEntry,
+        entryDir,
+        visited,
+        [],
+        undefined,
+    );
 
     return { code, inputs: [...visited] };
 }

@@ -11,7 +11,11 @@ npm install @minimaz/config
 ## Usage
 
 ```ts
-import { loadConfig, CONFIG_FILE_NAME, ConfigNotFoundError } from '@minimaz/config';
+import {
+    loadConfig,
+    CONFIG_FILE_NAME,
+    ConfigNotFoundError,
+} from "@minimaz/config";
 
 try {
     const config = await loadConfig(process.cwd());

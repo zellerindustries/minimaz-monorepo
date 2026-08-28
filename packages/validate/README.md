@@ -11,7 +11,13 @@ npm install @minimaz/validate
 ## Usage
 
 ```ts
-import { validateCss, validateHtml, validateJs, validateTs, validateJson } from '@minimaz/validate';
+import {
+    validateCss,
+    validateHtml,
+    validateJs,
+    validateTs,
+    validateJson,
+} from "@minimaz/validate";
 
 try {
     validateHtml(htmlSource);

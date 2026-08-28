@@ -8,15 +8,17 @@
  * @returns {unknown} The parsed value
  */
 export function parseJson(code: string): unknown {
-    if (typeof code !== 'string') {
-        throw new Error('parseJson: code must be a string');
+    if (typeof code !== "string") {
+        throw new Error("parseJson: code must be a string");
     }
 
     try {
         return JSON.parse(code);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`parseJson: invalid JSON: ${message}`, { cause: error });
+        throw new Error(`parseJson: invalid JSON: ${message}`, {
+            cause: error,
+        });
     }
 }
 

@@ -11,7 +11,7 @@ npm install @minimaz/json
 ## Usage
 
 ```ts
-import { parseJson, minifyJson, formatJson } from '@minimaz/json';
+import { parseJson, minifyJson, formatJson } from "@minimaz/json";
 
 const data = parseJson(rawText); // throws a descriptive error on invalid JSON
 const minified = minifyJson(rawText);

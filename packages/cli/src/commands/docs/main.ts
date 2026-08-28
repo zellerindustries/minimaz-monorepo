@@ -1,9 +1,9 @@
-import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { CONFIG_FILE_NAME, DEFAULT_CONFIG } from '@minimaz/config';
-import { log } from '@minimaz/logger';
-import { buildDocs } from './core.js';
+import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { CONFIG_FILE_NAME, DEFAULT_CONFIG } from "@minimaz/config";
+import { log } from "@minimaz/logger";
+import { buildDocs } from "./core.js";
 
 export { buildDocs };
 
@@ -18,7 +18,11 @@ export async function docsInit(cwd: string): Promise<void> {
         log.info(`${CONFIG_FILE_NAME} already exists, leaving it untouched.`);
         return;
     }
-    await writeFile(configPath, `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`, 'utf8');
+    await writeFile(
+        configPath,
+        `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`,
+        "utf8",
+    );
     log.success(`Created ${CONFIG_FILE_NAME}.`);
 }
 
@@ -29,9 +33,9 @@ export async function docsInit(cwd: string): Promise<void> {
  * @returns {'init' | 'build'}
  * @throws {Error} If `subArg` isn't "init" or "build"
  */
-export function resolveDocsCommand(subArg: unknown): 'init' | 'build' {
-    if (subArg === 'init' || subArg === 'build') {
+export function resolveDocsCommand(subArg: unknown): "init" | "build" {
+    if (subArg === "init" || subArg === "build") {
         return subArg;
     }
-    throw new Error('Usage: minimaz docs <init|build>');
+    throw new Error("Usage: minimaz docs <init|build>");
 }

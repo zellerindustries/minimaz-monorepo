@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.js';
+import { ValidationError } from "./errors.js";
 
 /**
  * Thrown by {@link validateCss} — carries every problem found, not just
@@ -6,7 +6,7 @@ import { ValidationError } from './errors.js';
  */
 export class CssValidationError extends ValidationError {
     constructor(errors: string[]) {
-        super('CssValidationError', 'CSS validation error', errors);
+        super("CssValidationError", "CSS validation error", errors);
     }
 }
 
@@ -25,8 +25,8 @@ export class CssValidationError extends ValidationError {
  * @throws {CssValidationError} If any structural problem is found
  */
 export function validateCss(code: string): void {
-    if (typeof code !== 'string') {
-        throw new CssValidationError(['code must be a string']);
+    if (typeof code !== "string") {
+        throw new CssValidationError(["code must be a string"]);
     }
 
     const errors: string[] = [];
@@ -40,7 +40,7 @@ export function validateCss(code: string): void {
         const char = code.charAt(i);
 
         if (inString) {
-            if (char === '\\' && i + 1 < len) {
+            if (char === "\\" && i + 1 < len) {
                 i += 2;
                 continue;
             }
@@ -57,10 +57,10 @@ export function validateCss(code: string): void {
             continue;
         }
 
-        if (char === '/' && code.charAt(i + 1) === '*') {
-            const end = code.indexOf('*/', i + 2);
+        if (char === "/" && code.charAt(i + 1) === "*") {
+            const end = code.indexOf("*/", i + 2);
             if (end === -1) {
-                errors.push('unterminated comment');
+                errors.push("unterminated comment");
                 i = len;
                 continue;
             }
@@ -68,22 +68,22 @@ export function validateCss(code: string): void {
             continue;
         }
 
-        if (char === '{') {
+        if (char === "{") {
             braceDepth++;
             i++;
             continue;
         }
-        if (char === '}') {
+        if (char === "}") {
             braceDepth--;
             i++;
             continue;
         }
-        if (char === '(') {
+        if (char === "(") {
             parenDepth++;
             i++;
             continue;
         }
-        if (char === ')') {
+        if (char === ")") {
             parenDepth--;
             i++;
             continue;
@@ -93,7 +93,7 @@ export function validateCss(code: string): void {
     }
 
     if (inString) {
-        errors.push('unterminated string literal');
+        errors.push("unterminated string literal");
     }
     if (braceDepth !== 0) {
         errors.push(`unbalanced braces (depth ${String(braceDepth)})`);

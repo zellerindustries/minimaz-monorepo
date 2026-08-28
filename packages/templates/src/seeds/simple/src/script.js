@@ -1,1 +1,1 @@
-console.log("Minimaz is ready!")
+console.log("Minimaz is ready!");

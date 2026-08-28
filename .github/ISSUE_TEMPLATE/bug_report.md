@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Report a problem to help us improve the project
-title: '[Bug]: '
+title: "[Bug]: "
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 ## 🐛 Bug Report

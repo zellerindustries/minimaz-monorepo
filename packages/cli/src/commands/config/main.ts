@@ -1,4 +1,4 @@
-import { seedDefaults } from '@minimaz/templates';
+import { seedDefaults } from "@minimaz/templates";
 
 /**
  * Seeds (or re-seeds) the global `~/.minimaz` directory with default

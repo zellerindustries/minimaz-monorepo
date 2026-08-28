@@ -4,8 +4,10 @@
  */
 export class TemplateNotFoundError extends Error {
     constructor(name: string) {
-        super(`Template "${name}" not found. Run "minimaz config" to seed default templates.`);
-        this.name = 'TemplateNotFoundError';
+        super(
+            `Template "${name}" not found. Run "minimaz config" to seed default templates.`,
+        );
+        this.name = "TemplateNotFoundError";
     }
 }
 
@@ -17,6 +19,6 @@ export class TemplateNotFoundError extends Error {
 export class InvalidTemplateNameError extends Error {
     constructor(name: string) {
         super(`Invalid template name: "${name}"`);
-        this.name = 'InvalidTemplateNameError';
+        this.name = "InvalidTemplateNameError";
     }
 }

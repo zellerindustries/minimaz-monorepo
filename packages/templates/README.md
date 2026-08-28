@@ -20,7 +20,7 @@ import {
     updateTemplateFrom,
     writeSettings,
     seedDefaults,
-} from '@minimaz/templates';
+} from "@minimaz/templates";
 
 const globalDir = getGlobalDir();
 const templatesDir = getTemplatesDir(globalDir);
