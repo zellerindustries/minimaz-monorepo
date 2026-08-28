@@ -1,0 +1,38 @@
+{
+    "name": "@minimaz/logger",
+    "version": "0.1.0",
+    "description": "Minimal, performance-oriented structured logger for Minimaz tools",
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "keywords": [
+        "minimaz",
+        "logger",
+        "logging",
+        "structured-data",
+        "minimal"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "typecheck": "tsc --noEmit"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "packages/logger"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/logger#readme"
+}

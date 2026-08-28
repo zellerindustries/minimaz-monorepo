@@ -1,0 +1,22 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": "./src",
+        "outDir": "./dist",
+
+        "types": ["node"],
+
+        "composite": true,
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/cli.tsbuildinfo"
+    },
+    "include": ["src"],
+    "exclude": ["dist", "node_modules"],
+    "references": [
+        { "path": "../config" },
+        { "path": "../core" },
+        { "path": "../logger" },
+        { "path": "../markdown" },
+        { "path": "../templates" },
+        { "path": "../validate" }
+    ]
+}

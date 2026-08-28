@@ -1,0 +1,30 @@
+{
+    "name": "@minimaz/builder-tools",
+    "version": "1.0.0",
+    "description": "Internal esbuild-based bundler for @minimaz/* packages' publish output. Not published.",
+    "private": true,
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc --noEmit"
+    },
+    "author": "",
+    "license": "ISC",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "tools/builder"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/tools/builder#readme",
+    "dependencies": {
+        "esbuild": "0.28.2"
+    }
+}

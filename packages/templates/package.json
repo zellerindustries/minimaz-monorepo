@@ -1,0 +1,39 @@
+{
+    "name": "@minimaz/templates",
+    "version": "0.1.0",
+    "description": "Manages the global ~/.minimaz directory: settings and template storage.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js && node scripts/copy-seeds.mjs",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "templates",
+        "minimaz"
+    ],
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "packages/templates"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/templates#readme",
+    "dependencies": {
+        "@minimaz/core": "^0.1.0",
+        "@minimaz/logger": "^0.1.0"
+    }
+}

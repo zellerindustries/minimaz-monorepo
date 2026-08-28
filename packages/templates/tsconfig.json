@@ -1,0 +1,15 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": "./src",
+        "outDir": "./dist",
+
+        "types": ["node"],
+
+        "composite": true,
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/templates.tsbuildinfo"
+    },
+    "include": ["src"],
+    "exclude": ["dist", "node_modules"],
+    "references": [{ "path": "../core" }, { "path": "../logger" }]
+}

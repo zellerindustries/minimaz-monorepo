@@ -1,0 +1,38 @@
+{
+    "name": "@minimaz/ts",
+    "version": "0.1.0",
+    "description": "TypeScript transpiler (via the typescript compiler).",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "typescript",
+        "minimaz"
+    ],
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "packages/ts"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/ts#readme",
+    "dependencies": {
+        "typescript": "6.0.3"
+    }
+}

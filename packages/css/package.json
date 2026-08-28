@@ -1,0 +1,38 @@
+{
+    "name": "@minimaz/css",
+    "version": "0.1.0",
+    "description": "Dependency-free CSS minifier and @import bundler.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "css",
+        "minimaz"
+    ],
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "packages/css"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/css#readme",
+    "dependencies": {
+        "@minimaz/core": "^0.1.0"
+    }
+}

@@ -1,0 +1,44 @@
+/* =========================================================
+   GENERIC GRID LAYOUT
+========================================================= */
+.grid {
+    display: grid;
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+}
+
+@media (min-width: 700px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.grid-item {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.grid-item:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.grid-item header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-xs);
+}
+
+.grid-item h3 {
+    margin-bottom: var(--space-xs);
+    color: var(--accent);
+}
+
+.grid-item p {
+    color: var(--fg);
+    font-size: 0.95rem;
+}

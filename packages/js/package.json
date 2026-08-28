@@ -1,0 +1,35 @@
+{
+    "name": "@minimaz/js",
+    "version": "0.1.0",
+    "description": "Dependency-free JavaScript minifier.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "javascript",
+        "minimaz"
+    ],
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "packages/js"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/js#readme"
+}

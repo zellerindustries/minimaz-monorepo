@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/root.tsbuildinfo"
+    },
+    "references": [
+        { "path": "./packages/cli" },
+        { "path": "./packages/config" },
+        { "path": "./packages/core" },
+        { "path": "./packages/css" },
+        { "path": "./packages/html" },
+        { "path": "./packages/js" },
+        { "path": "./packages/json" },
+        { "path": "./packages/logger" },
+        { "path": "./packages/markdown" },
+        { "path": "./packages/templates" },
+        { "path": "./packages/ts" },
+        { "path": "./packages/validate" },
+        { "path": "./tools/builder" }
+    ]
+}

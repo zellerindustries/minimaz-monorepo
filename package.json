@@ -1,0 +1,70 @@
+{
+    "name": "minimaz-monorepo",
+    "version": "1.0.0",
+    "description": "Monorepo for the Minimaz ecosystem.",
+    "private": true,
+    "license": "MIT",
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "type": "module",
+    "packageManager": "npm@11.13.0",
+    "engines": {
+        "node": ">=24",
+        "npm": ">=11"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo#readme",
+    "workspaces": [
+        "packages/*",
+        "toolkits/*",
+        "tools/*"
+    ],
+    "scripts": {
+        "build": "tsc -b && node tools/builder/dist/cli.js --all && node packages/templates/scripts/copy-seeds.mjs",
+        "typecheck:watch": "tsc -b --watch",
+        "clean": "tsc -b --clean",
+        "typecheck": "tsc -b",
+        "lint": "eslint --config config/eslint.config.mjs .",
+        "lint:fix": "eslint --config config/eslint.config.mjs . --fix",
+        "format": "prettier --config config/.prettierrc.json --ignore-path config/.prettierignore . --write",
+        "format:check": "prettier --config config/.prettierrc.json --ignore-path config/.prettierignore . --check",
+        "validate": "npm run lint && npm run format:check && npm run typecheck",
+        "test": "vitest run --config config/vitest.config.ts",
+        "changeset": "changeset",
+        "version": "changeset version && npm install --package-lock-only --ignore-scripts",
+        "release": "npm run build && changeset publish",
+        "prepare": "husky"
+    },
+    "devDependencies": {
+        "@changesets/changelog-github": "1.0.0",
+        "@changesets/cli": "3.0.1",
+        "@eslint/js": "10.0.1",
+        "@tsconfig/node24": "24.0.5",
+        "@types/node": "24.13.3",
+        "eslint": "10.9.1",
+        "eslint-config-prettier": "10.1.8",
+        "husky": "9.1.7",
+        "lint-staged": "17.3.0",
+        "prettier": "3.9.6",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.68.0",
+        "vitest": "4.1.11"
+    },
+    "lint-staged": {
+        "*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}": [
+            "eslint --config config/eslint.config.mjs --fix",
+            "prettier --config config/.prettierrc.json --ignore-path config/.prettierignore --write"
+        ],
+        "*.{json,jsonc,yml,yaml,md,mdx,css,scss,html}": [
+            "prettier --config config/.prettierrc.json --ignore-path config/.prettierignore --write"
+        ]
+    },
+    "allowScripts": {
+        "esbuild@0.28.2": true
+    }
+}
