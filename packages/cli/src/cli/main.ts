@@ -39,7 +39,7 @@ async function postInstall(): Promise<void> {
     }
 }
 
-async function main(): Promise<void> {
+export async function runCli(pkgPath?: string): Promise<void> {
     if (process.env['npm_lifecycle_event'] === 'postinstall' && process.argv.length <= 2) {
         await postInstall();
         return;
@@ -56,7 +56,8 @@ async function main(): Promise<void> {
         return;
     }
 
-    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
+    const ownPkgPath =
+        pkgPath ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
     const cwd = process.env['CLI_WORKDIR'] ?? process.cwd();
     const globalDir = getGlobalDir();
     const templatesDir = getTemplatesDir(globalDir);
@@ -65,8 +66,8 @@ async function main(): Promise<void> {
         h: () => {
             help();
         },
-        version: () => version(pkgPath),
-        v: () => version(pkgPath),
+        version: () => version(ownPkgPath),
+        v: () => version(ownPkgPath),
         validate: () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
 
         init: async () => {
@@ -167,4 +168,4 @@ async function main(): Promise<void> {
     }
 }
 
-await main();
+await runCli();
