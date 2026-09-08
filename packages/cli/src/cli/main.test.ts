@@ -1,13 +1,14 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runCli } from './main.js';
 
 describe('runCli', () => {
     let dir: string;
     let originalArgv: string[];
-    let logSpy: ReturnType<typeof vi.spyOn<Console, 'log'>>;
+    let logSpy: Mock;
 
     beforeEach(async () => {
         dir = await mkdtemp(path.join(tmpdir(), 'run-cli-'));

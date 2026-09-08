@@ -1,14 +1,10 @@
 {
     "name": "@minimaz/cli",
     "version": "0.1.0",
-    "description": "minimaz/mz CLI — help, version, validate, init, config, template, docs.",
+    "description": "Command implementations for the minimaz/mz CLI. Not published as a bin itself — see @minimaz/sitekit.",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
-    "bin": {
-        "minimaz": "./dist/cli/main.js",
-        "mz": "./dist/cli/main.js"
-    },
     "files": [
         "dist"
     ],

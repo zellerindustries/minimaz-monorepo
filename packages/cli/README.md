@@ -4,9 +4,13 @@ The `minimaz`/`mz` CLI binary.
 
 ## Install
 
+This package is no longer published as a global bin. Install [`@minimaz/sitekit`](../sitekit) instead:
+
 ```bash
-npm install -g @minimaz/cli
+npm install -g @minimaz/sitekit
 ```
+
+`@minimaz/cli` implements the `minimaz`/`mz` commands as a library; `@minimaz/sitekit` is the published executable that runs them.
 
 ## Commands
 
