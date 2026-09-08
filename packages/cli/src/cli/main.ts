@@ -39,6 +39,14 @@ async function postInstall(): Promise<void> {
     }
 }
 
+/**
+ * Run a minimaz CLI command with an optional override for the package.json path.
+ *
+ * @param pkgPath - Optional path to a package.json file. When provided, the
+ *   `version` command will read from this file instead of @minimaz/cli's own
+ *   package.json. Defaults to @minimaz/cli's package.json when omitted.
+ * @returns Promise that resolves when the command completes
+ */
 export async function runCli(pkgPath?: string): Promise<void> {
     if (process.env['npm_lifecycle_event'] === 'postinstall' && process.argv.length <= 2) {
         await postInstall();

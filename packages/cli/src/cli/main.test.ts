@@ -7,8 +7,7 @@ import { runCli } from './main.js';
 describe('runCli', () => {
     let dir: string;
     let originalArgv: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let logSpy: any;
+    let logSpy: ReturnType<typeof vi.spyOn<Console, 'log'>>;
 
     beforeEach(async () => {
         dir = await mkdtemp(path.join(tmpdir(), 'run-cli-'));
@@ -18,7 +17,6 @@ describe('runCli', () => {
 
     afterEach(async () => {
         process.argv = originalArgv;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         logSpy.mockRestore();
         await rm(dir, { recursive: true, force: true });
     });
