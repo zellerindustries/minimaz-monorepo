@@ -175,5 +175,3 @@ export async function runCli(pkgPath?: string): Promise<void> {
         process.exitCode = 1;
     }
 }
-
-await runCli();
