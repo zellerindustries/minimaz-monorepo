@@ -13,8 +13,7 @@
         "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
         "prepack": "npm run build",
         "dev": "tsx src/cli/main.ts",
-        "typecheck": "tsc --noEmit",
-        "postinstall": "node dist/cli/main.js || exit 0"
+        "typecheck": "tsc --noEmit"
     },
     "keywords": [
         "cli",
