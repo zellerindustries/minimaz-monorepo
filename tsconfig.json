@@ -17,6 +17,7 @@
         { "path": "./packages/templates" },
         { "path": "./packages/ts" },
         { "path": "./packages/validate" },
+        { "path": "./toolkits/sitekit" },
         { "path": "./tools/builder" }
     ]
 }

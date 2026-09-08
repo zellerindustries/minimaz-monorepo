@@ -1,0 +1,42 @@
+{
+    "name": "@minimaz/sitekit",
+    "version": "0.1.0",
+    "description": "The minimaz/mz CLI binary — a published distribution of @minimaz/cli's commands.",
+    "type": "module",
+    "bin": {
+        "minimaz": "./dist/cli/main.js",
+        "mz": "./dist/cli/main.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
+        "prepack": "npm run build",
+        "dev": "tsx src/cli/main.ts",
+        "typecheck": "tsc --noEmit",
+        "postinstall": "node dist/cli/main.js || exit 0"
+    },
+    "keywords": [
+        "cli",
+        "minimaz"
+    ],
+    "author": "Hans Zeller <info@zellerindustries.com>",
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "directory": "toolkits/sitekit"
+    },
+    "bugs": {
+        "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
+    },
+    "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/toolkits/sitekit#readme",
+    "dependencies": {
+        "@minimaz/cli": "^0.1.0"
+    }
+}
