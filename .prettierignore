@@ -1,0 +1,6 @@
+# .gitignore already covers node_modules/, dist/, .claude/, .superpowers/, etc. —
+# Prettier auto-respects .gitignore in addition to this file. These are the few
+# tracked paths that need excluding from formatting on top of that.
+docs/
+.husky
+**/src/seeds/

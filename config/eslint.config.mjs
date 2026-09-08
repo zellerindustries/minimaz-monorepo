@@ -62,7 +62,12 @@ export default defineConfig([
 
         languageOptions: {
             parserOptions: {
-                projectService: true,
+                projectService: {
+                    // Loose root-level *.config.ts files (this monorepo's config/
+                    // convention plus its root re-export shims) aren't part of any
+                    // package's tsconfig project, so they'd otherwise fail to parse.
+                    allowDefaultProject: ['vitest.config.ts', 'config/vitest.config.ts'],
+                },
 
                 tsconfigRootDir: repoRoot,
             },

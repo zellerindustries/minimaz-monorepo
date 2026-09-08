@@ -17,7 +17,9 @@
     --badge-bg: #1e1e1e;
 
     /* Typography */
-    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans:
+        system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        sans-serif;
     --font-mono: "Fira Code", monospace;
 
     /* Layout */
@@ -303,7 +305,6 @@ header img {
     font-size: 0.85rem;
     color: #777;
 }
-
 
 /* =========================================================
    ACCESSIBILITY

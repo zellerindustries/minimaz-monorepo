@@ -16,7 +16,9 @@ export function parseJson(code: string): unknown {
         return JSON.parse(code);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`parseJson: invalid JSON: ${message}`, { cause: error });
+        throw new Error(`parseJson: invalid JSON: ${message}`, {
+            cause: error,
+        });
     }
 }
 

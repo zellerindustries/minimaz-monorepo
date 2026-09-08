@@ -1,15 +1,15 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
     BUNDLE_NAME,
     BUNDLE_SEPARATOR,
     EXTENSIONS,
     loadConfig,
     OUTPUT_DIRS,
-} from '@minimaz/config';
-import type { OutputFormat } from '@minimaz/config';
-import { MdToHtml, MdToPdf } from '@minimaz/markdown';
-import { findMarkdownFiles } from './walk.js';
+} from "@minimaz/config";
+import type { OutputFormat } from "@minimaz/config";
+import { MdToHtml, MdToPdf } from "@minimaz/markdown";
+import { findMarkdownFiles } from "./walk.js";
 
 /*
 Orchestrator described in the original src/core.ts comment: load config,
@@ -29,7 +29,7 @@ async function convertAndWrite(
     await Promise.all(
         formats.map(async (format) => {
             const content =
-                format === 'html'
+                format === "html"
                     ? MdToHtml(markdown, { full: true, title: outputName })
                     : MdToPdf(markdown);
             const outPath = path.join(
@@ -38,7 +38,7 @@ async function convertAndWrite(
                 `${outputName}${EXTENSIONS[format]}`,
             );
             await mkdir(path.dirname(outPath), { recursive: true });
-            await writeFile(outPath, content, 'utf8');
+            await writeFile(outPath, content, "utf8");
         }),
     );
 }
@@ -52,17 +52,25 @@ export async function buildDocs(cwd: string): Promise<void> {
 
     if (config.docs.output.bundle) {
         const contents = await Promise.all(
-            files.map((file): Promise<string> => readFile(file, 'utf8')),
+            files.map((file): Promise<string> => readFile(file, "utf8")),
         );
-        await convertAndWrite(contents.join(BUNDLE_SEPARATOR), BUNDLE_NAME, formats, cwd);
+        await convertAndWrite(
+            contents.join(BUNDLE_SEPARATOR),
+            BUNDLE_NAME,
+            formats,
+            cwd,
+        );
         return;
     }
 
     await Promise.all(
         files.map(async (file) => {
-            const markdown = await readFile(file, 'utf8');
+            const markdown = await readFile(file, "utf8");
             const relative = path.relative(inputDir, file);
-            const outputName = relative.slice(0, relative.length - path.extname(relative).length);
+            const outputName = relative.slice(
+                0,
+                relative.length - path.extname(relative).length,
+            );
             await convertAndWrite(markdown, outputName, formats, cwd);
         }),
     );

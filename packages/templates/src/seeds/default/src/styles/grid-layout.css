@@ -18,7 +18,9 @@
     border: 1px solid var(--border);
     padding: var(--space-md);
     border-radius: var(--radius-md);
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
 }
 
 .grid-item:hover {
