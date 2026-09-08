@@ -1,4 +1,4 @@
-export type Style = "regular" | "bold" | "italic" | "boldItalic";
+export type Style = 'regular' | 'bold' | 'italic' | 'boldItalic';
 
 export interface Word {
     text: string;
@@ -6,7 +6,7 @@ export interface Word {
 }
 
 export interface TextOp {
-    type: "text";
+    type: 'text';
     x: number;
     y: number;
     style: Style;
@@ -15,7 +15,7 @@ export interface TextOp {
 }
 
 export interface LineOp {
-    type: "line";
+    type: 'line';
     x1: number;
     y1: number;
     x2: number;
@@ -30,8 +30,8 @@ export interface Page {
 
 export type Token =
     | {
-          type: "text";
+          type: 'text';
           text: string;
           style: Style;
       }
-    | { type: "break" };
+    | { type: 'break' };

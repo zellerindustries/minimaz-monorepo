@@ -1,5 +1,5 @@
-import type { ValidateMdResult } from "./types.js";
-import { parseMarkdown } from "./parser.js";
+import type { ValidateMdResult } from './types.js';
+import { parseMarkdown } from './parser.js';
 
 /**
  * Lightweight structural validation, not full CommonMark conformance.

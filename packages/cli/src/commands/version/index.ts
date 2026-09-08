@@ -1,1 +1,1 @@
-export { version } from "./main.js";
+export { version } from './main.js';

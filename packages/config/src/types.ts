@@ -1,4 +1,4 @@
-export type OutputFormat = "html" | "pdf";
+export type OutputFormat = 'html' | 'pdf';
 
 export interface DocsInputConfig {
     dir: string;

@@ -8,4 +8,4 @@
  * - info: general runtime information
  * - debug: verbose diagnostic output
  */
-export type LogType = "error" | "warn" | "success" | "info" | "debug";
+export type LogType = 'error' | 'warn' | 'success' | 'info' | 'debug';

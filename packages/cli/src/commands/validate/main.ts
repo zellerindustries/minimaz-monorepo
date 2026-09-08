@@ -1,13 +1,7 @@
-import { extname } from "node:path";
-import { getFileContent, pathExists } from "@minimaz/core";
-import { log } from "@minimaz/logger";
-import {
-    validateCss,
-    validateHtml,
-    validateJs,
-    validateJson,
-    validateTs,
-} from "@minimaz/validate";
+import { extname } from 'node:path';
+import { getFileContent, pathExists } from '@minimaz/core';
+import { log } from '@minimaz/logger';
+import { validateCss, validateHtml, validateJs, validateJson, validateTs } from '@minimaz/validate';
 
 /**
  * Validates a CSS, HTML, JS, TS, or JSON file (dispatched by extension)
@@ -19,7 +13,7 @@ import {
  */
 export async function validate(path: string): Promise<void> {
     if (!path) {
-        throw new Error("validate: --path is required");
+        throw new Error('validate: --path is required');
     }
 
     if (!(await pathExists(path))) {
@@ -30,27 +24,27 @@ export async function validate(path: string): Promise<void> {
     const ext = extname(path).toLowerCase();
 
     switch (ext) {
-        case ".css":
+        case '.css':
             validateCss(content);
             break;
-        case ".html":
-        case ".htm":
+        case '.html':
+        case '.htm':
             validateHtml(content);
             break;
-        case ".js":
-        case ".mjs":
-        case ".cjs":
+        case '.js':
+        case '.mjs':
+        case '.cjs':
             validateJs(content);
             break;
-        case ".ts":
-        case ".mts":
-        case ".cts":
+        case '.ts':
+        case '.mts':
+        case '.cts':
             validateTs(content);
             break;
-        case ".tsx":
+        case '.tsx':
             validateTs(content, { jsx: true });
             break;
-        case ".json":
+        case '.json':
             validateJson(content);
             break;
         default:

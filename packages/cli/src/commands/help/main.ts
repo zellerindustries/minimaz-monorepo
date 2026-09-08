@@ -1,6 +1,6 @@
-import { log } from "@minimaz/logger";
-import { commandsHelp } from "./constants.js";
-import type { CommandHelp } from "./types.js";
+import { log } from '@minimaz/logger';
+import { commandsHelp } from './constants.js';
+import type { CommandHelp } from './types.js';
 
 /**
  * Prints help. With `cmdName`, prints just that command's entry (or a
@@ -19,7 +19,7 @@ export function help(cmdName?: string): void {
         return;
     }
 
-    log.default("Usage:\n");
+    log.default('Usage:\n');
     for (const cmd of Object.values(commandsHelp)) {
         printEntry(cmd);
     }
@@ -28,10 +28,10 @@ export function help(cmdName?: string): void {
 function printEntry(cmd: CommandHelp): void {
     log.default([cmd.usage, `\n\t${cmd.description}`]);
     if (cmd.options) {
-        log.default("\tOptions:");
+        log.default('\tOptions:');
         for (const [opt, desc] of Object.entries(cmd.options)) {
             log.default(`\t\t${opt}\t${desc}`);
         }
     }
-    log.default("");
+    log.default('');
 }

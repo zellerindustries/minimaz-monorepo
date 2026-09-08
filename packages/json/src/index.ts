@@ -1,1 +1,1 @@
-export { formatJson, minifyJson, parseJson } from "./core.js";
+export { formatJson, minifyJson, parseJson } from './core.js';

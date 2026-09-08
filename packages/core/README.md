@@ -11,21 +11,13 @@ npm install @minimaz/core
 ## Usage
 
 ```ts
-import {
-    pathExists,
-    readJsonFile,
-    outputFile,
-    copy,
-    remove,
-} from "@minimaz/core";
+import { pathExists, readJsonFile, outputFile, copy, remove } from '@minimaz/core';
 
-if (await pathExists("minimaz.config.json")) {
-    const config = await readJsonFile<Record<string, unknown>>(
-        "minimaz.config.json",
-    );
+if (await pathExists('minimaz.config.json')) {
+    const config = await readJsonFile<Record<string, unknown>>('minimaz.config.json');
 }
 
-await outputFile("dist/index.html", "<html></html>");
+await outputFile('dist/index.html', '<html></html>');
 ```
 
 ## API

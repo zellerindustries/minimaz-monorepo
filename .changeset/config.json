@@ -3,10 +3,7 @@
     "baseBranch": "main",
     "access": "public",
     "format": "auto",
-    "changelog": [
-        "@changesets/changelog-github",
-        { "repo": "zellerindustries/minimaz-monorepo" }
-    ],
+    "changelog": ["@changesets/changelog-github", { "repo": "zellerindustries/minimaz-monorepo" }],
     "commit": false,
     "ignore": ["@minimaz/builder-tools"],
     "fixed": [],

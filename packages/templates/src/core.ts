@@ -1,5 +1,5 @@
-import { homedir } from "node:os";
-import { fileURLToPath } from "node:url";
+import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import {
     copy,
     dirname,
@@ -9,13 +9,13 @@ import {
     pathExists,
     readJsonFile,
     remove,
-} from "@minimaz/core";
-import { log } from "@minimaz/logger";
-import { InvalidTemplateNameError, TemplateNotFoundError } from "./errors.js";
-import type { Settings } from "./types.js";
+} from '@minimaz/core';
+import { log } from '@minimaz/logger';
+import { InvalidTemplateNameError, TemplateNotFoundError } from './errors.js';
+import type { Settings } from './types.js';
 
 /** Names of the templates bundled with this package and seeded on first `config` run. */
-export const DEFAULT_TEMPLATE_NAMES = ["default", "simple"] as const;
+export const DEFAULT_TEMPLATE_NAMES = ['default', 'simple'] as const;
 
 /**
  * Rejects template names that would escape the templates directory when
@@ -25,13 +25,7 @@ export const DEFAULT_TEMPLATE_NAMES = ["default", "simple"] as const;
  * @throws {InvalidTemplateNameError} If the name is invalid
  */
 function assertValidTemplateName(name: string): void {
-    if (
-        name === "" ||
-        name === "." ||
-        name === ".." ||
-        name.includes("/") ||
-        name.includes("\\")
-    ) {
+    if (name === '' || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
         throw new InvalidTemplateNameError(name);
     }
 }
@@ -42,7 +36,7 @@ function assertValidTemplateName(name: string): void {
  * @returns {string}
  */
 export function getGlobalDir(): string {
-    return join(homedir(), ".minimaz");
+    return join(homedir(), '.minimaz');
 }
 
 /**
@@ -52,7 +46,7 @@ export function getGlobalDir(): string {
  * @returns {string}
  */
 export function getTemplatesDir(globalDir: string): string {
-    return join(globalDir, "templates");
+    return join(globalDir, 'templates');
 }
 
 /**
@@ -63,10 +57,7 @@ export function getTemplatesDir(globalDir: string): string {
  * @returns {Promise<string>}
  * @throws {TemplateNotFoundError} If the template doesn't exist
  */
-export async function getTemplatePath(
-    templatesDir: string,
-    name: string,
-): Promise<string> {
+export async function getTemplatePath(templatesDir: string, name: string): Promise<string> {
     assertValidTemplateName(name);
     const dir = join(templatesDir, name);
 
@@ -92,17 +83,14 @@ export async function writeSettings(
     templatesDir: string,
     overwrite = false,
 ): Promise<void> {
-    const settingsPath = join(globalDir, "settings.json");
+    const settingsPath = join(globalDir, 'settings.json');
     const template: Settings = {
         createdAt: new Date().toISOString(),
         templatesPath: templatesDir,
     };
 
     if (!(await pathExists(settingsPath)) || overwrite) {
-        await outputFile(
-            settingsPath,
-            `${JSON.stringify(template, null, 2)}\n`,
-        );
+        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`);
         log.success(
             overwrite
                 ? `Overwrote settings.json at ${settingsPath}`
@@ -116,11 +104,8 @@ export async function writeSettings(
     try {
         current = await readJsonFile<Partial<Settings>>(settingsPath);
     } catch {
-        log.warn("Failed to read settings.json, recreating from template");
-        await outputFile(
-            settingsPath,
-            `${JSON.stringify(template, null, 2)}\n`,
-        );
+        log.warn('Failed to read settings.json, recreating from template');
+        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`);
         return;
     }
 
@@ -142,9 +127,9 @@ export async function writeSettings(
 
     if (updated) {
         await outputFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
-        log.success("Updated settings.json");
+        log.success('Updated settings.json');
     } else {
-        log.info("settings.json is valid and up-to-date");
+        log.info('settings.json is valid and up-to-date');
     }
 }
 
@@ -163,12 +148,10 @@ export async function seedDefaults(
     templatesDir: string,
     overwrite = false,
 ): Promise<void> {
-    const seedsDir = join(dirname(fileURLToPath(import.meta.url)), "seeds");
+    const seedsDir = join(dirname(fileURLToPath(import.meta.url)), 'seeds');
 
     if (!(await pathExists(seedsDir))) {
-        throw new Error(
-            `Seed templates not found at "${seedsDir}" — run "npm run build" first`,
-        );
+        throw new Error(`Seed templates not found at "${seedsDir}" — run "npm run build" first`);
     }
 
     for (const name of DEFAULT_TEMPLATE_NAMES) {
@@ -182,11 +165,7 @@ export async function seedDefaults(
         }
 
         await copy(src, dest, overwrite);
-        log.success(
-            exists
-                ? `Template "${name}" overwritten`
-                : `Template "${name}" seeded`,
-        );
+        log.success(exists ? `Template "${name}" overwritten` : `Template "${name}" seeded`);
     }
 
     await writeSettings(globalDir, templatesDir, overwrite);
@@ -235,10 +214,7 @@ export async function saveTemplate(
  * @param {string} name - Template name to delete
  * @throws {TemplateNotFoundError} If the template doesn't exist
  */
-export async function deleteTemplate(
-    templatesDir: string,
-    name: string,
-): Promise<void> {
+export async function deleteTemplate(templatesDir: string, name: string): Promise<void> {
     assertValidTemplateName(name);
     const target = join(templatesDir, name);
 

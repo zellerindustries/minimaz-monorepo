@@ -1,1 +1,1 @@
-export { renderPdf } from "./render.js";
+export { renderPdf } from './render.js';

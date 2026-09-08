@@ -1,1 +1,1 @@
-export { validate } from "./main.js";
+export { validate } from './main.js';

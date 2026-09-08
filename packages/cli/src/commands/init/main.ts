@@ -1,19 +1,19 @@
-import { copy, join, outputFile, pathExists, remove } from "@minimaz/core";
-import { log } from "@minimaz/logger";
-import { getTemplatePath } from "@minimaz/templates";
-import { askQuestion } from "../../cli/index.js";
-import { initGit, initNpm } from "./core.js";
-import type { InitCommandOptions } from "./types.js";
+import { copy, join, outputFile, pathExists, remove } from '@minimaz/core';
+import { log } from '@minimaz/logger';
+import { getTemplatePath } from '@minimaz/templates';
+import { askQuestion } from '../../cli/index.js';
+import { initGit, initNpm } from './core.js';
+import type { InitCommandOptions } from './types.js';
 
 const MINIMAZ_CONFIG_TEMPLATE = {
     input: {
-        dir: "./src",
-        mapping: { pages: "", scripts: "", styles: "", public: "" },
+        dir: './src',
+        mapping: { pages: '', scripts: '', styles: '', public: '' },
         externals: {},
         exclude: [],
     },
     output: {
-        dir: "./dist",
+        dir: './dist',
         replace: {},
         css: { bundling: true, minify: true },
         html: { minify: true },
@@ -46,30 +46,23 @@ export async function init(
     log.debug(`Copying template from "${templateDir}" to "${targetDir}"`);
     await copy(templateDir, targetDir);
 
-    const configPath = join(targetDir, "minimaz.config.json");
+    const configPath = join(targetDir, 'minimaz.config.json');
     if (!(await pathExists(configPath))) {
-        log.debug("Initializing minimaz.config.json");
-        await outputFile(
-            configPath,
-            `${JSON.stringify(MINIMAZ_CONFIG_TEMPLATE, null, 2)}\n`,
-        );
+        log.debug('Initializing minimaz.config.json');
+        await outputFile(configPath, `${JSON.stringify(MINIMAZ_CONFIG_TEMPLATE, null, 2)}\n`);
     }
 
     try {
         const useNpm =
             options.npm ??
-            (await askQuestion("Init NPM? [Y/n]:", "y"))
-                .toLowerCase()
-                .startsWith("y");
+            (await askQuestion('Init NPM? [Y/n]:', 'y')).toLowerCase().startsWith('y');
         if (useNpm) {
             await initNpm(targetDir, projectName);
         }
 
         const useGit =
             options.git ??
-            (await askQuestion("Init Git repository? [Y/n]:", "y"))
-                .toLowerCase()
-                .startsWith("y");
+            (await askQuestion('Init Git repository? [Y/n]:', 'y')).toLowerCase().startsWith('y');
         if (useGit) {
             await initGit(projectName, targetDir, options.gitprovider);
         }
@@ -78,7 +71,5 @@ export async function init(
         throw error;
     }
 
-    log.success(
-        `Project "${projectName}" created using template "${options.template}"`,
-    );
+    log.success(`Project "${projectName}" created using template "${options.template}"`);
 }

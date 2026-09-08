@@ -1,4 +1,4 @@
-import type { LogType } from "./types.js";
+import type { LogType } from './types.js';
 
 /* =========================
    PRECOMPUTED PREFIXES
@@ -6,11 +6,11 @@ import type { LogType } from "./types.js";
 ========================= */
 
 export const prefix: Record<LogType, string> = {
-    error: "\x1b[31m[ --- ERROR ----- ]\t\x1b[0m",
-    warn: "\x1b[33m[ --- WARN ------ ]\t\x1b[0m",
-    success: "\x1b[32m[ --- SUCCESS --- ]\t\x1b[0m",
-    info: "\x1b[34m[ --- INFO ------ ]\t\x1b[0m",
-    debug: "\x1b[90m[ --- DEBUG ----- ]\t\x1b[0m",
+    error: '\x1b[31m[ --- ERROR ----- ]\t\x1b[0m',
+    warn: '\x1b[33m[ --- WARN ------ ]\t\x1b[0m',
+    success: '\x1b[32m[ --- SUCCESS --- ]\t\x1b[0m',
+    info: '\x1b[34m[ --- INFO ------ ]\t\x1b[0m',
+    debug: '\x1b[90m[ --- DEBUG ----- ]\t\x1b[0m',
 };
 
 /* =========================
@@ -34,7 +34,7 @@ export function formatTs(date: Date = new Date()): string {
    SMALL HELPERS
 ========================= */
 
-export const isVerbose = (): boolean => process.env["VERBOSE"] === "true";
+export const isVerbose = (): boolean => process.env['VERBOSE'] === 'true';
 
 export function normalize(message: string | string[]): string[] {
     return Array.isArray(message) ? message : [message];
@@ -55,12 +55,12 @@ export function formatContext(context: string): string {
 export function print(type: LogType, message: string, context: string): void {
     const output = prefix[type] + formatContext(context) + message;
 
-    if (type === "error") {
+    if (type === 'error') {
         console.error(output);
         return;
     }
 
-    if (type === "warn") {
+    if (type === 'warn') {
         console.warn(output);
         return;
     }
@@ -74,7 +74,7 @@ export function print(type: LogType, message: string, context: string): void {
 
 export function ts(): string {
     const verbose = isVerbose();
-    if (!verbose) return "";
+    if (!verbose) return '';
     return `[${formatTs()}] `;
 }
 
@@ -98,11 +98,7 @@ export function emit(
     // fast loop (no extra callbacks)
     for (const message of msgs) {
         if (noPrefix) {
-            console.log(
-                verbose
-                    ? `${ts()}[${context}] ${message}`
-                    : `[${context}] ${message}`,
-            );
+            console.log(verbose ? `${ts()}[${context}] ${message}` : `[${context}] ${message}`);
 
             continue;
         }

@@ -11,13 +11,13 @@ npm install @minimaz/logger
 ## Usage
 
 ```ts
-import { createLogger } from "@minimaz/logger";
+import { createLogger } from '@minimaz/logger';
 
-const log = createLogger("build");
+const log = createLogger('build');
 
-log.info("Starting build");
-log.warn("Config field missing, using default");
-log.error("Build failed", { cause: error });
+log.info('Starting build');
+log.warn('Config field missing, using default');
+log.error('Build failed', { cause: error });
 ```
 
 `createLogger(context = 'app')` returns a logger whose output lines are prefixed with a timestamp and the given

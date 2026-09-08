@@ -1,4 +1,4 @@
-import { minify } from "html-minifier-terser";
+import { minify } from 'html-minifier-terser';
 
 /**
  * Minifies HTML via `html-minifier-terser`: collapses whitespace, strips
@@ -14,13 +14,13 @@ import { minify } from "html-minifier-terser";
  * @returns {Promise<string>} Minified HTML, or `''` for empty/whitespace-only input
  */
 export async function minifyHtml(code: string): Promise<string> {
-    if (typeof code !== "string") {
-        throw new Error("minifyHtml: code must be a string");
+    if (typeof code !== 'string') {
+        throw new Error('minifyHtml: code must be a string');
     }
 
     const input = code.trim();
     if (!input) {
-        return "";
+        return '';
     }
 
     try {

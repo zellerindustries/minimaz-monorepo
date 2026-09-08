@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { buildPackage, discoverPackageDirs } from "./core.js";
+import { buildPackage, discoverPackageDirs } from './core.js';
 
 async function main(): Promise<void> {
-    const useAll = process.argv.includes("--all");
+    const useAll = process.argv.includes('--all');
 
     try {
         if (useAll) {
@@ -12,8 +12,7 @@ async function main(): Promise<void> {
                 try {
                     await buildPackage(dir);
                 } catch (error: unknown) {
-                    const message =
-                        error instanceof Error ? error.message : String(error);
+                    const message = error instanceof Error ? error.message : String(error);
                     throw new Error(`${dir}: ${message}`, { cause: error });
                 }
             }

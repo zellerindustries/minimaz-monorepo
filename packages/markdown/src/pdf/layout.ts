@@ -1,10 +1,5 @@
-import {
-    LINE_HEIGHT_RATIO,
-    MARGIN,
-    PAGE_HEIGHT,
-    PAGE_WIDTH,
-} from "./config.js";
-import type { Op, Page, Style, Word } from "./types.js";
+import { LINE_HEIGHT_RATIO, MARGIN, PAGE_HEIGHT, PAGE_WIDTH } from './config.js';
+import type { Op, Page, Style, Word } from './types.js';
 
 /** Courier is fixed-pitch: every glyph is exactly 0.6em wide, at any size. */
 export function charWidth(size: number): number {
@@ -47,7 +42,7 @@ export class LayoutEngine {
             if (word === undefined) continue;
             if (idx > 0) x += cw;
             this.currentOps.push({
-                type: "text",
+                type: 'text',
                 x,
                 y: this.y,
                 style: word.style,
@@ -64,7 +59,7 @@ export class LayoutEngine {
         this.ensureSpace(lineHeight);
         if (text.length > 0) {
             this.currentOps.push({
-                type: "text",
+                type: 'text',
                 x: MARGIN + indent,
                 y: this.y,
                 style,
@@ -87,7 +82,7 @@ export class LayoutEngine {
         this.ensureSpace(h);
         const yPos = this.y - h / 2;
         this.currentOps.push({
-            type: "line",
+            type: 'line',
             x1: MARGIN + indent,
             y1: yPos,
             x2: PAGE_WIDTH - MARGIN,

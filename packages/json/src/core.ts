@@ -8,8 +8,8 @@
  * @returns {unknown} The parsed value
  */
 export function parseJson(code: string): unknown {
-    if (typeof code !== "string") {
-        throw new Error("parseJson: code must be a string");
+    if (typeof code !== 'string') {
+        throw new Error('parseJson: code must be a string');
     }
 
     try {

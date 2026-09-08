@@ -10,14 +10,14 @@
 export function createPkgTemplate(name: string): Record<string, unknown> {
     return {
         name,
-        version: "0.0.1",
-        license: "ISC",
-        type: "commonjs",
+        version: '0.0.1',
+        license: 'ISC',
+        type: 'commonjs',
         scripts: {
-            start: "npx serve dist",
+            start: 'npx serve dist',
         },
         devDependencies: {
-            serve: "latest",
+            serve: 'latest',
         },
     };
 }

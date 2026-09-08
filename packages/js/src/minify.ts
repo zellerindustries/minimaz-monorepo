@@ -1,19 +1,19 @@
 const KEYWORDS_BEFORE_REGEX = new Set([
-    "return",
-    "typeof",
-    "instanceof",
-    "in",
-    "of",
-    "new",
-    "delete",
-    "void",
-    "throw",
-    "yield",
-    "case",
-    "do",
-    "else",
-    "await",
-    "default",
+    'return',
+    'typeof',
+    'instanceof',
+    'in',
+    'of',
+    'new',
+    'delete',
+    'void',
+    'throw',
+    'yield',
+    'case',
+    'do',
+    'else',
+    'await',
+    'default',
 ]);
 
 function isIdentifierPart(char: string): boolean {
@@ -46,11 +46,11 @@ function isIdentifierStart(char: string): boolean {
  * @returns {string} Minified JavaScript
  */
 export function minifyJs(code: string): string {
-    if (typeof code !== "string") {
-        throw new Error("minifyJs: code must be a string");
+    if (typeof code !== 'string') {
+        throw new Error('minifyJs: code must be a string');
     }
 
-    let result = "";
+    let result = '';
     let i = 0;
     const len = code.length;
 
@@ -63,7 +63,7 @@ export function minifyJs(code: string): string {
 
         if (inString) {
             result += char;
-            if (char === "\\" && i + 1 < len) {
+            if (char === '\\' && i + 1 < len) {
                 result += code.charAt(i + 1);
                 i += 2;
                 continue;
@@ -76,25 +76,22 @@ export function minifyJs(code: string): string {
             continue;
         }
 
-        if (
-            templateDepths.length > 0 &&
-            templateDepths[templateDepths.length - 1] === 0
-        ) {
-            if (char === "\\" && i + 1 < len) {
+        if (templateDepths.length > 0 && templateDepths[templateDepths.length - 1] === 0) {
+            if (char === '\\' && i + 1 < len) {
                 result += char + code.charAt(i + 1);
                 i += 2;
                 continue;
             }
-            if (char === "`") {
+            if (char === '`') {
                 templateDepths.pop();
                 result += char;
                 regexAllowed = false;
                 i++;
                 continue;
             }
-            if (char === "$" && code.charAt(i + 1) === "{") {
+            if (char === '$' && code.charAt(i + 1) === '{') {
                 templateDepths[templateDepths.length - 1] = 1;
-                result += "${";
+                result += '${';
                 i += 2;
                 regexAllowed = true;
                 continue;
@@ -111,7 +108,7 @@ export function minifyJs(code: string): string {
             continue;
         }
 
-        if (char === "`") {
+        if (char === '`') {
             templateDepths.push(0);
             result += char;
             i++;
@@ -119,13 +116,12 @@ export function minifyJs(code: string): string {
         }
 
         if (
-            char === "}" &&
+            char === '}' &&
             templateDepths.length > 0 &&
             (templateDepths[templateDepths.length - 1] ?? 0) > 0
         ) {
             const depth = templateDepths[templateDepths.length - 1] ?? 0;
-            templateDepths[templateDepths.length - 1] =
-                depth === 1 ? 0 : depth - 1;
+            templateDepths[templateDepths.length - 1] = depth === 1 ? 0 : depth - 1;
             result += char;
             regexAllowed = false;
             i++;
@@ -133,7 +129,7 @@ export function minifyJs(code: string): string {
         }
 
         if (
-            char === "{" &&
+            char === '{' &&
             templateDepths.length > 0 &&
             (templateDepths[templateDepths.length - 1] ?? 0) > 0
         ) {
@@ -145,15 +141,15 @@ export function minifyJs(code: string): string {
             continue;
         }
 
-        if (char === "/" && !regexAllowed) {
+        if (char === '/' && !regexAllowed) {
             const next = code.charAt(i + 1);
-            if (next === "/") {
-                const end = code.indexOf("\n", i + 2);
+            if (next === '/') {
+                const end = code.indexOf('\n', i + 2);
                 i = end === -1 ? len : end;
                 continue;
             }
-            if (next === "*") {
-                const end = code.indexOf("*/", i + 2);
+            if (next === '*') {
+                const end = code.indexOf('*/', i + 2);
                 i = end === -1 ? len : end + 2;
                 continue;
             }
@@ -163,15 +159,15 @@ export function minifyJs(code: string): string {
             continue;
         }
 
-        if (char === "/" && regexAllowed) {
+        if (char === '/' && regexAllowed) {
             const next = code.charAt(i + 1);
-            if (next === "/") {
-                const end = code.indexOf("\n", i + 2);
+            if (next === '/') {
+                const end = code.indexOf('\n', i + 2);
                 i = end === -1 ? len : end;
                 continue;
             }
-            if (next === "*") {
-                const end = code.indexOf("*/", i + 2);
+            if (next === '*') {
+                const end = code.indexOf('*/', i + 2);
                 i = end === -1 ? len : end + 2;
                 continue;
             }
@@ -179,60 +175,53 @@ export function minifyJs(code: string): string {
             let inClass = false;
             while (j < len) {
                 const c = code.charAt(j);
-                if (c === "\\") {
+                if (c === '\\') {
                     j += 2;
                     continue;
                 }
-                if (c === "[") {
+                if (c === '[') {
                     inClass = true;
-                } else if (c === "]") {
+                } else if (c === ']') {
                     inClass = false;
-                } else if (c === "/" && !inClass) {
+                } else if (c === '/' && !inClass) {
                     break;
-                } else if (c === "\n") {
+                } else if (c === '\n') {
                     break;
                 }
                 j++;
             }
             let flagsEnd = j + 1;
-            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd)))
-                flagsEnd++;
+            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) flagsEnd++;
             result += code.slice(i, Math.min(flagsEnd, len));
             i = Math.min(flagsEnd, len);
             regexAllowed = false;
             continue;
         }
 
-        if (
-            /[0-9]/.test(char) ||
-            (char === "." && /[0-9]/.test(code.charAt(i + 1)))
-        ) {
+        if (/[0-9]/.test(char) || (char === '.' && /[0-9]/.test(code.charAt(i + 1)))) {
             let j = i;
-            if (
-                char === "0" &&
-                (code.charAt(i + 1) === "x" || code.charAt(i + 1) === "X")
-            ) {
+            if (char === '0' && (code.charAt(i + 1) === 'x' || code.charAt(i + 1) === 'X')) {
                 j += 2;
                 while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) j++;
-            } else if (char === "0" && /[bBoO]/.test(code.charAt(i + 1))) {
+            } else if (char === '0' && /[bBoO]/.test(code.charAt(i + 1))) {
                 j += 2;
                 while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
             } else {
                 while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
-                if (code.charAt(j) === ".") {
+                if (code.charAt(j) === '.') {
                     j++;
                     while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
                 }
-                if (code.charAt(j) === "e" || code.charAt(j) === "E") {
+                if (code.charAt(j) === 'e' || code.charAt(j) === 'E') {
                     let k = j + 1;
-                    if (code.charAt(k) === "+" || code.charAt(k) === "-") k++;
+                    if (code.charAt(k) === '+' || code.charAt(k) === '-') k++;
                     if (/[0-9]/.test(code.charAt(k))) {
                         j = k;
                         while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
                     }
                 }
             }
-            if (code.charAt(j) === "n") j++;
+            if (code.charAt(j) === 'n') j++;
             result += code.slice(i, j);
             i = j;
             regexAllowed = false;
@@ -256,15 +245,15 @@ export function minifyJs(code: string): string {
         }
 
         result += char;
-        regexAllowed = !(char === ")" || char === "]");
+        regexAllowed = !(char === ')' || char === ']');
         i++;
     }
 
-    const lines = result.split("\n").map((line) => line.trim());
+    const lines = result.split('\n').map((line) => line.trim());
     const collapsed: string[] = [];
     let previousBlank = false;
     for (const line of lines) {
-        const isBlank = line === "";
+        const isBlank = line === '';
         if (isBlank && previousBlank) {
             continue;
         }
@@ -272,5 +261,5 @@ export function minifyJs(code: string): string {
         previousBlank = isBlank;
     }
 
-    return collapsed.join("\n").trim();
+    return collapsed.join('\n').trim();
 }

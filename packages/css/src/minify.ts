@@ -1,13 +1,7 @@
-const NO_SPACE_CHARS = "{};,";
+const NO_SPACE_CHARS = '{};,';
 
 function isWhitespace(char: string): boolean {
-    return (
-        char === " " ||
-        char === "\t" ||
-        char === "\n" ||
-        char === "\r" ||
-        char === "\f"
-    );
+    return char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f';
 }
 
 /**
@@ -20,22 +14,22 @@ function isWhitespace(char: string): boolean {
  * @returns {string} Minified CSS
  */
 export function minifyCss(code: string): string {
-    if (typeof code !== "string") {
-        throw new Error("minifyCss: code must be a string");
+    if (typeof code !== 'string') {
+        throw new Error('minifyCss: code must be a string');
     }
 
-    let result = "";
+    let result = '';
     let i = 0;
     const len = code.length;
     let inString: '"' | "'" | null = null;
-    let lastNonSpace = "";
+    let lastNonSpace = '';
 
     while (i < len) {
         const char = code.charAt(i);
 
         if (inString) {
             result += char;
-            if (char === "\\" && i + 1 < len) {
+            if (char === '\\' && i + 1 < len) {
                 result += code.charAt(i + 1);
                 i += 2;
                 continue;
@@ -55,8 +49,8 @@ export function minifyCss(code: string): string {
             continue;
         }
 
-        if (char === "/" && code.charAt(i + 1) === "*") {
-            const end = code.indexOf("*/", i + 2);
+        if (char === '/' && code.charAt(i + 1) === '*') {
+            const end = code.indexOf('*/', i + 2);
             i = end === -1 ? len : end + 2;
             continue;
         }
@@ -64,23 +58,22 @@ export function minifyCss(code: string): string {
         if (isWhitespace(char)) {
             let j = i;
             while (j < len && isWhitespace(code.charAt(j))) j++;
-            const nextChar: string | undefined =
-                j < len ? code.charAt(j) : undefined;
+            const nextChar: string | undefined = j < len ? code.charAt(j) : undefined;
 
             const removeEntirely =
-                lastNonSpace === "" ||
+                lastNonSpace === '' ||
                 NO_SPACE_CHARS.includes(lastNonSpace) ||
-                lastNonSpace === ":" ||
+                lastNonSpace === ':' ||
                 (nextChar !== undefined && NO_SPACE_CHARS.includes(nextChar));
 
             if (nextChar !== undefined && !removeEntirely) {
-                result += " ";
+                result += ' ';
             }
             i = j;
             continue;
         }
 
-        if (char === "}" && result.endsWith(";")) {
+        if (char === '}' && result.endsWith(';')) {
             result = result.slice(0, -1);
         }
 

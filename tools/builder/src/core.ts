@@ -1,7 +1,7 @@
-import { build } from "esbuild";
-import { readdir, readFile, rm, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
-import type { EntryPoint, PackageManifest } from "./types.js";
+import { build } from 'esbuild';
+import { readdir, readFile, rm, stat } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import type { EntryPoint, PackageManifest } from './types.js';
 
 /**
  * Resolves a package's real esbuild entry points from its `main`/`bin`
@@ -14,17 +14,14 @@ import type { EntryPoint, PackageManifest } from "./types.js";
  * @param {string} packageDir - Absolute path to the package directory
  * @returns {EntryPoint[]}
  */
-export function resolveEntryPoints(
-    manifest: PackageManifest,
-    packageDir: string,
-): EntryPoint[] {
+export function resolveEntryPoints(manifest: PackageManifest, packageDir: string): EntryPoint[] {
     const distPaths = new Set<string>();
 
     if (manifest.main !== undefined) {
         distPaths.add(manifest.main);
     }
 
-    if (typeof manifest.bin === "string") {
+    if (typeof manifest.bin === 'string') {
         distPaths.add(manifest.bin);
     } else if (manifest.bin !== undefined) {
         for (const binPath of Object.values(manifest.bin)) {
@@ -33,20 +30,18 @@ export function resolveEntryPoints(
     }
 
     return [...distPaths].map((distPath) => {
-        const normalized = distPath.replace(/^\.\//, "");
+        const normalized = distPath.replace(/^\.\//, '');
 
-        if (!normalized.startsWith("dist/") || !normalized.endsWith(".js")) {
+        if (!normalized.startsWith('dist/') || !normalized.endsWith('.js')) {
             throw new Error(
                 `Cannot resolve entry point "${distPath}" - expected a "dist/*.js" path`,
             );
         }
 
-        const srcRelative = normalized
-            .slice("dist/".length)
-            .replace(/\.js$/, ".ts");
+        const srcRelative = normalized.slice('dist/'.length).replace(/\.js$/, '.ts');
 
         return {
-            srcPath: join(packageDir, "src", srcRelative),
+            srcPath: join(packageDir, 'src', srcRelative),
             outfile: join(packageDir, normalized),
         };
     });
@@ -63,7 +58,7 @@ export function resolveExternals(manifest: PackageManifest): string[] {
     return [
         ...Object.keys(manifest.dependencies ?? {}),
         ...Object.keys(manifest.devDependencies ?? {}),
-        "node:*",
+        'node:*',
     ];
 }
 
@@ -77,9 +72,7 @@ export function resolveExternals(manifest: PackageManifest): string[] {
  * @param {string} distDir - Absolute path to the package's `dist` directory
  * @returns {Promise<boolean>} Whether any file was deleted
  */
-export async function cleanupTestDeclarations(
-    distDir: string,
-): Promise<boolean> {
+export async function cleanupTestDeclarations(distDir: string): Promise<boolean> {
     let entries: string[];
 
     try {
@@ -119,10 +112,7 @@ export async function cleanupTestDeclarations(
  * @param {string} packageDir - Absolute path to the package directory
  */
 export async function buildPackage(packageDir: string): Promise<void> {
-    const manifestRaw = await readFile(
-        join(packageDir, "package.json"),
-        "utf8",
-    );
+    const manifestRaw = await readFile(join(packageDir, 'package.json'), 'utf8');
     const manifest = JSON.parse(manifestRaw) as PackageManifest;
 
     const entryPoints = resolveEntryPoints(manifest, packageDir);
@@ -134,26 +124,24 @@ export async function buildPackage(packageDir: string): Promise<void> {
             outfile: entry.outfile,
             bundle: true,
             minify: true,
-            platform: "node",
-            format: "esm",
+            platform: 'node',
+            format: 'esm',
             sourcemap: false,
             treeShaking: true,
-            legalComments: "none",
-            target: "node24",
+            legalComments: 'none',
+            target: 'node24',
             external,
         });
     }
 
-    const deletedTestDeclarations = await cleanupTestDeclarations(
-        join(packageDir, "dist"),
-    );
+    const deletedTestDeclarations = await cleanupTestDeclarations(join(packageDir, 'dist'));
 
     if (deletedTestDeclarations) {
         const tsBuildInfoPath = join(
             packageDir,
-            "node_modules",
-            ".cache",
-            "tsc",
+            'node_modules',
+            '.cache',
+            'tsc',
             `${basename(packageDir)}.tsbuildinfo`,
         );
 
@@ -170,7 +158,7 @@ export async function buildPackage(packageDir: string): Promise<void> {
  * @returns {Promise<string[]>}
  */
 export async function discoverPackageDirs(repoRoot: string): Promise<string[]> {
-    const groups = ["packages", "toolkits"];
+    const groups = ['packages', 'toolkits'];
     const dirs: string[] = [];
 
     for (const group of groups) {
@@ -180,11 +168,7 @@ export async function discoverPackageDirs(repoRoot: string): Promise<string[]> {
         try {
             entries = await readdir(groupDir, { withFileTypes: true });
         } catch (error: unknown) {
-            if (
-                error instanceof Error &&
-                "code" in error &&
-                error.code === "ENOENT"
-            ) {
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
                 continue;
             }
 
