@@ -161,7 +161,10 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
                 bqLines.push((lines[i] ?? '').replace(/^ {0,3}> ?/, ''));
                 i++;
             }
-            blocks.push({ type: 'blockquote', children: parseBlocks(bqLines, bqStart, errors) });
+            blocks.push({
+                type: 'blockquote',
+                children: parseBlocks(bqLines, bqStart, errors),
+            });
             continue;
         }
 
@@ -197,7 +200,9 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
                 ) {
                     itemLines.pop();
                 }
-                items.push({ children: parseBlocks(itemLines, itemStart, errors) });
+                items.push({
+                    children: parseBlocks(itemLines, itemStart, errors),
+                });
             }
             blocks.push({ type: 'list', ordered, start: marker.start, items });
             continue;
@@ -212,7 +217,10 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
             paraLines.push(lines[i] ?? '');
             i++;
         }
-        blocks.push({ type: 'paragraph', children: parseInline(joinParagraphLines(paraLines)) });
+        blocks.push({
+            type: 'paragraph',
+            children: parseInline(joinParagraphLines(paraLines)),
+        });
     }
 
     return blocks;

@@ -46,7 +46,11 @@ function flattenInline(nodes: Inline[], style: Style): Token[] {
     for (const node of nodes) {
         switch (node.type) {
             case 'text':
-                out.push({ type: 'text', text: sanitizeText(node.value), style });
+                out.push({
+                    type: 'text',
+                    text: sanitizeText(node.value),
+                    style,
+                });
                 break;
             case 'strong':
                 out.push(...flattenInline(node.children, combine(style, 'bold')));
@@ -55,11 +59,19 @@ function flattenInline(nodes: Inline[], style: Style): Token[] {
                 out.push(...flattenInline(node.children, combine(style, 'italic')));
                 break;
             case 'inlineCode':
-                out.push({ type: 'text', text: sanitizeText(node.value), style });
+                out.push({
+                    type: 'text',
+                    text: sanitizeText(node.value),
+                    style,
+                });
                 break;
             case 'link':
                 out.push(...flattenInline(node.children, style));
-                out.push({ type: 'text', text: sanitizeText(` (${node.url})`), style });
+                out.push({
+                    type: 'text',
+                    text: sanitizeText(` (${node.url})`),
+                    style,
+                });
                 break;
             case 'image':
                 out.push({

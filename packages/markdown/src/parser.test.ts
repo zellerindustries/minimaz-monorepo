@@ -5,23 +5,41 @@ describe('parseMarkdown', () => {
     it('parses ATX headings of all levels', () => {
         const { document } = parseMarkdown('# One\n## Two\n### Three');
         expect(document.children).toEqual([
-            { type: 'heading', level: 1, children: [{ type: 'text', value: 'One' }] },
-            { type: 'heading', level: 2, children: [{ type: 'text', value: 'Two' }] },
-            { type: 'heading', level: 3, children: [{ type: 'text', value: 'Three' }] },
+            {
+                type: 'heading',
+                level: 1,
+                children: [{ type: 'text', value: 'One' }],
+            },
+            {
+                type: 'heading',
+                level: 2,
+                children: [{ type: 'text', value: 'Two' }],
+            },
+            {
+                type: 'heading',
+                level: 3,
+                children: [{ type: 'text', value: 'Three' }],
+            },
         ]);
     });
 
     it('parses a simple paragraph', () => {
         const { document } = parseMarkdown('Hello world.');
         expect(document.children).toEqual([
-            { type: 'paragraph', children: [{ type: 'text', value: 'Hello world.' }] },
+            {
+                type: 'paragraph',
+                children: [{ type: 'text', value: 'Hello world.' }],
+            },
         ]);
     });
 
     it('joins wrapped paragraph lines with a soft break rendered as a space', () => {
         const { document } = parseMarkdown('Line one\nline two.');
         expect(document.children).toEqual([
-            { type: 'paragraph', children: [{ type: 'text', value: 'Line one line two.' }] },
+            {
+                type: 'paragraph',
+                children: [{ type: 'text', value: 'Line one line two.' }],
+            },
         ]);
     });
 
@@ -45,14 +63,23 @@ describe('parseMarkdown', () => {
             {
                 type: 'paragraph',
                 children: [
-                    { type: 'strong', children: [{ type: 'text', value: 'bold' }] },
+                    {
+                        type: 'strong',
+                        children: [{ type: 'text', value: 'bold' }],
+                    },
                     { type: 'text', value: ' and ' },
-                    { type: 'emphasis', children: [{ type: 'text', value: 'italic' }] },
+                    {
+                        type: 'emphasis',
+                        children: [{ type: 'text', value: 'italic' }],
+                    },
                     { type: 'text', value: ' and ' },
                     {
                         type: 'strong',
                         children: [
-                            { type: 'emphasis', children: [{ type: 'text', value: 'both' }] },
+                            {
+                                type: 'emphasis',
+                                children: [{ type: 'text', value: 'both' }],
+                            },
                         ],
                     },
                 ],
@@ -63,7 +90,10 @@ describe('parseMarkdown', () => {
     it('does not treat underscores inside a word as emphasis', () => {
         const { document } = parseMarkdown('snake_case_var');
         expect(document.children).toEqual([
-            { type: 'paragraph', children: [{ type: 'text', value: 'snake_case_var' }] },
+            {
+                type: 'paragraph',
+                children: [{ type: 'text', value: 'snake_case_var' }],
+            },
         ]);
     });
 
@@ -99,7 +129,10 @@ describe('parseMarkdown', () => {
             {
                 type: 'blockquote',
                 children: [
-                    { type: 'paragraph', children: [{ type: 'text', value: 'quoted text' }] },
+                    {
+                        type: 'paragraph',
+                        children: [{ type: 'text', value: 'quoted text' }],
+                    },
                 ],
             },
         ]);
@@ -115,17 +148,26 @@ describe('parseMarkdown', () => {
                 items: [
                     {
                         children: [
-                            { type: 'paragraph', children: [{ type: 'text', value: 'one' }] },
+                            {
+                                type: 'paragraph',
+                                children: [{ type: 'text', value: 'one' }],
+                            },
                         ],
                     },
                     {
                         children: [
-                            { type: 'paragraph', children: [{ type: 'text', value: 'two' }] },
+                            {
+                                type: 'paragraph',
+                                children: [{ type: 'text', value: 'two' }],
+                            },
                         ],
                     },
                     {
                         children: [
-                            { type: 'paragraph', children: [{ type: 'text', value: 'three' }] },
+                            {
+                                type: 'paragraph',
+                                children: [{ type: 'text', value: 'three' }],
+                            },
                         ],
                     },
                 ],
@@ -168,7 +210,12 @@ describe('parseMarkdown', () => {
                         children: [{ type: 'text', value: 'text' }],
                     },
                     { type: 'text', value: ' and ' },
-                    { type: 'image', url: 'img.png', alt: 'alt', title: undefined },
+                    {
+                        type: 'image',
+                        url: 'img.png',
+                        alt: 'alt',
+                        title: undefined,
+                    },
                 ],
             },
         ]);
@@ -182,7 +229,10 @@ describe('parseMarkdown', () => {
     it('unescapes backslash-escaped punctuation', () => {
         const { document } = parseMarkdown('\\*not emphasis\\*');
         expect(document.children).toEqual([
-            { type: 'paragraph', children: [{ type: 'text', value: '*not emphasis*' }] },
+            {
+                type: 'paragraph',
+                children: [{ type: 'text', value: '*not emphasis*' }],
+            },
         ]);
     });
 });

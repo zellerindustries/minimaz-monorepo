@@ -39,6 +39,8 @@ export async function minifyHtml(code: string): Promise<string> {
         });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`minifyHtml: failed to minify HTML: ${message}`, { cause: error });
+        throw new Error(`minifyHtml: failed to minify HTML: ${message}`, {
+            cause: error,
+        });
     }
 }

@@ -32,7 +32,12 @@ export type Inline =
     | { type: 'strong'; children: Inline[] }
     | { type: 'emphasis'; children: Inline[] }
     | { type: 'inlineCode'; value: string }
-    | { type: 'link'; url: string; title: string | undefined; children: Inline[] }
+    | {
+          type: 'link';
+          url: string;
+          title: string | undefined;
+          children: Inline[];
+      }
     | { type: 'image'; url: string; alt: string; title: string | undefined }
     | { type: 'break' };
 
@@ -45,7 +50,12 @@ export type Block =
     | { type: 'paragraph'; children: Inline[] }
     | { type: 'code'; lang: string | undefined; content: string }
     | { type: 'blockquote'; children: Block[] }
-    | { type: 'list'; ordered: boolean; start: number | undefined; items: ListItem[] }
+    | {
+          type: 'list';
+          ordered: boolean;
+          start: number | undefined;
+          items: ListItem[];
+      }
     | { type: 'thematicBreak' };
 
 export interface Document {
