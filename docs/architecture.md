@@ -8,21 +8,22 @@ document is about how the pieces work, not which ones exist yet.
 
 ```txt
 packages/     @minimaz/* library packages — published, independently versioned
+toolkits/     @minimaz/sitekit — the published minimaz/mz bin, wrapping @minimaz/cli
 tools/        internal, never-published workspace packages that support the build itself (builder)
 config/       shared eslint/prettier/vitest config, kept out of the workspace root on purpose
 docs/         this documentation
 .claude/      status.md / migration.md (internal working ledgers) and superpowers/ design specs and plans
 ```
 
-There is no `toolkits/` directory anymore. `site-builder` and `docs-builder` used to live there as separate
-binaries but were folded into `@minimaz/cli` and retired; `package.json`'s `workspaces` array and
-`config/vitest.config.ts`'s test-include globs still list a `toolkits/*` pattern in case a toolkit package
-reappears, but it currently matches nothing.
+`toolkits/` holds one package today, `@minimaz/sitekit` — a bin-only passthrough that publishes `minimaz`/`mz`
+and wraps `@minimaz/cli`'s `runCli()`. `site-builder` and `docs-builder` used to live there as separate binaries
+but were folded into `@minimaz/cli` and retired before `sitekit` took their place.
 
 ## Package dependency graph
 
 ```txt
-@minimaz/cli (the minimaz/mz bin)
+@minimaz/sitekit (the minimaz/mz bin) → @minimaz/cli
+@minimaz/cli (library implementing the minimaz/mz commands)
   → @minimaz/core, @minimaz/logger, @minimaz/config, @minimaz/markdown, @minimaz/templates, @minimaz/validate
 @minimaz/config    → @minimaz/json
 @minimaz/html      → @minimaz/validate
@@ -90,14 +91,16 @@ before assuming the two are unified.
 
 ## The CLI
 
-`@minimaz/cli` provides the `minimaz`/`mz` binary: `help`, `version`, `validate`, `init`, `config`, `template`,
-and `docs` — full `minimaz-cli` command-name parity except `build`/`clear`, which are blocked on JS
+`@minimaz/cli` implements the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`,
+`template`, and `docs` — full `minimaz-cli` command-name parity except `build`/`clear`, which are blocked on JS
 dependency-graph bundling (deferred out of `@minimaz/js`/`@minimaz/ts` — real module resolution is a much bigger
-undertaking than CSS's `@import` text-inlining). See each package's own README, or run `minimaz help`, for
-per-command usage.
+undertaking than CSS's `@import` text-inlining). `@minimaz/sitekit` is the actual published `minimaz`/`mz`
+binary — a thin passthrough that calls `@minimaz/cli`'s exported `runCli()`. See each package's own README, or
+run `minimaz help`, for per-command usage.
 
-`@minimaz/cli` runs `config(false)` on `npm postinstall` to bootstrap `~/.minimaz/` (global settings + bundled
-templates) on install, wrapped so a postinstall failure never fails the install itself.
+`@minimaz/sitekit` runs `config(false)` on `npm postinstall` to bootstrap `~/.minimaz/` (global settings + bundled
+templates) on install, wrapped so a postinstall failure never fails the install itself. `@minimaz/cli` no longer
+has its own postinstall script — it isn't published with a bin, so there's nothing for it to bootstrap.
 
 Every function ported from `minimaz-cli` fixes a silent-failure bug found in the original rather than replicating
 it (swallowed validation errors, wrong version reporting, unknown commands exiting 0, minifiers silently falling
@@ -116,8 +119,8 @@ is built from:
 );
 ```
 
-`toolkits/*` and `app/src` currently match nothing (`passWithNoTests` keeps that harmless), kept for when either
-reappears.
+`toolkits/*` now matches `@minimaz/sitekit`; `app/src` still matches nothing (`passWithNoTests` keeps that
+harmless).
 
 ## Releases
 

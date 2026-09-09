@@ -1,10 +1,10 @@
 # @minimaz/cli
 
-The `minimaz`/`mz` CLI binary.
+The library implementing the `minimaz`/`mz` commands.
 
 ## Install
 
-This package is no longer published as a global bin. Install [`@minimaz/sitekit`](../sitekit) instead:
+This package is no longer published as a global bin. Install [`@minimaz/sitekit`](../../toolkits/sitekit) instead:
 
 ```bash
 npm install -g @minimaz/sitekit
@@ -29,7 +29,8 @@ minimaz docs <init|build>
   skip their respective interactive prompts; `--gitprovider` accepts `local`, `github`, `gitlab`, or a remote URL
   (GitHub/GitLab remote creation requires `gh`/`glab` to be installed).
 - `config` — seed (or `--overwrite` to re-seed) the global `~/.minimaz` directory with default templates and
-  settings. Also runs automatically (non-fatally) on `npm postinstall`.
+  settings. `@minimaz/sitekit` (the bin that wraps this package) runs it automatically (non-fatally) on
+  `npm postinstall`.
 - `template` — manage global templates at `~/.minimaz/templates`: `--list`, `--delete=<name>`, `--update[=<name>]`
   (omit the name to re-seed all templates from the package's bundled defaults), or save the current/given folder
   as a new template by default. Destructive actions prompt for confirmation.

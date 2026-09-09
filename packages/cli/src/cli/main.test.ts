@@ -31,4 +31,17 @@ describe('runCli', () => {
 
         expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('9.9.9'));
     });
+
+    it('has no side effect from merely being imported', async () => {
+        process.argv = ['node', 'main.js', 'this-command-does-not-exist'];
+        const { runCli: importedRunCli } = await import('../index.js');
+
+        expect(importedRunCli).toBe(runCli);
+        expect(logSpy).not.toHaveBeenCalled();
+        // If the old bug were present (a trailing top-level `await runCli()` in
+        // main.ts), importing the barrel above would have already run the CLI
+        // with process.argv as captured at module load time, producing a stray
+        // "Unknown command" error before this test body even runs. Reaching
+        // this assertion with no log output is the regression guard.
+    });
 });

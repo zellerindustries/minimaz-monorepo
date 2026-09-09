@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { log } from '@minimaz/logger';
 import { getGlobalDir, getTemplatesDir } from '@minimaz/templates';
 import {
@@ -40,14 +39,13 @@ async function postInstall(): Promise<void> {
 }
 
 /**
- * Run a minimaz CLI command with an optional override for the package.json path.
+ * Run a minimaz CLI command.
  *
- * @param pkgPath - Optional path to a package.json file. When provided, the
- *   `version` command will read from this file instead of @minimaz/cli's own
- *   package.json. Defaults to @minimaz/cli's package.json when omitted.
+ * @param pkgPath - Path to a package.json file; the `version` command reads
+ *   from this file.
  * @returns Promise that resolves when the command completes
  */
-export async function runCli(pkgPath?: string): Promise<void> {
+export async function runCli(pkgPath: string): Promise<void> {
     if (process.env['npm_lifecycle_event'] === 'postinstall' && process.argv.length <= 2) {
         await postInstall();
         return;
@@ -64,8 +62,6 @@ export async function runCli(pkgPath?: string): Promise<void> {
         return;
     }
 
-    const ownPkgPath =
-        pkgPath ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
     const cwd = process.env['CLI_WORKDIR'] ?? process.cwd();
     const globalDir = getGlobalDir();
     const templatesDir = getTemplatesDir(globalDir);
@@ -74,8 +70,8 @@ export async function runCli(pkgPath?: string): Promise<void> {
         h: () => {
             help();
         },
-        version: () => version(ownPkgPath),
-        v: () => version(ownPkgPath),
+        version: () => version(pkgPath),
+        v: () => version(pkgPath),
         validate: () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
 
         init: async () => {

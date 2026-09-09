@@ -50,13 +50,14 @@ gathered in a separate test package.
 
 ## Trying the CLI locally
 
-`@minimaz/cli` builds to `packages/cli/dist/cli/main.js` (the `minimaz`/`mz` bin entry). After `npm run build`,
-run it directly with Node, or `npm link` the package to get the `minimaz`/`mz` commands on your `PATH`:
+`@minimaz/sitekit` builds to `toolkits/sitekit/dist/cli/main.js` (the `minimaz`/`mz` bin entry, wrapping
+`@minimaz/cli`'s commands). After `npm run build`, run it directly with Node, or `npm link` the package to get the
+`minimaz`/`mz` commands on your `PATH`:
 
 ```bash
-node packages/cli/dist/cli/main.js help
+node toolkits/sitekit/dist/cli/main.js help
 # or
-npm link --workspace=@minimaz/cli
+npm link --workspace=@minimaz/sitekit
 minimaz help
 ```
 
