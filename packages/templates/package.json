@@ -34,6 +34,7 @@
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/templates#readme",
     "dependencies": {
         "@minimaz/core": "^0.1.0",
+        "@minimaz/errors": "^0.1.0",
         "@minimaz/logger": "^0.1.0"
     }
 }

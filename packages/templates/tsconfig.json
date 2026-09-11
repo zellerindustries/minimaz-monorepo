@@ -11,5 +11,5 @@
     },
     "include": ["src"],
     "exclude": ["dist", "node_modules"],
-    "references": [{ "path": "../core" }, { "path": "../logger" }]
+    "references": [{ "path": "../core" }, { "path": "../errors" }, { "path": "../logger" }]
 }
