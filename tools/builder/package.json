@@ -30,6 +30,7 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/tools/builder#readme",
     "dependencies": {
+        "@minimaz/errors": "^0.1.0",
         "esbuild": "0.28.2"
     }
 }

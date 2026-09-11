@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { KnownError } from '@minimaz/errors';
 import { parseJson } from '@minimaz/json';
 import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js';
 
@@ -33,7 +34,7 @@ export const DEFAULT_BUILD_CONFIG: BuildConfig = {
 };
 
 /** Thrown by `loadConfig` when `minimaz.config.json` is missing from the target directory. */
-export class ConfigNotFoundError extends Error {
+export class ConfigNotFoundError extends KnownError {
     /**
      * @param {string} configPath - Absolute path where the config file was expected.
      */

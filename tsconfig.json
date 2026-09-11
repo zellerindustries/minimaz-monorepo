@@ -9,6 +9,7 @@
         { "path": "./packages/config" },
         { "path": "./packages/core" },
         { "path": "./packages/css" },
+        { "path": "./packages/errors" },
         { "path": "./packages/html" },
         { "path": "./packages/js" },
         { "path": "./packages/json" },

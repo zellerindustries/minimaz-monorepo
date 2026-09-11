@@ -40,6 +40,7 @@
     "dependencies": {
         "@minimaz/config": "^0.1.0",
         "@minimaz/core": "^0.1.0",
+        "@minimaz/errors": "^0.1.0",
         "@minimaz/logger": "^0.1.0",
         "@minimaz/markdown": "^0.1.0",
         "@minimaz/templates": "^0.1.0",

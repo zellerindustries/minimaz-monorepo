@@ -14,6 +14,7 @@
     "references": [
         { "path": "../config" },
         { "path": "../core" },
+        { "path": "../errors" },
         { "path": "../logger" },
         { "path": "../markdown" },
         { "path": "../templates" },

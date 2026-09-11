@@ -38,6 +38,7 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/config#readme",
     "dependencies": {
+        "@minimaz/errors": "^0.1.0",
         "@minimaz/json": "^0.1.0"
     }
 }
