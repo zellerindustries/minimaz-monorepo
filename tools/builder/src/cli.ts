@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildPackage, discoverPackageDirs } from './core.js';
+import { handleCliError } from '@minimaz/errors';
 
 async function main(): Promise<void> {
     const useAll = process.argv.includes('--all');
@@ -20,9 +21,7 @@ async function main(): Promise<void> {
             await buildPackage(process.cwd());
         }
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`[builder] ${message}`);
-        process.exitCode = 1;
+        handleCliError(error);
     }
 }
 
