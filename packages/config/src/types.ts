@@ -1,3 +1,4 @@
+/** Output format the `docs` command can render to. */
 export type OutputFormat = 'html' | 'pdf';
 
 export interface DocsInputConfig {
@@ -9,6 +10,7 @@ export interface DocsOutputConfig {
     formats: OutputFormat[];
 }
 
+/** The `docs` section of `minimaz.config.json`, defaulted by `parseDocsConfig`/`DEFAULT_CONFIG`. */
 export interface DocsConfig {
     docs: {
         input: DocsInputConfig;
@@ -16,6 +18,7 @@ export interface DocsConfig {
     };
 }
 
+/** Bundling/minify toggle shared by the CSS and JS build-output options. */
 export interface BuildBundleOptions {
     bundling: boolean;
     minify: boolean;
@@ -36,11 +39,13 @@ export interface BuildOutputConfig {
     js: BuildBundleOptions;
 }
 
+/** The build (`input`/`output`) section of `minimaz.config.json`, defaulted by `parseBuildConfig`/`DEFAULT_BUILD_CONFIG`. */
 export interface BuildConfig {
     input: BuildInputConfig;
     output: BuildOutputConfig;
 }
 
+/** Full config shape `loadConfig` returns: `docs` and build sections are both always present, independently defaulted. */
 export interface MinimazConfig extends DocsConfig, BuildConfig {}
 
 /** Shape of the untrusted JSON parsed from `minimaz.config.json`, before defaults are filled in and validated. */

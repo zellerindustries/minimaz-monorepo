@@ -1,9 +1,13 @@
+/** Options controlling `renderHtml`/`MdToHtml` output. */
 export interface RenderHtmlOptions {
+    /** Render a full `<html>` document instead of a bare fragment. */
     full?: boolean;
 
+    /** Page `<title>`, used only when `full` is true. */
     title?: string;
 }
 
+/** Result of `validateMd`: whether the input is valid, and any errors found. */
 export interface ValidateMdResult {
     valid: boolean;
     errors: string[];

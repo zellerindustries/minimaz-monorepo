@@ -222,6 +222,13 @@ function buildContentStream(ops: Op[]): string {
     return parts.join('\n');
 }
 
+/**
+ * Renders the shared Markdown AST directly to PDF bytes (see the module-level comment
+ * above for scope/limitations).
+ *
+ * @param {Document} document - Parsed Markdown document
+ * @returns {string} Complete PDF file contents as a byte string
+ */
 export function renderPdf(document: Document): string {
     const engine = new LayoutEngine();
     for (const block of document.children) {

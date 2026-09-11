@@ -67,6 +67,8 @@ export async function init(
             await initGit(projectName, targetDir, options.gitprovider);
         }
     } catch (error) {
+        // Roll back the partially-scaffolded directory so a failed npm/git step
+        // doesn't leave a half-created project behind for the user to clean up.
         await remove(targetDir);
         throw error;
     }

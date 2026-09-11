@@ -4,14 +4,15 @@ import { parseJson } from '@minimaz/json';
 import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js';
 
 /*
-Loads config the way src/core.ts's original comment described (loadConfig
-"from minimaz/core"), except minimaz isn't a published dependency yet. This
-is a local stand-in, not a reimplementation of minimaz/core under another
-name — swap it for the real thing once that package exists.
+This module understands both the docs-builder config shape (`docs.input`/
+`docs.output`) and the build-oriented shape (`input`/`output`) ported from
+minimaz-cli — see `loadConfig` below for how the two are merged.
 */
 
+/** Filename `loadConfig` looks for in the project's `cwd`. */
 export const CONFIG_FILE_NAME = 'minimaz.config.json';
 
+/** Defaults for the `docs` section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const DEFAULT_CONFIG: DocsConfig = {
     docs: {
         input: { dir: 'docs' },
@@ -19,6 +20,7 @@ export const DEFAULT_CONFIG: DocsConfig = {
     },
 };
 
+/** Defaults for the build (`input`/`output`) section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const DEFAULT_BUILD_CONFIG: BuildConfig = {
     input: { dir: './src', mapping: {}, externals: {}, exclude: [] },
     output: {
@@ -30,7 +32,11 @@ export const DEFAULT_BUILD_CONFIG: BuildConfig = {
     },
 };
 
+/** Thrown by `loadConfig` when `minimaz.config.json` is missing from the target directory. */
 export class ConfigNotFoundError extends Error {
+    /**
+     * @param {string} configPath - Absolute path where the config file was expected.
+     */
     constructor(configPath: string) {
         super(`No config file found at ${configPath}. Run "minimaz docs init" first.`);
         this.name = 'ConfigNotFoundError';
@@ -95,7 +101,15 @@ function parseConfig(raw: unknown): MinimazConfig {
     };
 }
 
-/** Reads `minimaz.config.json` from `cwd`, filling in defaults for missing/invalid fields in the `docs` and build (`input`/`output`) sections independently — both are always present in the result regardless of which sections the file provided. */
+/**
+ * Reads `minimaz.config.json` from `cwd`, filling in defaults for missing/invalid fields in the
+ * `docs` and build (`input`/`output`) sections independently — both are always present in the
+ * result regardless of which sections the file provided.
+ *
+ * @param {string} cwd - Directory to look for `minimaz.config.json` in.
+ * @returns {Promise<MinimazConfig>} The parsed config with defaults filled in.
+ * @throws {ConfigNotFoundError} When `minimaz.config.json` does not exist in `cwd`.
+ */
 export async function loadConfig(cwd: string): Promise<MinimazConfig> {
     const configPath = path.join(cwd, CONFIG_FILE_NAME);
     let raw: string;
@@ -107,15 +121,19 @@ export async function loadConfig(cwd: string): Promise<MinimazConfig> {
     return parseConfig(parseJson(raw));
 }
 
+/** HTML comment inserted between docs pages when they're bundled into a single output file. */
 export const BUNDLE_SEPARATOR = '\n\n<!-- ============================== -->\n\n';
 
+/** Base filename (without extension) used for a bundled docs output file. */
 export const BUNDLE_NAME = 'bundle';
 
+/** Output directory for each docs `OutputFormat`, relative to the configured build output dir. */
 export const OUTPUT_DIRS: Record<OutputFormat, string> = {
     html: 'dist/html',
     pdf: 'dist/pdf',
 };
 
+/** File extension for each docs `OutputFormat`. */
 export const EXTENSIONS: Record<OutputFormat, string> = {
     html: '.html',
     pdf: '.pdf',

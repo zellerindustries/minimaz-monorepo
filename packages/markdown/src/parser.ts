@@ -461,11 +461,19 @@ function parseInline(text: string): Inline[] {
     return nodes;
 }
 
+/** Result of a parse: the parsed document, plus any structural errors found (e.g. an unterminated fence). */
 export interface ParseResult {
     document: Document;
     errors: string[];
 }
 
+/**
+ * Parses a Markdown string into the shared AST used by `html.ts` and `pdf/render.ts`.
+ * See the module-level comment above for the deliberate CommonMark deviations.
+ *
+ * @param {string} input - Markdown source to parse
+ * @returns {ParseResult} Parsed document and any structural errors found
+ */
 export function parseMarkdown(input: string): ParseResult {
     const lines = input.split(/\r\n|\r|\n/);
     const errors: string[] = [];

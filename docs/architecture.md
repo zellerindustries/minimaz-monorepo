@@ -114,7 +114,7 @@ Tests are colocated `*.test.ts` files alongside the code they cover. `config/vit
 is built from:
 
 ```ts
-["packages/*/src", "toolkits/*/src", "tools/*/src", "app/src"].map(
+['packages/*/src', 'toolkits/*/src', 'tools/*/src', 'app/src'].map(
     (dir) => `${dir}/**/*.{test,spec}.ts`,
 );
 ```

@@ -22,12 +22,18 @@ export interface LineOp {
     y2: number;
 }
 
+/** A single drawing instruction in a PDF content stream: styled text, or a plain line. */
 export type Op = TextOp | LineOp;
 
 export interface Page {
     ops: Op[];
 }
 
+/**
+ * Intermediate form between the Markdown AST and layout: inline formatting (strong/emphasis)
+ * has already been flattened into per-run `style`, and an explicit `'break'` token marks a
+ * forced line break (from a Markdown hard break) for `wrapWords` to honor regardless of width.
+ */
 export type Token =
     | {
           type: 'text';

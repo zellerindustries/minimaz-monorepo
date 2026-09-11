@@ -148,6 +148,7 @@ export async function runCli(pkgPath: string): Promise<void> {
         if (handler) {
             await handler();
         } else {
+            // Exit non-zero on an unknown command (minimaz-cli's original exited 0 here).
             log.error(`Unknown command "${cmd}"\nUse "minimaz help" to see available commands`);
             help();
             process.exitCode = 1;

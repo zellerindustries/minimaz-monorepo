@@ -42,15 +42,23 @@ export async function pathExists(path: string): Promise<boolean> {
  * @returns {Promise<T>}
  */
 export async function readJsonFile<T>(file: string): Promise<T> {
-    const exists = await pathExists(file);
+    let content: string;
 
-    if (!exists) {
-        throw new Error(`NOT FOUND: "${file}" does not exist`);
+    try {
+        content = await readFile(file, 'utf8');
+    } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            throw new Error(`NOT FOUND: "${file}" does not exist`, { cause: error });
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+
+        throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
+            cause: error,
+        });
     }
 
     try {
-        const content = await readFile(file, 'utf8');
-
         return JSON.parse(content) as T;
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
@@ -73,14 +81,12 @@ export async function readJsonFile<T>(file: string): Promise<T> {
 export async function getDirElements(dir: string): Promise<string[]> {
     log.debug(`Reading directory: ${dir}`);
 
-    const exists = await pathExists(dir);
-
-    if (!exists) {
+    try {
+        return await readdir(dir);
+    } catch {
         log.warn(`Directory does not exist: ${dir}`);
         return [];
     }
-
-    return await readdir(dir);
 }
 
 /* =========================================================
@@ -161,12 +167,10 @@ export async function outputFile(
 ): Promise<void> {
     const dir = dirname(path);
 
-    // Ensure target directory exists before writing
     await mkdir(dir, {
         recursive: true,
     });
 
-    // Default to UTF-8 for text content
     await writeFile(path, data, options ?? 'utf8');
 }
 /**

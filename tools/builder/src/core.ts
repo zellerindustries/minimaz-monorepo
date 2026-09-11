@@ -12,7 +12,7 @@ import type { EntryPoint, PackageManifest } from './types.js';
  *
  * @param {PackageManifest} manifest - Parsed `package.json` of the target package
  * @param {string} packageDir - Absolute path to the package directory
- * @returns {EntryPoint[]}
+ * @returns {EntryPoint[]} One entry point per distinct `dist/*.js` path declared in `main`/`bin`
  */
 export function resolveEntryPoints(manifest: PackageManifest, packageDir: string): EntryPoint[] {
     const distPaths = new Set<string>();
@@ -52,7 +52,7 @@ export function resolveEntryPoints(manifest: PackageManifest, packageDir: string
  * dependencies plus Node builtins.
  *
  * @param {PackageManifest} manifest - Parsed `package.json` of the target package
- * @returns {string[]}
+ * @returns {string[]} Dependency and devDependency names plus `node:*`
  */
 export function resolveExternals(manifest: PackageManifest): string[] {
     return [
@@ -155,7 +155,7 @@ export async function buildPackage(packageDir: string): Promise<void> {
  * root build script's contract is that it always invokes this from there.
  *
  * @param {string} repoRoot - Absolute path to the repo root
- * @returns {Promise<string[]>}
+ * @returns {Promise<string[]>} Absolute paths to every package/toolkit directory found
  */
 export async function discoverPackageDirs(repoRoot: string): Promise<string[]> {
     const groups = ['packages', 'toolkits'];

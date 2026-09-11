@@ -102,7 +102,13 @@ function fullPage(body: string, title: string): string {
     ].join('\n');
 }
 
-/** Renders a parsed document to an HTML fragment, or a full page if `options.full` is true. */
+/**
+ * Renders a parsed document to an HTML fragment, or a full page if `options.full` is true.
+ *
+ * @param {Document} document - Parsed Markdown document
+ * @param {RenderHtmlOptions} [options] - Rendering options (full page vs fragment, page title)
+ * @returns {string} Rendered HTML
+ */
 export function renderHtml(document: Document, options: RenderHtmlOptions = {}): string {
     const body = renderBlocks(document.children);
     return options.full === true ? fullPage(body, options.title ?? DEFAULT_TITLE) : body;

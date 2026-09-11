@@ -27,15 +27,20 @@ Useful scripts (see root `package.json` for the full list):
 npm run build         # build every package
 npm run typecheck:watch # type-check in watch mode (does not re-bundle — run npm run build after making changes)
 npm test                 # run the test suite (vitest)
-npm run lint             # eslint
-npm run lint:fix          # eslint --fix
-npm run format             # prettier --write
-npm run format:check        # prettier --check
-npm run validate              # lint + format:check + typecheck — the full CI gate
+npm run test:watch        # run tests in watch mode
+npm run test:coverage      # run tests with a v8 coverage report
+npm run lint                # eslint
+npm run lint:fix             # eslint --fix
+npm run format                 # prettier --write
+npm run format:check            # prettier --check
+npm run validate                  # lint + format:check + typecheck — the full CI gate
 ```
 
 Run a single package's scripts with `--workspace`, e.g.
-`npm run build --workspace=@minimaz/css`.
+`npm run build --workspace=@minimaz/css`. Every package also has its own scoped `lint`, `lint:fix`,
+`typecheck:watch`, `validate` (lint + typecheck for just that package), and `test` (vitest filtered to that
+package's colocated `*.test.ts` files) — run these from inside the package directory, or via `--workspace` from
+the root.
 
 ## Code conventions
 
