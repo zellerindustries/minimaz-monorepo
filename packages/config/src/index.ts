@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { KnownError } from '@minimaz/errors';
 import { parseJson } from '@minimaz/json';
 import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js';
 
@@ -30,7 +31,7 @@ export const DEFAULT_BUILD_CONFIG: BuildConfig = {
     },
 };
 
-export class ConfigNotFoundError extends Error {
+export class ConfigNotFoundError extends KnownError {
     constructor(configPath: string) {
         super(`No config file found at ${configPath}. Run "minimaz docs init" first.`);
         this.name = 'ConfigNotFoundError';

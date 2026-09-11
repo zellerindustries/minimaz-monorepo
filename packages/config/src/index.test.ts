@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { KnownError } from '@minimaz/errors';
 import {
     CONFIG_FILE_NAME,
     ConfigNotFoundError,
@@ -23,6 +24,10 @@ describe('loadConfig', () => {
 
     it('throws ConfigNotFoundError when no config file exists', async () => {
         await expect(loadConfig(dir)).rejects.toBeInstanceOf(ConfigNotFoundError);
+    });
+
+    it('ConfigNotFoundError is a KnownError', async () => {
+        await expect(loadConfig(dir)).rejects.toBeInstanceOf(KnownError);
     });
 
     it('parses a full docs config file, defaulting the build section', async () => {
