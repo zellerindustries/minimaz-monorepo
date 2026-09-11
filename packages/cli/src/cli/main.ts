@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path';
+import { handleCliError } from '@minimaz/errors';
 import { log } from '@minimaz/logger';
 import { getGlobalDir, getTemplatesDir } from '@minimaz/templates';
 import {
@@ -153,21 +154,6 @@ export async function runCli(pkgPath: string): Promise<void> {
             process.exitCode = 1;
         }
     } catch (error: unknown) {
-        const isDebug = process.env['DEBUG'] === 'true';
-        const message =
-            error instanceof Error
-                ? isDebug
-                    ? (error.stack ?? error.message)
-                    : error.message
-                : String(error);
-        log.error(message);
-
-        if (error instanceof Error && 'errors' in error && Array.isArray(error.errors)) {
-            for (const detail of error.errors as unknown[]) {
-                log.error(`\t-> ${String(detail)}`);
-            }
-        }
-
-        process.exitCode = 1;
+        handleCliError(error);
     }
 }
