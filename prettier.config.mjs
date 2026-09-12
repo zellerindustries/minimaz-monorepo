@@ -1,3 +1,3 @@
-import config from './config/.prettierrc.json' with { type: 'json' };
+import config from './config/.prettierrc.json' with { type: 'json' }
 
-export default config;
+export default config

@@ -1,5 +1,5 @@
-import type { ValidateMdResult } from './types.js';
-import { parseMarkdown } from './parser.js';
+import type { ValidateMdResult } from './types.js'
+import { parseMarkdown } from './parser.js'
 
 /**
  * Lightweight structural validation, not full CommonMark conformance.
@@ -12,6 +12,6 @@ import { parseMarkdown } from './parser.js';
  * @returns {ValidateMdResult} Whether the input is valid, and any errors found
  */
 export function validateMd(markdown: string): ValidateMdResult {
-    const { errors } = parseMarkdown(markdown);
-    return { valid: errors.length === 0, errors };
+    const { errors } = parseMarkdown(markdown)
+    return { valid: errors.length === 0, errors }
 }

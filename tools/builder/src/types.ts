@@ -3,11 +3,11 @@
  * bundler actually consumes.
  */
 export interface PackageManifest {
-    name: string;
-    main?: string;
-    bin?: string | Record<string, string>;
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
+    name: string
+    main?: string
+    bin?: string | Record<string, string>
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
 }
 
 /**
@@ -16,6 +16,6 @@ export interface PackageManifest {
  * bundle must land at (matching what `package.json` already declares).
  */
 export interface EntryPoint {
-    srcPath: string;
-    outfile: string;
+    srcPath: string
+    outfile: string
 }

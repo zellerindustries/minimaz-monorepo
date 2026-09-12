@@ -9,7 +9,7 @@
  * together; fixed here).
  */
 export interface TemplateCommandOptions {
-    list?: boolean;
-    delete?: string;
-    update?: string | boolean;
+    list?: boolean
+    delete?: string
+    update?: string | boolean
 }

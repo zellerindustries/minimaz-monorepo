@@ -1,7 +1,7 @@
-const NO_SPACE_CHARS = '{};,';
+const NO_SPACE_CHARS = '{};,'
 
 function isWhitespace(char: string): boolean {
-    return char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f';
+    return char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f'
 }
 
 /**
@@ -15,72 +15,72 @@ function isWhitespace(char: string): boolean {
  */
 export function minifyCss(code: string): string {
     if (typeof code !== 'string') {
-        throw new Error('minifyCss: code must be a string');
+        throw new Error('minifyCss: code must be a string')
     }
 
-    let result = '';
-    let i = 0;
-    const len = code.length;
-    let inString: '"' | "'" | null = null;
-    let lastNonSpace = '';
+    let result = ''
+    let i = 0
+    const len = code.length
+    let inString: '"' | "'" | null = null
+    let lastNonSpace = ''
 
     while (i < len) {
-        const char = code.charAt(i);
+        const char = code.charAt(i)
 
         if (inString) {
-            result += char;
+            result += char
             if (char === '\\' && i + 1 < len) {
-                result += code.charAt(i + 1);
-                i += 2;
-                continue;
+                result += code.charAt(i + 1)
+                i += 2
+                continue
             }
             if (char === inString) {
-                inString = null;
-                lastNonSpace = char;
+                inString = null
+                lastNonSpace = char
             }
-            i++;
-            continue;
+            i++
+            continue
         }
 
         if (char === '"' || char === "'") {
-            inString = char;
-            result += char;
-            i++;
-            continue;
+            inString = char
+            result += char
+            i++
+            continue
         }
 
         if (char === '/' && code.charAt(i + 1) === '*') {
-            const end = code.indexOf('*/', i + 2);
-            i = end === -1 ? len : end + 2;
-            continue;
+            const end = code.indexOf('*/', i + 2)
+            i = end === -1 ? len : end + 2
+            continue
         }
 
         if (isWhitespace(char)) {
-            let j = i;
-            while (j < len && isWhitespace(code.charAt(j))) j++;
-            const nextChar: string | undefined = j < len ? code.charAt(j) : undefined;
+            let j = i
+            while (j < len && isWhitespace(code.charAt(j))) j++
+            const nextChar: string | undefined = j < len ? code.charAt(j) : undefined
 
             const removeEntirely =
                 lastNonSpace === '' ||
                 NO_SPACE_CHARS.includes(lastNonSpace) ||
                 lastNonSpace === ':' ||
-                (nextChar !== undefined && NO_SPACE_CHARS.includes(nextChar));
+                (nextChar !== undefined && NO_SPACE_CHARS.includes(nextChar))
 
             if (nextChar !== undefined && !removeEntirely) {
-                result += ' ';
+                result += ' '
             }
-            i = j;
-            continue;
+            i = j
+            continue
         }
 
         if (char === '}' && result.endsWith(';')) {
-            result = result.slice(0, -1);
+            result = result.slice(0, -1)
         }
 
-        result += char;
-        lastNonSpace = char;
-        i++;
+        result += char
+        lastNonSpace = char
+        i++
     }
 
-    return result.trim();
+    return result.trim()
 }

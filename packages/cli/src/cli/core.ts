@@ -1,8 +1,8 @@
-import { createInterface } from 'node:readline';
-import spawn from 'cross-spawn';
-import type { ChildProcess } from 'node:child_process';
-import { log } from '@minimaz/logger';
-import type { Args } from './types.js';
+import { createInterface } from 'node:readline'
+import spawn from 'cross-spawn'
+import type { ChildProcess } from 'node:child_process'
+import { log } from '@minimaz/logger'
+import type { Args } from './types.js'
 
 /**
  * Parses raw CLI arguments into positional args (`_`) and flags.
@@ -16,40 +16,40 @@ import type { Args } from './types.js';
  * @returns {Args} Parsed argument object
  */
 export function parseArgs(rawArgs: string[]): Args {
-    const args: Args = { _: [] };
+    const args: Args = { _: [] }
 
     for (let i = 0; i < rawArgs.length; i++) {
-        const arg = rawArgs[i];
+        const arg = rawArgs[i]
         if (arg === undefined) {
-            continue;
+            continue
         }
 
         if (!arg.startsWith('-')) {
-            args._.push(arg);
-            continue;
+            args._.push(arg)
+            continue
         }
 
         if (arg.startsWith('--') && arg.includes('=')) {
-            const withoutDashes = arg.slice(2);
-            const eqIndex = withoutDashes.indexOf('=');
-            const key = withoutDashes.slice(0, eqIndex).toLowerCase();
-            const value = withoutDashes.slice(eqIndex + 1);
-            args[key] = value;
-            continue;
+            const withoutDashes = arg.slice(2)
+            const eqIndex = withoutDashes.indexOf('=')
+            const key = withoutDashes.slice(0, eqIndex).toLowerCase()
+            const value = withoutDashes.slice(eqIndex + 1)
+            args[key] = value
+            continue
         }
 
-        const key = arg.replace(/^-+/, '').toLowerCase();
-        const next = rawArgs[i + 1];
+        const key = arg.replace(/^-+/, '').toLowerCase()
+        const next = rawArgs[i + 1]
 
         if (next !== undefined && !next.startsWith('-')) {
-            args[key] = next;
-            i++;
+            args[key] = next
+            i++
         } else {
-            args[key] = true;
+            args[key] = true
         }
     }
 
-    return args;
+    return args
 }
 
 /**
@@ -58,14 +58,14 @@ export function parseArgs(rawArgs: string[]): Args {
  * @param {boolean} [verbose] - Enables verbose logging when true
  */
 export function initEnv(verbose?: boolean): void {
-    process.env['VERBOSE'] = verbose ? 'true' : 'false';
-    process.env['CLI_WORKDIR'] = process.cwd();
+    process.env['VERBOSE'] = verbose ? 'true' : 'false'
+    process.env['CLI_WORKDIR'] = process.cwd()
 
     log.debug([
         'Initializing environment variables',
         `CLI_WORKDIR = ${process.env['CLI_WORKDIR'] ?? ''}`,
         `VERBOSE = ${process.env['VERBOSE'] ?? ''}`,
-    ]);
+    ])
 }
 
 /**
@@ -81,25 +81,25 @@ export function askQuestion(query: string, defaultAnswer = ''): Promise<string> 
         const rl = createInterface({
             input: process.stdin,
             output: process.stdout,
-        });
+        })
 
         const timer = setTimeout(() => {
-            rl.close();
-            resolvePromise(defaultAnswer);
-        }, 60000);
+            rl.close()
+            resolvePromise(defaultAnswer)
+        }, 60000)
 
         rl.question(`[QUESTION] ${query} `, (answer) => {
-            clearTimeout(timer);
-            rl.close();
-            resolvePromise(answer.trim() || defaultAnswer);
-        });
+            clearTimeout(timer)
+            rl.close()
+            resolvePromise(answer.trim() || defaultAnswer)
+        })
 
         rl.on('SIGINT', () => {
-            clearTimeout(timer);
-            rl.close();
-            process.exit(130);
-        });
-    });
+            clearTimeout(timer)
+            rl.close()
+            process.exit(130)
+        })
+    })
 }
 
 /**
@@ -115,17 +115,17 @@ export function executeCommand(command: string, args: string[], cwd: string): Pr
         const child: ChildProcess = spawn(command, args, {
             cwd,
             stdio: 'inherit',
-        });
+        })
 
-        child.on('error', reject);
+        child.on('error', reject)
         child.on('close', (code) => {
             if (code === 0) {
-                resolvePromise();
+                resolvePromise()
             } else {
-                reject(new Error(`${command} exited with code ${String(code)}`));
+                reject(new Error(`${command} exited with code ${String(code)}`))
             }
-        });
-    });
+        })
+    })
 }
 
 /**
@@ -137,10 +137,10 @@ export function executeCommand(command: string, args: string[], cwd: string): Pr
  * @returns {boolean | undefined}
  */
 export function parseBooleanFlag(flag?: string | boolean): boolean | undefined {
-    if (flag === undefined) return undefined;
-    if (typeof flag === 'boolean') return flag;
+    if (flag === undefined) return undefined
+    if (typeof flag === 'boolean') return flag
 
-    const val = flag.toLowerCase();
-    if (val === 'false' || val === '0' || val === 'n') return false;
-    return true;
+    const val = flag.toLowerCase()
+    if (val === 'false' || val === '0' || val === 'n') return false
+    return true
 }

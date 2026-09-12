@@ -1,6 +1,6 @@
-import { readdir } from 'node:fs/promises';
-import path from 'node:path';
-import { log } from '@minimaz/logger';
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
+import { log } from '@minimaz/logger'
 
 /**
  * Recursively collects Markdown files under `dir`; warns and skips any file
@@ -11,19 +11,19 @@ import { log } from '@minimaz/logger';
  * @returns {Promise<string[]>} Absolute paths of every `.md` file found
  */
 export async function findMarkdownFiles(dir: string): Promise<string[]> {
-    const entries = await readdir(dir, { withFileTypes: true });
-    const files: string[] = [];
+    const entries = await readdir(dir, { withFileTypes: true })
+    const files: string[] = []
     for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
+        const fullPath = path.join(dir, entry.name)
         if (entry.isDirectory()) {
-            files.push(...(await findMarkdownFiles(fullPath)));
-            continue;
+            files.push(...(await findMarkdownFiles(fullPath)))
+            continue
         }
         if (entry.name.toLowerCase().endsWith('.md')) {
-            files.push(fullPath);
+            files.push(fullPath)
         } else {
-            log.warn(`Skipping non-Markdown file: ${fullPath}`);
+            log.warn(`Skipping non-Markdown file: ${fullPath}`)
         }
     }
-    return files;
+    return files
 }

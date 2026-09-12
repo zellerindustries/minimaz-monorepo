@@ -1,4 +1,4 @@
-import { KnownError } from '@minimaz/errors';
+import { KnownError } from '@minimaz/errors'
 
 /**
  * Thrown by {@link getTemplatePath} when the named template doesn't exist
@@ -6,8 +6,8 @@ import { KnownError } from '@minimaz/errors';
  */
 export class TemplateNotFoundError extends KnownError {
     constructor(name: string) {
-        super(`Template "${name}" not found. Run "minimaz config" to seed default templates.`);
-        this.name = 'TemplateNotFoundError';
+        super(`Template "${name}" not found. Run "minimaz config" to seed default templates.`)
+        this.name = 'TemplateNotFoundError'
     }
 }
 
@@ -18,7 +18,7 @@ export class TemplateNotFoundError extends KnownError {
  */
 export class InvalidTemplateNameError extends KnownError {
     constructor(name: string) {
-        super(`Invalid template name: "${name}"`);
-        this.name = 'InvalidTemplateNameError';
+        super(`Invalid template name: "${name}"`)
+        this.name = 'InvalidTemplateNameError'
     }
 }

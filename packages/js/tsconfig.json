@@ -3,11 +3,9 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
-        "tsBuildInfoFile": "./node_modules/.cache/tsc/js.tsbuildinfo"
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/markdown.tsbuildinfo"
     },
     "include": ["src"],
     "exclude": ["dist", "node_modules"]

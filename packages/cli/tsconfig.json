@@ -3,21 +3,10 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
-        "tsBuildInfoFile": "./node_modules/.cache/tsc/cli.tsbuildinfo"
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/markdown.tsbuildinfo"
     },
     "include": ["src"],
-    "exclude": ["dist", "node_modules"],
-    "references": [
-        { "path": "../config" },
-        { "path": "../core" },
-        { "path": "../errors" },
-        { "path": "../logger" },
-        { "path": "../markdown" },
-        { "path": "../templates" },
-        { "path": "../validate" }
-    ]
+    "exclude": ["dist", "node_modules"]
 }

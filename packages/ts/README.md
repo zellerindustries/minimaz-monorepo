@@ -11,10 +11,10 @@ npm install @minimaz/ts
 ## Usage
 
 ```ts
-import { transpileTs } from '@minimaz/ts';
+import { transpileTs } from '@minimaz/ts'
 
-const js = transpileTs(tsSource);
-const jsx = transpileTs(tsxSource, { jsx: true });
+const js = transpileTs(tsSource)
+const jsx = transpileTs(tsxSource, { jsx: true })
 ```
 
 ## API

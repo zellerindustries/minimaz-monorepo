@@ -1,4 +1,4 @@
-import type { LogType } from './types.js';
+import type { LogType } from './types.js'
 
 // Built once at module load, not per call — emit() is on the hot path and
 // string-building a prefix on every log line would be wasted work.
@@ -8,7 +8,7 @@ export const prefix: Record<LogType, string> = {
     success: '\x1b[32m[ --- SUCCESS --- ]\t\x1b[0m',
     info: '\x1b[34m[ --- INFO ------ ]\t\x1b[0m',
     debug: '\x1b[90m[ --- DEBUG ----- ]\t\x1b[0m',
-};
+}
 
 /**
  * Formats a date as `YYYY-MM-DD HH:MM:SS` (local time, zero-padded).
@@ -17,16 +17,16 @@ export const prefix: Record<LogType, string> = {
  * @returns {string} The formatted timestamp
  */
 export function formatTs(date: Date = new Date()): string {
-    const pad = (n: number): string => (n < 10 ? `0${String(n)}` : String(n));
+    const pad = (n: number): string => (n < 10 ? `0${String(n)}` : String(n))
 
-    const y = date.getFullYear();
-    const m = pad(date.getMonth() + 1);
-    const d = pad(date.getDate());
-    const h = pad(date.getHours());
-    const min = pad(date.getMinutes());
-    const s = pad(date.getSeconds());
+    const y = date.getFullYear()
+    const m = pad(date.getMonth() + 1)
+    const d = pad(date.getDate())
+    const h = pad(date.getHours())
+    const min = pad(date.getMinutes())
+    const s = pad(date.getSeconds())
 
-    return `${String(y)}-${m}-${d} ${h}:${min}:${s}`;
+    return `${String(y)}-${m}-${d} ${h}:${min}:${s}`
 }
 
 /**
@@ -36,7 +36,7 @@ export function formatTs(date: Date = new Date()): string {
  *
  * @returns {boolean} `true` if `VERBOSE` is exactly the string `'true'`
  */
-export const isVerbose = (): boolean => process.env['VERBOSE'] === 'true';
+export const isVerbose = (): boolean => process.env['VERBOSE'] === 'true'
 
 /**
  * Normalizes a single message or array of messages into an array, so
@@ -46,7 +46,7 @@ export const isVerbose = (): boolean => process.env['VERBOSE'] === 'true';
  * @returns {string[]} The message(s) as an array
  */
 export function normalize(message: string | string[]): string[] {
-    return Array.isArray(message) ? message : [message];
+    return Array.isArray(message) ? message : [message]
 }
 
 /**
@@ -57,7 +57,7 @@ export function normalize(message: string | string[]): string[] {
  * @returns {string} The colorized, space-suffixed context tag
  */
 export function formatContext(context: string): string {
-    return `\x1b[36m[${context}]\x1b[0m `;
+    return `\x1b[36m[${context}]\x1b[0m `
 }
 
 /**
@@ -71,19 +71,19 @@ export function formatContext(context: string): string {
  * @returns {void}
  */
 export function print(type: LogType, message: string, context: string): void {
-    const output = prefix[type] + formatContext(context) + message;
+    const output = prefix[type] + formatContext(context) + message
 
     if (type === 'error') {
-        console.error(output);
-        return;
+        console.error(output)
+        return
     }
 
     if (type === 'warn') {
-        console.warn(output);
-        return;
+        console.warn(output)
+        return
     }
 
-    console.log(output);
+    console.log(output)
 }
 
 /**
@@ -94,9 +94,9 @@ export function print(type: LogType, message: string, context: string): void {
  * @returns {string} `[YYYY-MM-DD HH:MM:SS] ` when verbose, else `''`
  */
 export function ts(): string {
-    const verbose = isVerbose();
-    if (!verbose) return '';
-    return `[${formatTs()}] `;
+    const verbose = isVerbose()
+    if (!verbose) return ''
+    return `[${formatTs()}] `
 }
 
 /**
@@ -119,19 +119,19 @@ export function emit(
     noPrefix = false,
     forceVerboseOnly = false,
 ): void {
-    const verbose = isVerbose();
+    const verbose = isVerbose()
 
-    if (forceVerboseOnly && !verbose) return;
+    if (forceVerboseOnly && !verbose) return
 
-    const msgs: string[] = normalize(message);
+    const msgs: string[] = normalize(message)
 
     for (const message of msgs) {
         if (noPrefix) {
-            console.log(verbose ? `${ts()}[${context}] ${message}` : `[${context}] ${message}`);
+            console.log(verbose ? `${ts()}[${context}] ${message}` : `[${context}] ${message}`)
 
-            continue;
+            continue
         }
 
-        print(type, message, context);
+        print(type, message, context)
     }
 }

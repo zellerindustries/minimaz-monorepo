@@ -1,4 +1,4 @@
-import type { CommandHelp } from './types.js';
+import type { CommandHelp } from './types.js'
 
 export const commandsHelp: Record<string, CommandHelp> = {
     help: {
@@ -48,4 +48,4 @@ export const commandsHelp: Record<string, CommandHelp> = {
         usage: 'minimaz docs <init|build>',
         description: 'Scaffold or build Markdown documentation',
     },
-};
+}

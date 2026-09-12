@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import ts from 'typescript'
 
 /**
  * Transpiles TypeScript (or TSX, when `options.jsx` is true) to JavaScript
@@ -13,26 +13,26 @@ import ts from 'typescript';
  */
 export function transpileTs(code: string, options?: { jsx?: boolean }): string {
     if (typeof code !== 'string') {
-        throw new Error('transpileTs: code must be a string');
+        throw new Error('transpileTs: code must be a string')
     }
 
     const compilerOptions: ts.CompilerOptions = {
         target: ts.ScriptTarget.ES2022,
         module: ts.ModuleKind.ESNext,
         ...(options?.jsx ? { jsx: ts.JsxEmit.React } : {}),
-    };
+    }
 
     const result = ts.transpileModule(code, {
         compilerOptions,
         reportDiagnostics: true,
-    });
+    })
 
     if (result.diagnostics && result.diagnostics.length > 0) {
         const messages = result.diagnostics.map((diagnostic) =>
             ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-        );
-        throw new Error(`transpileTs: syntax error(s):\n${messages.join('\n')}`);
+        )
+        throw new Error(`transpileTs: syntax error(s):\n${messages.join('\n')}`)
     }
 
-    return result.outputText;
+    return result.outputText
 }

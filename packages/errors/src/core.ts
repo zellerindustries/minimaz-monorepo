@@ -1,4 +1,4 @@
-import { log } from '@minimaz/logger';
+import { log } from '@minimaz/logger'
 
 /**
  * Marker base class for errors a CLI command anticipated — bad input, a
@@ -19,25 +19,25 @@ export class KnownError extends Error {}
  */
 export function handleCliError(error: unknown): void {
     if (error instanceof KnownError) {
-        log.error(error.message);
+        log.error(error.message)
 
         if ('errors' in error && Array.isArray(error.errors)) {
             for (const detail of error.errors as unknown[]) {
-                log.error(`\t-> ${String(detail)}`);
+                log.error(`\t-> ${String(detail)}`)
             }
         }
 
-        process.exitCode = 1;
-        return;
+        process.exitCode = 1
+        return
     }
 
-    const bugHint = 'This looks like a bug — please report it.';
+    const bugHint = 'This looks like a bug — please report it.'
 
     if (error instanceof Error) {
-        log.error([error.stack ?? error.message, bugHint]);
+        log.error([error.stack ?? error.message, bugHint])
     } else {
-        log.error([String(error), bugHint]);
+        log.error([String(error), bugHint])
     }
 
-    process.exitCode = 1;
+    process.exitCode = 1
 }

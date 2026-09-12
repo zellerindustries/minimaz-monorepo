@@ -1,9 +1,9 @@
-import { parseMarkdown } from './parser.js';
-import { renderHtml } from './html.js';
-import type { RenderHtmlOptions } from './types.js';
-import { renderPdf } from './pdf/index.js';
+import { parseMarkdown } from './parser.js'
+import { renderHtml } from './html.js'
+import type { RenderHtmlOptions } from './types.js'
+import { renderPdf } from './pdf/index.js'
 
-export { validateMd } from './validate.js';
+export { validateMd } from './validate.js'
 
 /**
  * Converts a Markdown string to HTML — a bare fragment by default, or a
@@ -14,8 +14,8 @@ export { validateMd } from './validate.js';
  * @returns {string} Rendered HTML
  */
 export function MdToHtml(markdown: string, options?: RenderHtmlOptions): string {
-    const { document } = parseMarkdown(markdown);
-    return renderHtml(document, options);
+    const { document } = parseMarkdown(markdown)
+    return renderHtml(document, options)
 }
 
 /**
@@ -26,6 +26,6 @@ export function MdToHtml(markdown: string, options?: RenderHtmlOptions): string 
  * @returns {string} PDF file contents as a byte string
  */
 export function MdToPdf(markdown: string): string {
-    const { document } = parseMarkdown(markdown);
-    return renderPdf(document);
+    const { document } = parseMarkdown(markdown)
+    return renderPdf(document)
 }

@@ -11,11 +11,11 @@ npm install @minimaz/json
 ## Usage
 
 ```ts
-import { parseJson, minifyJson, formatJson } from '@minimaz/json';
+import { parseJson, minifyJson, formatJson } from '@minimaz/json'
 
-const data = parseJson(rawText); // throws a descriptive error on invalid JSON
-const minified = minifyJson(rawText);
-const pretty = formatJson(rawText, 4); // indent defaults to 4
+const data = parseJson(rawText) // throws a descriptive error on invalid JSON
+const minified = minifyJson(rawText)
+const pretty = formatJson(rawText, 4) // indent defaults to 4
 ```
 
 ## API

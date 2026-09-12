@@ -1,24 +1,24 @@
 /** Options controlling `renderHtml`/`MdToHtml` output. */
 export interface RenderHtmlOptions {
     /** Render a full `<html>` document instead of a bare fragment. */
-    full?: boolean;
+    full?: boolean
 
     /** Page `<title>`, used only when `full` is true. */
-    title?: string;
+    title?: string
 }
 
 /** Result of `validateMd`: whether the input is valid, and any errors found. */
 export interface ValidateMdResult {
-    valid: boolean;
-    errors: string[];
+    valid: boolean
+    errors: string[]
 }
 
 export interface ListMarkerInfo {
-    ordered: boolean;
-    start: number | undefined;
+    ordered: boolean
+    start: number | undefined
     /** Column where the item's content begins (indent + marker + one space). */
-    contentColumn: number;
-    rest: string;
+    contentColumn: number
+    rest: string
 }
 
 /*
@@ -37,16 +37,16 @@ export type Inline =
     | { type: 'emphasis'; children: Inline[] }
     | { type: 'inlineCode'; value: string }
     | {
-          type: 'link';
-          url: string;
-          title: string | undefined;
-          children: Inline[];
+          type: 'link'
+          url: string
+          title: string | undefined
+          children: Inline[]
       }
     | { type: 'image'; url: string; alt: string; title: string | undefined }
-    | { type: 'break' };
+    | { type: 'break' }
 
 export interface ListItem {
-    children: Block[];
+    children: Block[]
 }
 
 export type Block =
@@ -55,14 +55,14 @@ export type Block =
     | { type: 'code'; lang: string | undefined; content: string }
     | { type: 'blockquote'; children: Block[] }
     | {
-          type: 'list';
-          ordered: boolean;
-          start: number | undefined;
-          items: ListItem[];
+          type: 'list'
+          ordered: boolean
+          start: number | undefined
+          items: ListItem[]
       }
-    | { type: 'thematicBreak' };
+    | { type: 'thematicBreak' }
 
 export interface Document {
-    type: 'document';
-    children: Block[];
+    type: 'document'
+    children: Block[]
 }

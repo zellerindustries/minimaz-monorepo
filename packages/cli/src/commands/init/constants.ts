@@ -19,7 +19,7 @@ export function createPkgTemplate(name: string): Record<string, unknown> {
         devDependencies: {
             serve: 'latest',
         },
-    };
+    }
 }
 
 export const GITIGNORE_TEMPLATE = `node_modules
@@ -27,4 +27,4 @@ dist
 .env
 .vscode
 .DS_Store
-`;
+`

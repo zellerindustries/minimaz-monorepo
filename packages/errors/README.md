@@ -11,14 +11,14 @@ npm install @minimaz/errors
 ## Usage
 
 ```ts
-import { KnownError, handleCliError } from '@minimaz/errors';
+import { KnownError, handleCliError } from '@minimaz/errors'
 
 class ConfigNotFoundError extends KnownError {}
 
 try {
-    await run();
+    await run()
 } catch (error: unknown) {
-    handleCliError(error);
+    handleCliError(error)
 }
 ```
 

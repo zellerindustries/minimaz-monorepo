@@ -1,8 +1,8 @@
-import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 
-import { dirname } from 'node:path';
+import { dirname } from 'node:path'
 
-import { log } from '@minimaz/logger';
+import { log } from '@minimaz/logger'
 
 /* =========================================================
     VALIDATION / INSPECTION
@@ -22,10 +22,10 @@ import { log } from '@minimaz/logger';
  */
 export async function pathExists(path: string): Promise<boolean> {
     try {
-        await stat(path);
-        return true;
+        await stat(path)
+        return true
     } catch {
-        return false;
+        return false
     }
 }
 
@@ -42,30 +42,30 @@ export async function pathExists(path: string): Promise<boolean> {
  * @returns {Promise<T>}
  */
 export async function readJsonFile<T>(file: string): Promise<T> {
-    let content: string;
+    let content: string
 
     try {
-        content = await readFile(file, 'utf8');
+        content = await readFile(file, 'utf8')
     } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            throw new Error(`NOT FOUND: "${file}" does not exist`, { cause: error });
+            throw new Error(`NOT FOUND: "${file}" does not exist`, { cause: error })
         }
 
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error)
 
         throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
             cause: error,
-        });
+        })
     }
 
     try {
-        return JSON.parse(content) as T;
+        return JSON.parse(content) as T
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error)
 
         throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
             cause: error,
-        });
+        })
     }
 }
 
@@ -79,13 +79,13 @@ export async function readJsonFile<T>(file: string): Promise<T> {
  * @returns {Promise<string[]>}
  */
 export async function getDirElements(dir: string): Promise<string[]> {
-    log.debug(`Reading directory: ${dir}`);
+    log.debug(`Reading directory: ${dir}`)
 
     try {
-        return await readdir(dir);
+        return await readdir(dir)
     } catch {
-        log.warn(`Directory does not exist: ${dir}`);
-        return [];
+        log.warn(`Directory does not exist: ${dir}`)
+        return []
     }
 }
 
@@ -106,7 +106,7 @@ export async function remove(path: string): Promise<void> {
     await rm(path, {
         recursive: true,
         force: true,
-    });
+    })
 }
 
 /**
@@ -122,7 +122,7 @@ export async function remove(path: string): Promise<void> {
 export async function ensureDir(path: string): Promise<void> {
     await mkdir(path, {
         recursive: true,
-    });
+    })
 }
 
 /**
@@ -138,12 +138,12 @@ export async function ensureDir(path: string): Promise<void> {
  */
 export async function copy(src: string, dest: string, overwrite = false): Promise<void> {
     if (overwrite) {
-        log.debug(`${dest} exists, removing...`);
-        await rm(dest, { recursive: true, force: true });
+        log.debug(`${dest} exists, removing...`)
+        await rm(dest, { recursive: true, force: true })
     }
 
-    log.debug(`[COPY] ${src} to ${dest}...`);
-    await cp(src, dest, { recursive: true });
+    log.debug(`[COPY] ${src} to ${dest}...`)
+    await cp(src, dest, { recursive: true })
 }
 
 /**
@@ -165,13 +165,13 @@ export async function outputFile(
     data: string | Uint8Array,
     options?: Parameters<typeof writeFile>[2],
 ): Promise<void> {
-    const dir = dirname(path);
+    const dir = dirname(path)
 
     await mkdir(dir, {
         recursive: true,
-    });
+    })
 
-    await writeFile(path, data, options ?? 'utf8');
+    await writeFile(path, data, options ?? 'utf8')
 }
 /**
  * Checks if a path is a directory.
@@ -184,7 +184,7 @@ export async function outputFile(
 export async function isDirectory(path: string): Promise<boolean> {
     return lstat(path)
         .then((stats) => stats.isDirectory())
-        .catch(() => false);
+        .catch(() => false)
 }
 
 /**
@@ -198,10 +198,10 @@ export async function isDirectory(path: string): Promise<boolean> {
  */
 export async function getFileContent(path: string): Promise<string> {
     try {
-        return await readFile(path, 'utf8');
+        return await readFile(path, 'utf8')
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to read file at "${path}": ${message}`);
-        return '';
+        const message = error instanceof Error ? error.message : String(error)
+        log.error(`Failed to read file at "${path}": ${message}`)
+        return ''
     }
 }

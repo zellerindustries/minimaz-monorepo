@@ -20,5 +20,6 @@
         { "path": "./packages/validate" },
         { "path": "./toolkits/sitekit" },
         { "path": "./tools/builder" }
-    ]
+    ],
+    "include": ["vitest.config.ts"]
 }

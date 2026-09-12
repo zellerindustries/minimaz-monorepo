@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { KnownError } from '@minimaz/errors';
-import { parseJson } from '@minimaz/json';
-import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js';
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { KnownError } from '@minimaz/errors'
+import { parseJson } from '@minimaz/json'
+import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js'
 
 /*
 This module understands both the docs-builder config shape (`docs.input`/
@@ -11,7 +11,7 @@ minimaz-cli — see `loadConfig` below for how the two are merged.
 */
 
 /** Filename `loadConfig` looks for in the project's `cwd`. */
-export const CONFIG_FILE_NAME = 'minimaz.config.json';
+export const CONFIG_FILE_NAME = 'minimaz.config.json'
 
 /** Defaults for the `docs` section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const DEFAULT_CONFIG: DocsConfig = {
@@ -19,7 +19,7 @@ export const DEFAULT_CONFIG: DocsConfig = {
         input: { dir: 'docs' },
         output: { bundle: false, formats: ['html'] },
     },
-};
+}
 
 /** Defaults for the build (`input`/`output`) section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const DEFAULT_BUILD_CONFIG: BuildConfig = {
@@ -31,7 +31,7 @@ export const DEFAULT_BUILD_CONFIG: BuildConfig = {
         html: { minify: true },
         js: { bundling: true, minify: true },
     },
-};
+}
 
 /** Thrown by `loadConfig` when `minimaz.config.json` is missing from the target directory. */
 export class ConfigNotFoundError extends KnownError {
@@ -39,20 +39,20 @@ export class ConfigNotFoundError extends KnownError {
      * @param {string} configPath - Absolute path where the config file was expected.
      */
     constructor(configPath: string) {
-        super(`No config file found at ${configPath}. Run "minimaz docs init" first.`);
-        this.name = 'ConfigNotFoundError';
+        super(`No config file found at ${configPath}. Run "minimaz docs init" first.`)
+        this.name = 'ConfigNotFoundError'
     }
 }
 
 function isOutputFormat(value: string): value is OutputFormat {
-    return value === 'html' || value === 'pdf';
+    return value === 'html' || value === 'pdf'
 }
 
 function parseDocsConfig(parsed: RawConfig): DocsConfig {
-    const inputDir = parsed.docs?.input?.dir ?? DEFAULT_CONFIG.docs.input.dir;
-    const bundle = parsed.docs?.output?.bundle ?? DEFAULT_CONFIG.docs.output.bundle;
-    const rawFormats = parsed.docs?.output?.formats;
-    const formats = Array.isArray(rawFormats) ? rawFormats.filter(isOutputFormat) : [];
+    const inputDir = parsed.docs?.input?.dir ?? DEFAULT_CONFIG.docs.input.dir
+    const bundle = parsed.docs?.output?.bundle ?? DEFAULT_CONFIG.docs.output.bundle
+    const rawFormats = parsed.docs?.output?.formats
+    const formats = Array.isArray(rawFormats) ? rawFormats.filter(isOutputFormat) : []
 
     return {
         docs: {
@@ -62,12 +62,12 @@ function parseDocsConfig(parsed: RawConfig): DocsConfig {
                 formats: formats.length > 0 ? formats : DEFAULT_CONFIG.docs.output.formats,
             },
         },
-    };
+    }
 }
 
 function parseBuildConfig(parsed: RawConfig): BuildConfig {
-    const input = parsed.input;
-    const output = parsed.output;
+    const input = parsed.input
+    const output = parsed.output
 
     return {
         input: {
@@ -91,15 +91,15 @@ function parseBuildConfig(parsed: RawConfig): BuildConfig {
                 minify: output?.js?.minify ?? DEFAULT_BUILD_CONFIG.output.js.minify,
             },
         },
-    };
+    }
 }
 
 function parseConfig(raw: unknown): MinimazConfig {
-    const parsed: RawConfig = typeof raw === 'object' && raw !== null ? raw : {};
+    const parsed: RawConfig = typeof raw === 'object' && raw !== null ? raw : {}
     return {
         ...parseDocsConfig(parsed),
         ...parseBuildConfig(parsed),
-    };
+    }
 }
 
 /**
@@ -112,33 +112,33 @@ function parseConfig(raw: unknown): MinimazConfig {
  * @throws {ConfigNotFoundError} When `minimaz.config.json` does not exist in `cwd`.
  */
 export async function loadConfig(cwd: string): Promise<MinimazConfig> {
-    const configPath = path.join(cwd, CONFIG_FILE_NAME);
-    let raw: string;
+    const configPath = path.join(cwd, CONFIG_FILE_NAME)
+    let raw: string
     try {
-        raw = await readFile(configPath, 'utf8');
+        raw = await readFile(configPath, 'utf8')
     } catch {
-        throw new ConfigNotFoundError(configPath);
+        throw new ConfigNotFoundError(configPath)
     }
-    return parseConfig(parseJson(raw));
+    return parseConfig(parseJson(raw))
 }
 
 /** HTML comment inserted between docs pages when they're bundled into a single output file. */
-export const BUNDLE_SEPARATOR = '\n\n<!-- ============================== -->\n\n';
+export const BUNDLE_SEPARATOR = '\n\n<!-- ============================== -->\n\n'
 
 /** Base filename (without extension) used for a bundled docs output file. */
-export const BUNDLE_NAME = 'bundle';
+export const BUNDLE_NAME = 'bundle'
 
 /** Output directory for each docs `OutputFormat`, relative to the configured build output dir. */
 export const OUTPUT_DIRS: Record<OutputFormat, string> = {
     html: 'dist/html',
     pdf: 'dist/pdf',
-};
+}
 
 /** File extension for each docs `OutputFormat`. */
 export const EXTENSIONS: Record<OutputFormat, string> = {
     html: '.html',
     pdf: '.pdf',
-};
+}
 
 export type {
     BuildBundleOptions,
@@ -151,4 +151,4 @@ export type {
     MinimazConfig,
     OutputFormat,
     RawConfig,
-} from './types.js';
+} from './types.js'

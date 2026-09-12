@@ -1,4 +1,4 @@
-import { seedDefaults } from '@minimaz/templates';
+import { seedDefaults } from '@minimaz/templates'
 
 /**
  * Seeds (or re-seeds) the global `~/.minimaz` directory with default
@@ -13,5 +13,5 @@ export async function config(
     templatesDir: string,
     overwrite: boolean,
 ): Promise<void> {
-    await seedDefaults(globalDir, templatesDir, overwrite);
+    await seedDefaults(globalDir, templatesDir, overwrite)
 }

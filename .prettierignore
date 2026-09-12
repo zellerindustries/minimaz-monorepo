@@ -1,6 +1,37 @@
-# .gitignore already covers node_modules/, dist/, .claude/, .superpowers/, etc. —
-# Prettier auto-respects .gitignore in addition to this file. These are the few
-# tracked paths that need excluding from formatting on top of that.
-docs/
+# Dependencies
+node_modules/
+
+# Production/Build outputs (TypeScript compilation targets)
+dist/
+
+# Vitest coverage reports
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs and system files
+.dev/
+.idea/
+.vscode/
+.DS_Store
+
+# Lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Only the repo-root published docs folder — NOT packages/cli/src/commands/docs
+# (an unanchored "docs/" here would also match that source directory).
+/docs/
+
 .husky
+
+.claude/
+.superpowers/
+
+# Vendored template content copied verbatim from minimaz-cli.
 **/src/seeds/
