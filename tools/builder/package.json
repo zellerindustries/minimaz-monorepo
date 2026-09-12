@@ -13,8 +13,8 @@
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc --noEmit",
         "typecheck:watch": "tsc -p tsconfig.json --watch",
-        "lint": "eslint --config ../../config/eslint.config.mjs .",
-        "lint:fix": "eslint --config ../../config/eslint.config.mjs . --fix",
+        "lint": "eslint --config ../../eslint.config.mjs .",
+        "lint:fix": "eslint --config ../../eslint.config.mjs . --fix",
         "validate": "npm run lint && npm run typecheck",
         "test": "vitest run --root ../.. --config config/vitest.config.ts tools/builder",
         "clean": "rimraf"

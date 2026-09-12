@@ -8,5 +8,6 @@
         "tsBuildInfoFile": "./node_modules/.cache/tsc/markdown.tsbuildinfo"
     },
     "include": ["src"],
-    "exclude": ["dist", "node_modules"]
+    "exclude": ["dist", "node_modules"],
+    "references": [{ "path": "../validate" }]
 }

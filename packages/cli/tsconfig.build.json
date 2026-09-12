@@ -10,5 +10,14 @@
         "src/**/*.spec.ts",
         "src/**/__tests__/**",
         "src/**/__mocks__/**"
+    ],
+    "references": [
+        { "path": "../config/tsconfig.build.json" },
+        { "path": "../core/tsconfig.build.json" },
+        { "path": "../errors/tsconfig.build.json" },
+        { "path": "../logger/tsconfig.build.json" },
+        { "path": "../markdown/tsconfig.build.json" },
+        { "path": "../templates/tsconfig.build.json" },
+        { "path": "../validate/tsconfig.build.json" }
     ]
 }

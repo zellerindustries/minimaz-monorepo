@@ -9,12 +9,12 @@
         "dist"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
+        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/main.js",
         "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
         "typecheck": "tsc --noEmit",
         "typecheck:watch": "tsc -p tsconfig.json --watch",
-        "lint": "eslint --config ../../config/eslint.config.mjs .",
-        "lint:fix": "eslint --config ../../config/eslint.config.mjs . --fix",
+        "lint": "eslint --config ../../eslint.config.mjs .",
+        "lint:fix": "eslint --config ../../eslint.config.mjs . --fix",
         "validate": "npm run lint && npm run typecheck",
         "test": "vitest run --root ../.. --config config/vitest.config.ts packages/js",
         "prepack": "npm run build"
