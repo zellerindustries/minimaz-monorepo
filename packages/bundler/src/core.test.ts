@@ -122,4 +122,11 @@ describe('resolveModuleGraph', () => {
         expect(appOutput).not.toContain('<Button />')
         expect(appOutput).toContain("from './button.js'")
     })
+
+    it('throws a descriptive error when a relative import cannot be resolved', async () => {
+        const entry = path.join(dir, 'entry.js')
+        await writeFile(entry, "import './missing'\n", 'utf8')
+
+        await expect(resolveModuleGraph(entry)).rejects.toThrow(/Cannot resolve "\.\/missing"/)
+    })
 })
