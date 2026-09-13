@@ -87,4 +87,17 @@ describe('resolveModuleGraph', () => {
         expect(result.modules.size).toBe(1)
         expect(result.modules.get(entry)).toContain("import './style.css'")
     })
+
+    it('terminates and rewrites specifiers correctly for circular imports', async () => {
+        const aPath = path.join(dir, 'a.js')
+        const bPath = path.join(dir, 'b.js')
+        await writeFile(aPath, "import './b'\nexport const a = 1\n", 'utf8')
+        await writeFile(bPath, "import './a'\nexport const b = 1\n", 'utf8')
+
+        const result = await resolveModuleGraph(aPath)
+
+        expect(result.modules.size).toBe(2)
+        expect(result.modules.get(aPath)).toContain("import './b.js'")
+        expect(result.modules.get(bPath)).toContain("import './a.js'")
+    })
 })
