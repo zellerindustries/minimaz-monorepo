@@ -4,6 +4,7 @@
         "tsBuildInfoFile": "./node_modules/.cache/tsc/root-build.tsbuildinfo"
     },
     "references": [
+        { "path": "./packages/bundler/tsconfig.build.json" },
         { "path": "./packages/cli/tsconfig.build.json" },
         { "path": "./packages/config/tsconfig.build.json" },
         { "path": "./packages/core/tsconfig.build.json" },

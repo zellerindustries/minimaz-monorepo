@@ -5,6 +5,7 @@
         "tsBuildInfoFile": "./node_modules/.cache/tsc/root.tsbuildinfo"
     },
     "references": [
+        { "path": "./packages/bundler" },
         { "path": "./packages/cli" },
         { "path": "./packages/config" },
         { "path": "./packages/core" },
