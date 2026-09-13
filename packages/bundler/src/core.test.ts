@@ -129,4 +129,23 @@ describe('resolveModuleGraph', () => {
 
         await expect(resolveModuleGraph(entry)).rejects.toThrow(/Cannot resolve "\.\/missing"/)
     })
+
+    it('throws when a relative dynamic import is encountered', async () => {
+        const entry = path.join(dir, 'entry.js')
+        await writeFile(entry, "const mod = import('./dep')\n", 'utf8')
+
+        await expect(resolveModuleGraph(entry)).rejects.toThrow(/Dynamic import\("\.\/dep"\)/)
+    })
+
+    it('does not corrupt unrelated text that happens to match a rewritten specifier', async () => {
+        await writeFile(path.join(dir, 'b.js'), 'export const b = 1\n', 'utf8')
+        const entry = path.join(dir, 'entry.js')
+        await writeFile(entry, "import { b } from './b'\nexport const label = './b'\n", 'utf8')
+
+        const result = await resolveModuleGraph(entry)
+
+        const output = result.modules.get(entry)
+        expect(output).toContain("from './b.js'")
+        expect(output).toContain("const label = './b'")
+    })
 })

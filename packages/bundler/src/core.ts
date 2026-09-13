@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { dirname, extname, join, relative } from 'node:path'
+import { dirname, extname, join, relative, resolve } from 'node:path'
 import { transpileTs } from '@minimaz/ts'
 import type { ModuleGraphResult } from './types.js'
 
@@ -14,7 +14,16 @@ const RESOLVABLE_EXTENSIONS = ['.ts', '.tsx', '.js']
  * the same text, same tradeoff as this repo's other hand-rolled JS
  * tooling (`@minimaz/js`'s minifier).
  */
-const IMPORT_SPECIFIER_RE = /\b(?:from\s*|import\s*)(['"])(\.[^'"]+)\1/g
+const IMPORT_SPECIFIER_RE = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
+
+/**
+ * Matches a dynamic `import('./relative')` call with a relative string
+ * literal argument. Dynamic imports aren't resolved by this package (only
+ * static `import`/`export ... from` statements are) — detected here only
+ * so an unsupported dynamic import fails loudly instead of shipping an
+ * unrewritten, unresolvable specifier to the browser.
+ */
+const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*(['"])(\.[^'"]*)\1\s*\)/
 
 async function fileExists(filePath: string): Promise<boolean> {
     try {
@@ -74,6 +83,12 @@ async function resolveSpecifier(fromFile: string, specifier: string): Promise<st
     )
 }
 
+interface Edit {
+    start: number
+    end: number
+    text: string
+}
+
 async function processFile(
     filePath: string,
     visited: Set<string>,
@@ -84,17 +99,28 @@ async function processFile(
     }
     visited.add(filePath)
 
-    let contents = await loadAndTranspile(filePath)
+    const original = await loadAndTranspile(filePath)
+
+    const dynamicImportMatch = DYNAMIC_IMPORT_RE.exec(original)
+    if (dynamicImportMatch) {
+        throw new Error(
+            `Dynamic import("${dynamicImportMatch[2]}") in "${filePath}" is not supported — ` +
+                `@minimaz/bundler only resolves static "import"/"export ... from" statements.`,
+        )
+    }
+
     const fromDir = dirname(filePath)
-    const matches = [...contents.matchAll(IMPORT_SPECIFIER_RE)]
+    const matches = [...original.matchAll(IMPORT_SPECIFIER_RE)]
+    const edits: Edit[] = []
 
     for (const match of matches) {
-        if (!match[1] || !match[2]) continue
-
         const quote = match[1]
         const specifier = match[2]
-        const specifierExt = extname(specifier)
+        if (quote === undefined || specifier === undefined || match.index === undefined) {
+            continue
+        }
 
+        const specifierExt = extname(specifier)
         if (specifierExt !== '' && !RESOLVABLE_EXTENSIONS.includes(specifierExt)) {
             continue
         }
@@ -103,9 +129,17 @@ async function processFile(
         await processFile(resolvedPath, visited, modules)
 
         const newSpecifier = toRelativeSpecifier(fromDir, resolvedPath).replace(/\.tsx?$/, '.js')
-        const oldQuoted = `${quote}${specifier}${quote}`
-        const newQuoted = `${quote}${newSpecifier}${quote}`
-        contents = contents.split(oldQuoted).join(newQuoted)
+        const specifierStart = match.index + match[0].lastIndexOf(specifier)
+        edits.push({
+            start: specifierStart,
+            end: specifierStart + specifier.length,
+            text: newSpecifier,
+        })
+    }
+
+    let contents = original
+    for (const edit of edits.reverse()) {
+        contents = contents.slice(0, edit.start) + edit.text + contents.slice(edit.end)
     }
 
     modules.set(filePath, contents)
@@ -116,14 +150,15 @@ async function processFile(
  * along the way, and returns every reachable module's rewritten contents
  * keyed by absolute source path.
  *
- * @param {string} entryPath - Absolute path to the entry file.
+ * @param {string} entryPath - Path to the entry file (resolved to absolute
+ *   if not already, so the same file is always keyed consistently).
  * @returns {Promise<ModuleGraphResult>} Every reachable module's contents.
  */
 export async function resolveModuleGraph(entryPath: string): Promise<ModuleGraphResult> {
     const modules = new Map<string, string>()
     const visited = new Set<string>()
 
-    await processFile(entryPath, visited, modules)
+    await processFile(resolve(entryPath), visited, modules)
 
     return { modules }
 }
