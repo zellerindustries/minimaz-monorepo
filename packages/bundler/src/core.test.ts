@@ -100,4 +100,26 @@ describe('resolveModuleGraph', () => {
         expect(result.modules.get(aPath)).toContain("import './b.js'")
         expect(result.modules.get(bPath)).toContain("import './a.js'")
     })
+
+    it('transpiles TSX entry and dependency files and rewrites the resolved import to .js', async () => {
+        await writeFile(
+            path.join(dir, 'button.tsx'),
+            'export const Button = () => <button>Click</button>\n',
+            'utf8',
+        )
+        const entry = path.join(dir, 'app.tsx')
+        await writeFile(
+            entry,
+            "import { Button } from './button'\nexport const App = () => <Button />\n",
+            'utf8',
+        )
+
+        const result = await resolveModuleGraph(entry)
+
+        expect(result.modules.size).toBe(2)
+        const appOutput = result.modules.get(entry)
+        expect(appOutput).toBeDefined()
+        expect(appOutput).not.toContain('<Button />')
+        expect(appOutput).toContain("from './button.js'")
+    })
 })
