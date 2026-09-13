@@ -26,6 +26,7 @@
     ],
     "scripts": {
         "build": "tsc -b tsconfig.build.json && node tools/builder/dist/main.js && node packages/templates/scripts/copy-seeds.mjs",
+        "build:internal": "tsc -b tsconfig.internal.json",
         "typecheck:watch": "tsc -b --watch",
         "clean": "node tools/cleaner/dist/main.js",
         "typecheck": "tsc -b",

@@ -5,7 +5,11 @@
 export interface PackageManifest {
     name: string
     main?: string
+    module?: string
+    types?: string
     bin?: string | Record<string, string>
+    exports?: unknown
+    scripts?: Record<string, string>
     dependencies?: Record<string, string>
     devDependencies?: Record<string, string>
 }
