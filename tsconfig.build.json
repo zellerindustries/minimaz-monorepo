@@ -14,6 +14,7 @@
         { "path": "./packages/js/tsconfig.build.json" },
         { "path": "./packages/json/tsconfig.build.json" },
         { "path": "./packages/logger/tsconfig.build.json" },
+        { "path": "./packages/local-server/tsconfig.build.json" },
         { "path": "./packages/markdown/tsconfig.build.json" },
         { "path": "./packages/templates/tsconfig.build.json" },
         { "path": "./packages/ts/tsconfig.build.json" },

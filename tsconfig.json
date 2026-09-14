@@ -15,6 +15,7 @@
         { "path": "./packages/js" },
         { "path": "./packages/json" },
         { "path": "./packages/logger" },
+        { "path": "./packages/local-server" },
         { "path": "./packages/markdown" },
         { "path": "./packages/templates" },
         { "path": "./packages/ts" },

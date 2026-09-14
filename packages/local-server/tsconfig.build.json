@@ -1,0 +1,18 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/local-server.build.tsbuildinfo"
+    },
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "src/**/__tests__/**",
+        "src/**/__mocks__/**"
+    ],
+    "references": [
+        { "path": "../errors/tsconfig.build.json" },
+        { "path": "../logger/tsconfig.build.json" }
+    ]
+}
