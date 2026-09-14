@@ -205,3 +205,26 @@ export async function getFileContent(path: string): Promise<string> {
         return ''
     }
 }
+
+/* =========================================================
+    STRING TRANSFORMATION
+========================================================= */
+
+/**
+ * Replaces every literal occurrence of each key in `replacements` with its
+ * value. Not regex-based — keys are matched as plain substrings, so no
+ * escaping is needed for special characters.
+ *
+ * @param {string} content - Source text to transform
+ * @param {Record<string, string>} replacements - Map of literal search string to replacement
+ * @returns {string} `content` with every replacement applied
+ */
+export function applyReplacements(content: string, replacements: Record<string, string>): string {
+    let result = content
+
+    for (const [search, replacement] of Object.entries(replacements)) {
+        result = result.split(search).join(replacement)
+    }
+
+    return result
+}

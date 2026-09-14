@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as FsPromises from 'node:fs/promises'
 
-import { getDirElements, readJsonFile } from './core.js'
+import { applyReplacements, getDirElements, readJsonFile } from './core.js'
 
 describe('readJsonFile', () => {
     let dir: string
@@ -101,5 +101,27 @@ describe('getDirElements', () => {
 
         vi.doUnmock('node:fs/promises')
         vi.resetModules()
+    })
+})
+
+describe('applyReplacements', () => {
+    it('replaces every occurrence of a key with its value', () => {
+        const result = applyReplacements('Hello {{name}}, welcome {{name}}!', {
+            '{{name}}': 'World',
+        })
+
+        expect(result).toBe('Hello World, welcome World!')
+    })
+
+    it('applies multiple replacement keys', () => {
+        const result = applyReplacements('{{a}} and {{b}}', { '{{a}}': '1', '{{b}}': '2' })
+
+        expect(result).toBe('1 and 2')
+    })
+
+    it('returns the content unchanged when replacements is empty', () => {
+        const result = applyReplacements('unchanged', {})
+
+        expect(result).toBe('unchanged')
     })
 })
