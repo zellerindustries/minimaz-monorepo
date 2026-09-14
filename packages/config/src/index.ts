@@ -29,7 +29,7 @@ export const DEFAULT_BUILD_CONFIG: BuildConfig = {
         replace: {},
         css: { bundling: true, minify: true },
         html: { minify: true },
-        js: { bundling: true, minify: true },
+        js: { bundling: false, minify: true },
     },
 }
 
