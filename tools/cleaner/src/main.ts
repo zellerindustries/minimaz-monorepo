@@ -6,6 +6,30 @@ import { handleCliError } from '@minimaz/errors'
 const patterns = ['**/dist', '**/coverage', '**/.cache', '**/*.tsbuildinfo']
 
 /**
+ * True for a real npm dependency path that must never be touched — but
+ * false for `node_modules` itself and for this repo's own tsc caches,
+ * deliberately stored under each package's `node_modules/.cache/tsc/`
+ * (see CLAUDE.md). `glob`'s `exclude` is evaluated during directory
+ * traversal (it prunes descent), so excluding `node_modules` itself would
+ * also block ever reaching the nested `.cache` directory — this checks
+ * what comes *after* `node_modules` rather than just testing for its
+ * presence in the path.
+ */
+function isDependencyPath(filePath: string): boolean {
+    const normalized = filePath.split('\\').join('/')
+    const marker = 'node_modules'
+    const index = normalized.indexOf(marker)
+
+    if (index === -1 || (index !== 0 && normalized[index - 1] !== '/')) {
+        return false
+    }
+
+    const afterNodeModules = normalized.slice(index + marker.length)
+
+    return afterNodeModules !== '' && !afterNodeModules.startsWith('/.cache')
+}
+
+/**
  * Sweeps and deletes monorepo build outputs, test coverage, and tool caches.
  */
 async function clean(): Promise<void> {
@@ -14,7 +38,7 @@ async function clean(): Promise<void> {
     for (const pattern of patterns) {
         // glob handles deep nested monorepo discovery natively
         for await (const entryPath of glob(pattern, {
-            exclude: (filePath) => filePath.includes('node_modules'), // Never touch node_modules
+            exclude: isDependencyPath,
         })) {
             try {
                 await rm(entryPath, { recursive: true, force: true })

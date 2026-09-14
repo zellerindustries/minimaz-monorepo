@@ -1,7 +1,7 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "tsBuildInfoFile": "./node_modules/.cache/tsc/markdown.build.tsbuildinfo"
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/js.build.tsbuildinfo"
     },
     "exclude": [
         "dist",
