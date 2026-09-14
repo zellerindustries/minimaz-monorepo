@@ -11,5 +11,8 @@
         "src/**/__tests__/**",
         "src/**/__mocks__/**"
     ],
-    "references": [{ "path": "../../packages/errors/tsconfig.build.json" }]
+    "references": [
+        { "path": "../../packages/errors/tsconfig.build.json" },
+        { "path": "../../packages/logger/tsconfig.build.json" }
+    ]
 }

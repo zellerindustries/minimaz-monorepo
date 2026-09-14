@@ -6,7 +6,10 @@ import { builtinModules } from 'node:module'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { handleCliError } from '@minimaz/errors'
+import { createLogger } from '@minimaz/logger'
 import type { EntryPoint, PackageManifest } from './types.js'
+
+const log = createLogger('builder')
 
 /**
  * Resolves a package's real esbuild entry points from its `main`/`bin`
@@ -97,10 +100,14 @@ export async function buildPackage(packageDir: string): Promise<void> {
     const manifestRaw = await readFile(join(packageDir, 'package.json'), 'utf8')
     const manifest = JSON.parse(manifestRaw) as PackageManifest
 
+    log.info(`Building ${manifest.name}`)
+
     const entryPoints = resolveEntryPoints(manifest, packageDir)
     const external = resolveExternals(manifest)
 
     for (const entry of entryPoints) {
+        log.debug(`Bundling ${entry.srcPath} -> ${entry.outfile}`)
+
         await build({
             entryPoints: [entry.srcPath],
             outfile: entry.outfile,
@@ -119,6 +126,8 @@ export async function buildPackage(packageDir: string): Promise<void> {
     const deletedTestDeclarations = await cleanupTestDeclarations(join(packageDir, 'dist'))
 
     if (deletedTestDeclarations) {
+        log.debug(`Removed stray test declarations from ${manifest.name}'s dist`)
+
         const tsBuildInfoPath = join(
             packageDir,
             'node_modules',
@@ -129,6 +138,8 @@ export async function buildPackage(packageDir: string): Promise<void> {
 
         await rm(tsBuildInfoPath, { force: true }).catch(() => undefined)
     }
+
+    log.success(`Built ${manifest.name}`)
 }
 
 /**
@@ -182,6 +193,8 @@ async function run(): Promise<void> {
         const repoRoot = resolveRepoRoot(import.meta.url)
         const dirs = await discoverPackageDirs(repoRoot)
 
+        log.info(`Discovered ${String(dirs.length)} candidate package directories`)
+
         for (const dir of dirs) {
             try {
                 // Skip if the directory doesn't have a package.json
@@ -203,6 +216,8 @@ async function run(): Promise<void> {
                 )
             }
         }
+
+        log.success('Build complete')
     } catch (error: unknown) {
         handleCliError(error)
     }

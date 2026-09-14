@@ -2,6 +2,9 @@
 
 import { rm, glob } from 'node:fs/promises'
 import { handleCliError } from '@minimaz/errors'
+import { createLogger } from '@minimaz/logger'
+
+const log = createLogger('cleaner')
 
 const patterns = ['**/dist', '**/coverage', '**/.cache', '**/*.tsbuildinfo']
 
@@ -33,16 +36,18 @@ function isDependencyPath(filePath: string): boolean {
  * Sweeps and deletes monorepo build outputs, test coverage, and tool caches.
  */
 async function clean(): Promise<void> {
-    console.log('🧹 Cleaning monorepo artifacts and caches...')
+    log.info('Cleaning monorepo artifacts and caches')
 
     for (const pattern of patterns) {
+        log.debug(`Sweeping pattern ${pattern}`)
+
         // glob handles deep nested monorepo discovery natively
         for await (const entryPath of glob(pattern, {
             exclude: isDependencyPath,
         })) {
             try {
                 await rm(entryPath, { recursive: true, force: true })
-                console.log(`Deleted: ${entryPath}`)
+                log.info(`Deleted: ${entryPath}`)
             } catch (error: unknown) {
                 // Explicitly consume the error to satisfy strict empty-block rules
                 // while safely ignoring locked files or race conditions.
@@ -51,7 +56,7 @@ async function clean(): Promise<void> {
         }
     }
 
-    console.log('✨ Cleanup complete!')
+    log.success('Cleanup complete')
 }
 
 clean().catch((error: unknown) => {

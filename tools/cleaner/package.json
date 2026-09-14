@@ -30,5 +30,7 @@
         "url": "https://github.com/zellerindustries/minimaz-monorepo/issues"
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/tools/cleaner#readme",
-    "dependencies": {}
+    "dependencies": {
+        "@minimaz/logger": "^0.1.0"
+    }
 }

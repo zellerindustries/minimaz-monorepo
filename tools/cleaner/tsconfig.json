@@ -9,5 +9,5 @@
     },
     "include": ["src"],
     "exclude": ["dist", "node_modules"],
-    "references": [{ "path": "../../packages/errors" }]
+    "references": [{ "path": "../../packages/errors" }, { "path": "../../packages/logger" }]
 }
