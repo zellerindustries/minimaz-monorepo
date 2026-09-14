@@ -5,6 +5,7 @@ import { log } from '@minimaz/logger'
 import { getGlobalDir, getTemplatesDir } from '@minimaz/templates'
 import {
     buildDocs,
+    build,
     clear,
     config,
     docsInit,
@@ -75,6 +76,9 @@ export async function runCli(pkgPath: string): Promise<void> {
         version: () => version(pkgPath),
         v: () => version(pkgPath),
         validate: () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
+        build: async () => {
+            await build(cwd)
+        },
         clear: async () => {
             await clear(cwd)
         },
