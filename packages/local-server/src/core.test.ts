@@ -40,6 +40,24 @@ describe('startLocalServer', () => {
         expect(response.status).toBe(404)
     })
 
+    it('serves a file whose name requires percent-decoding', async () => {
+        await writeFile(join(dir, 'my file.css'), 'body { color: blue; }')
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const response = await fetch(`${handle.url}/my%20file.css`)
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('body { color: blue; }')
+    })
+
+    it('returns 400 for a malformed percent-encoded pathname', async () => {
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const response = await fetch(`${handle.url}/%E0%A4%A`)
+
+        expect(response.status).toBe(400)
+    })
+
     it('injects the reload script into HTML when liveReload is enabled', async () => {
         handle = await startLocalServer({ dir, liveReload: true })
 

@@ -49,10 +49,19 @@ async function handleRequest(
     dir: string,
     liveReload: LiveReloadController | undefined,
 ): Promise<void> {
-    const pathname = new URL(req.url ?? '/', 'http://localhost').pathname
+    const rawPathname = new URL(req.url ?? '/', 'http://localhost').pathname
 
-    if (liveReload !== undefined && pathname === liveReloadEndpoint) {
+    if (liveReload !== undefined && rawPathname === liveReloadEndpoint) {
         liveReload.handleSseRequest(res)
+        return
+    }
+
+    let pathname: string
+    try {
+        pathname = decodeURIComponent(rawPathname)
+    } catch {
+        res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+        res.end('Bad Request')
         return
     }
 
@@ -100,36 +109,51 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
 
     const liveReload = liveReloadEnabled ? createLiveReload(dir) : undefined
 
-    const server: Server = createServer((req, res) => {
-        handleRequest(req, res, dir, liveReload).catch((error: unknown) => {
-            log.error(error instanceof Error ? error.message : String(error))
-            if (!res.headersSent) {
-                res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
-            }
-            res.end('Internal Server Error')
-        })
-    })
+    let port: number
+    let url: string
+    let server: Server
 
-    await new Promise<void>((resolvePromise, rejectPromise) => {
-        server.once('error', (error: NodeJS.ErrnoException) => {
-            if (error.code === 'EADDRINUSE') {
-                rejectPromise(new KnownError(`Port ${String(requestedPort)} is already in use`))
-                return
-            }
-            rejectPromise(error)
+    try {
+        server = createServer((req, res) => {
+            handleRequest(req, res, dir, liveReload).catch((error: unknown) => {
+                log.error(error instanceof Error ? error.message : String(error))
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
+                }
+                res.end('Internal Server Error')
+            })
         })
-        server.listen(requestedPort, host, () => {
-            resolvePromise()
-        })
-    })
 
-    const address = server.address()
-    if (address === null || typeof address === 'string') {
-        throw new Error('Failed to resolve local server address')
+        await new Promise<void>((resolvePromise, rejectPromise) => {
+            const handleStartupError = (error: NodeJS.ErrnoException): void => {
+                if (error.code === 'EADDRINUSE') {
+                    rejectPromise(new KnownError(`Port ${String(requestedPort)} is already in use`))
+                    return
+                }
+                rejectPromise(error)
+            }
+            server.once('error', handleStartupError)
+            server.listen(requestedPort, host, () => {
+                server.removeListener('error', handleStartupError)
+                resolvePromise()
+            })
+        })
+
+        server.on('error', (error: Error) => {
+            log.error(error.message)
+        })
+
+        const address = server.address()
+        if (address === null || typeof address === 'string') {
+            throw new Error('Failed to resolve local server address')
+        }
+
+        port = address.port
+        url = `http://${host}:${String(port)}`
+    } catch (error) {
+        liveReload?.close()
+        throw error
     }
-
-    const port = address.port
-    const url = `http://${host}:${String(port)}`
 
     log.info(`Serving ${dir} at ${url}`)
 
