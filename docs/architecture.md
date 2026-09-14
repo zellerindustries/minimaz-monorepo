@@ -9,7 +9,7 @@ document is about how the pieces work, not which ones exist yet.
 ```txt
 packages/     @minimaz/* library packages — published, independently versioned
 toolkits/     @minimaz/sitekit — the published minimaz/mz bin, wrapping @minimaz/cli
-tools/        internal, never-published workspace packages that support the build itself (builder)
+tools/        internal, never-published workspace packages that support the build itself (builder, cleaner)
 config/       shared eslint/prettier/vitest config, kept out of the workspace root on purpose
 docs/         this documentation
 .claude/      status.md / migration.md (internal working ledgers) and superpowers/ design specs and plans
@@ -24,7 +24,9 @@ but were folded into `@minimaz/cli` and retired before `sitekit` took their plac
 ```txt
 @minimaz/sitekit (the minimaz/mz bin) → @minimaz/cli
 @minimaz/cli (library implementing the minimaz/mz commands)
-  → @minimaz/core, @minimaz/logger, @minimaz/config, @minimaz/markdown, @minimaz/templates, @minimaz/validate
+  → @minimaz/core, @minimaz/logger, @minimaz/config, @minimaz/markdown, @minimaz/templates, @minimaz/validate,
+    @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts
+@minimaz/bundler   → @minimaz/ts (JS/TS import-graph resolver — not yet a @minimaz/cli dependency)
 @minimaz/config    → @minimaz/json
 @minimaz/html      → @minimaz/validate
 @minimaz/templates → @minimaz/core, @minimaz/logger
@@ -73,6 +75,11 @@ The root `build` script runs this once for the whole graph: `tsc -b` (all projec
 `tools/builder`'s CLI with `--all` (bundles every package), then a script that copies `@minimaz/templates`'
 bundled seed templates from `src/seeds` into `dist/seeds`.
 
+`npm run clean` (`tools/cleaner`) sweeps `**/dist`, `**/coverage`, `**/.cache`, and `**/*.tsbuildinfo` repo-wide.
+It deliberately does *not* use a blanket "skip anything under `node_modules`" exclusion — this repo stores its own
+tsc caches at each package's `node_modules/.cache/tsc/`, so a blanket exclusion would silently prevent `clean`
+from ever reaching them. Real dependency content (e.g. `node_modules/<pkg>/dist`) is still protected.
+
 ## Config system
 
 `@minimaz/config`'s `loadConfig(cwd)` reads `minimaz.config.json` and understands **two** schemas at once,
@@ -81,7 +88,7 @@ independently defaulted:
 - **docs schema** — `docs.input.dir`, `docs.output.bundle`, `docs.output.formats` — consumed by `minimaz docs
 init`/`minimaz docs build`.
 - **build schema** — `input`/`output` (`mapping`, `externals`, `exclude`, CSS/JS/HTML processing options) — ported
-  from `minimaz-cli`, for the future `build`/`clear` commands.
+  from `minimaz-cli`, consumed by the `build` and `clear` commands.
 
 Both sections are always present in `loadConfig`'s result regardless of which one the file actually provided.
 `minimaz init` (build-only template) and `minimaz docs init` (docs-only template) each write only their own half
@@ -92,11 +99,12 @@ before assuming the two are unified.
 ## The CLI
 
 `@minimaz/cli` implements the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`,
-`template`, and `docs` — full `minimaz-cli` command-name parity except `build`/`clear`, which are blocked on JS
-dependency-graph bundling (deferred out of `@minimaz/js`/`@minimaz/ts` — real module resolution is a much bigger
-undertaking than CSS's `@import` text-inlining). `@minimaz/sitekit` is the actual published `minimaz`/`mz`
-binary — a thin passthrough that calls `@minimaz/cli`'s exported `runCli()`. See each package's own README, or
-run `minimaz help`, for per-command usage.
+`template`, `docs`, `clear`, and `build` — full `minimaz-cli` command-name parity. `build` ports `minimaz-cli`'s
+two-pass discovery/processing pipeline onto `@minimaz/css`/`@minimaz/js`/`@minimaz/html`/`@minimaz/ts` instead of
+`esbuild`; JS/TS import-graph bundling is the one piece not yet wired in (`output.js.bundling: true` throws
+rather than resolving the graph via the separate `@minimaz/bundler` package). `@minimaz/sitekit` is the actual
+published `minimaz`/`mz` binary — a thin passthrough that calls `@minimaz/cli`'s exported `runCli()`. See each
+package's own README, or run `minimaz help`, for per-command usage.
 
 `@minimaz/sitekit` runs `config(false)` on `npm postinstall` to bootstrap `~/.minimaz/` (global settings + bundled
 templates) on install, wrapped so a postinstall failure never fails the install itself. `@minimaz/cli` no longer
