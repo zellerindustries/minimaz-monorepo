@@ -12,10 +12,14 @@
     "references": [
         { "path": "../config" },
         { "path": "../core" },
+        { "path": "../css" },
         { "path": "../errors" },
+        { "path": "../html" },
+        { "path": "../js" },
         { "path": "../logger" },
         { "path": "../markdown" },
         { "path": "../templates" },
+        { "path": "../ts" },
         { "path": "../validate" }
     ]
 }
