@@ -1,5 +1,8 @@
 import { watch } from 'node:fs'
 import type { ServerResponse } from 'node:http'
+import { createLogger } from '@minimaz/logger'
+
+const log = createLogger('local-server')
 
 const liveReloadEndpoint = '/__minimaz-live-reload'
 
@@ -63,6 +66,10 @@ export function createLiveReload(dir: string): LiveReloadController {
             clearTimeout(debounceTimer)
         }
         debounceTimer = setTimeout(broadcast, debounceMs)
+    })
+
+    watcher.on('error', (error: Error) => {
+        log.warn(`Live reload stopped watching ${dir}: ${error.message}`)
     })
 
     return {
