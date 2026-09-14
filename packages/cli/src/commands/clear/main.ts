@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { pathExists, remove } from '@minimaz/core'
 import { loadConfig } from '@minimaz/config'
+import { KnownError } from '@minimaz/errors'
 import { log } from '@minimaz/logger'
 
 /**
@@ -16,7 +17,7 @@ export async function clear(cwd: string): Promise<void> {
     const outputDir = resolve(cwd, config.output.dir)
 
     if (outputDir === cwd || outputDir.length <= cwd.length) {
-        throw new Error(`Refusing to delete unsafe directory: ${outputDir}`)
+        throw new KnownError(`Refusing to delete unsafe directory: ${outputDir}`)
     }
 
     if (!(await pathExists(outputDir))) {

@@ -281,6 +281,7 @@ describe('processExternals', () => {
 
         await processExternals(
             dir,
+            dir,
             outDir,
             { 'vendor/lib.css': 'assets/lib.css' },
             makeConfig({}, { css: { bundling: false, minify: false } }),
@@ -295,6 +296,7 @@ describe('processExternals', () => {
         await mkdir(outDir, { recursive: true })
 
         await processExternals(
+            dir,
             dir,
             outDir,
             { 'https://example.com/lib.css': 'assets/lib.css' },
@@ -311,6 +313,7 @@ describe('processExternals', () => {
 
         await expect(
             processExternals(
+                dir,
                 dir,
                 outDir,
                 { 'missing.css': 'assets/missing.css' },

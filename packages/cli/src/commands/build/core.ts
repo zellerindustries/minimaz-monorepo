@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import type { MinimazConfig } from '@minimaz/config'
 import {
@@ -5,7 +6,6 @@ import {
     copy,
     ensureDir,
     getDirElements,
-    getFileContent,
     isDirectory,
     outputFile,
     pathExists,
@@ -172,7 +172,7 @@ export async function walkFolder(
         let content = ''
 
         if (PROCESSABLE_EXTENSIONS.has(ext)) {
-            const raw = await getFileContent(fromPath)
+            const raw = await readFile(fromPath, 'utf8')
             content = applyReplacements(raw, config.output.replace)
         }
 
@@ -187,6 +187,9 @@ export async function walkFolder(
  * (recursing via `walkFolder` when the source is a directory).
  *
  * @param {string} cwd - Directory externals' relative paths are resolved against
+ * @param {string} rootDir - The build's real top-level input directory, so
+ *   `input.mapping` (meant only for the main input tree) never fires
+ *   inside an external directory
  * @param {string} outDirPath - The build output directory
  * @param {Record<string, string>} externals - Map of local-path-or-URL to destination
  * @param {MinimazConfig} config - The loaded build configuration
@@ -194,6 +197,7 @@ export async function walkFolder(
  */
 export async function processExternals(
     cwd: string,
+    rootDir: string,
     outDirPath: string,
     externals: Record<string, string>,
     config: MinimazConfig,
@@ -219,7 +223,7 @@ export async function processExternals(
         const targetPath = join(outDirPath, destination)
 
         if (await isDirectory(fullPath)) {
-            await walkFolder(fullPath, targetPath, config, ignoredFiles, fullPath)
+            await walkFolder(fullPath, targetPath, config, ignoredFiles, rootDir)
             continue
         }
 
@@ -227,7 +231,7 @@ export async function processExternals(
         let content = ''
 
         if (PROCESSABLE_EXTENSIONS.has(ext)) {
-            const raw = await getFileContent(fullPath)
+            const raw = await readFile(fullPath, 'utf8')
             content = applyReplacements(raw, config.output.replace)
         }
 

@@ -92,4 +92,23 @@ describe('build', () => {
 
         await expect(build(cwd)).resolves.toBeUndefined()
     })
+
+    it('refuses to build into an unsafe output directory', async () => {
+        await writeConfig({ input: { dir: 'src' }, output: { dir: '.' } })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/unsafe output directory/)
+    })
+
+    it('does not wipe an existing output directory when input.dir is empty', async () => {
+        await writeConfig({ input: { dir: 'src' }, output: { dir: 'dist' } })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'previous-build.html'), '<html></html>', 'utf8')
+
+        await build(cwd)
+
+        expect(await pathExists(path.join(cwd, 'dist', 'previous-build.html'))).toBe(true)
+    })
 })
