@@ -1,3 +1,4 @@
+export * from './clear/index.js'
 export * from './config/index.js'
 export * from './docs/index.js'
 export * from './help/index.js'

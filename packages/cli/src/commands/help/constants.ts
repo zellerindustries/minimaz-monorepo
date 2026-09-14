@@ -48,4 +48,8 @@ export const commandsHelp: Record<string, CommandHelp> = {
         usage: 'minimaz docs <init|build>',
         description: 'Scaffold or build Markdown documentation',
     },
+    clear: {
+        usage: 'minimaz clear',
+        description: 'Remove the configured build output directory',
+    },
 }
