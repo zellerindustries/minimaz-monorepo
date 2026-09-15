@@ -20,13 +20,7 @@ export class KnownError extends Error {}
 export function handleCliError(error: unknown): void {
     if (error instanceof KnownError) {
         log.error(error.message)
-
-        if ('errors' in error && Array.isArray(error.errors)) {
-            for (const detail of error.errors as unknown[]) {
-                log.error(`\t-> ${String(detail)}`)
-            }
-        }
-
+        logErrorDetails(error)
         process.exitCode = 1
         return
     }
@@ -35,9 +29,26 @@ export function handleCliError(error: unknown): void {
 
     if (error instanceof Error) {
         log.error([error.stack ?? error.message, bugHint])
+        logErrorDetails(error)
     } else {
         log.error([String(error), bugHint])
     }
 
     process.exitCode = 1
+}
+
+/**
+ * Logs each entry of an `errors: string[]`-style detail array attached to
+ * `error`, if it has one — regardless of whether `error` is a `KnownError`
+ * or a plain `Error` that happens to carry the same shape.
+ *
+ * @param {Error} error - The error to check for an `errors` array
+ * @returns {void}
+ */
+function logErrorDetails(error: Error): void {
+    if ('errors' in error && Array.isArray(error.errors)) {
+        for (const detail of error.errors as unknown[]) {
+            log.error(`\t-> ${String(detail)}`)
+        }
+    }
 }

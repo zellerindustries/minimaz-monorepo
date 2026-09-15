@@ -50,6 +50,22 @@ describe('handleCliError', () => {
         expect(process.exitCode).toBe(1)
     })
 
+    it('logs each detail line for a plain Error carrying an errors array', () => {
+        const error = Object.assign(new Error('validation failed'), {
+            errors: ['bad field a', 'bad field b'],
+        })
+
+        handleCliError(error)
+
+        expect(errorSpy).toHaveBeenNthCalledWith(1, [
+            error.stack,
+            'This looks like a bug — please report it.',
+        ])
+        expect(errorSpy).toHaveBeenNthCalledWith(2, '\t-> bad field a')
+        expect(errorSpy).toHaveBeenNthCalledWith(3, '\t-> bad field b')
+        expect(process.exitCode).toBe(1)
+    })
+
     it('logs the stringified value and a bug-report hint for a non-Error throw', () => {
         handleCliError('boom')
 
