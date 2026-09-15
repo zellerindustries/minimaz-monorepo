@@ -1,10 +1,16 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { KnownError } from '@minimaz/errors'
 import { startLocalServer } from './core.js'
+import type * as FsPromises from 'node:fs/promises'
 import type { LocalServerHandle } from './types.js'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+    const actual = await importOriginal<typeof FsPromises>()
+    return { ...actual, readFile: vi.fn(actual.readFile) }
+})
 
 describe('startLocalServer', () => {
     let dir: string
@@ -36,6 +42,17 @@ describe('startLocalServer', () => {
         handle = await startLocalServer({ dir, liveReload: false })
 
         const response = await fetch(`${handle.url}/missing.txt`)
+
+        expect(response.status).toBe(404)
+    })
+
+    it('returns 404 (not 500) when the file is removed between resolution and read', async () => {
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+        vi.mocked(readFile).mockRejectedValueOnce(enoent)
+
+        const response = await fetch(`${handle.url}/style.css`)
 
         expect(response.status).toBe(404)
     })

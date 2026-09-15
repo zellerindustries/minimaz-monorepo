@@ -23,8 +23,8 @@ async function assertServableDirectory(dir: string): Promise<void> {
     let stats
     try {
         stats = await stat(dir)
-    } catch {
-        throw new KnownError(`Cannot serve "${dir}": directory does not exist`)
+    } catch (error: unknown) {
+        throw new KnownError(`Cannot serve "${dir}": directory does not exist`, { cause: error })
     }
 
     if (!stats.isDirectory()) {
@@ -80,7 +80,19 @@ async function handleRequest(
     }
 
     const contentType = resolveMimeType(resolution.filePath)
-    const contents = await readFile(resolution.filePath)
+
+    let contents: Buffer
+    try {
+        contents = await readFile(resolution.filePath)
+    } catch (error: unknown) {
+        const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined
+        if (code === 'ENOENT') {
+            res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+            res.end('Not Found')
+            return
+        }
+        throw error
+    }
 
     if (liveReload !== undefined && contentType.startsWith('text/html')) {
         res.writeHead(200, { 'content-type': contentType })

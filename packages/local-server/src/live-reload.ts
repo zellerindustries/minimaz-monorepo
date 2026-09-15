@@ -54,6 +54,7 @@ export interface LiveReloadController {
 export function createLiveReload(dir: string): LiveReloadController {
     const clients = new Set<ServerResponse>()
     let debounceTimer: NodeJS.Timeout | undefined
+    let closed = false
 
     const broadcast = (): void => {
         for (const client of clients) {
@@ -74,6 +75,12 @@ export function createLiveReload(dir: string): LiveReloadController {
 
     return {
         handleSseRequest(res: ServerResponse): void {
+            if (closed) {
+                res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' })
+                res.end('Live reload is shutting down')
+                return
+            }
+
             res.writeHead(200, {
                 'content-type': 'text/event-stream',
                 'cache-control': 'no-cache',
@@ -86,6 +93,7 @@ export function createLiveReload(dir: string): LiveReloadController {
             })
         },
         close(): void {
+            closed = true
             if (debounceTimer !== undefined) {
                 clearTimeout(debounceTimer)
             }
