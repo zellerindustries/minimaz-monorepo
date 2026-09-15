@@ -38,5 +38,8 @@ await handle.close()
     - `port` — the bound port (resolved even when `options.port` was `0` or omitted).
     - `close()` — stops the HTTP server and the file watcher (if any). Safe to call more than once.
 
-Path traversal outside `dir` is rejected with `403`. Requests for a directory resolve to its
-`index.html`, falling back to `404` when there isn't one.
+Requests for a directory resolve to its `index.html`, falling back to `404` when there isn't one. A
+resolved path outside `dir` is rejected with `403` as defense-in-depth — in practice, requests never
+reach it that way: `startLocalServer` parses each request's URL with the WHATWG `URL` API, which
+normalizes away dot-segments (`..`, `%2e%2e`, and mixed-case encodings) before the path is resolved
+against `dir`, so a request never carries an unresolved `..` past that point.

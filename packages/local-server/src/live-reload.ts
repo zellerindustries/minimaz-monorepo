@@ -91,6 +91,9 @@ export function createLiveReload(dir: string): LiveReloadController {
             res.on('close', () => {
                 clients.delete(res)
             })
+            res.on('error', () => {
+                clients.delete(res)
+            })
         },
         close(): void {
             closed = true

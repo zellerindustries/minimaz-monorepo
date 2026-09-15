@@ -24,24 +24,37 @@ export async function resolveStaticFile(dir: string, pathname: string): Promise<
     }
 
     let targetPath = requestedPath
-
+    let stats
     try {
-        const stats = await stat(targetPath)
-        if (stats.isDirectory()) {
-            targetPath = resolve(targetPath, 'index.html')
-        }
-    } catch {
-        return { status: 404 }
+        stats = await stat(targetPath)
+    } catch (error: unknown) {
+        return { status: isPermissionError(error) ? 403 : 404 }
     }
 
-    try {
-        const finalStats = await stat(targetPath)
-        if (!finalStats.isFile()) {
-            return { status: 404 }
+    if (stats.isDirectory()) {
+        targetPath = resolve(targetPath, 'index.html')
+        try {
+            stats = await stat(targetPath)
+        } catch (error: unknown) {
+            return { status: isPermissionError(error) ? 403 : 404 }
         }
-    } catch {
+    }
+
+    if (!stats.isFile()) {
         return { status: 404 }
     }
 
     return { status: 200, filePath: targetPath }
+}
+
+/**
+ * True when `error` is a filesystem permission failure (`EACCES`), which
+ * should be reported as `403` rather than the generic `404` used for a
+ * genuinely missing path.
+ *
+ * @param {unknown} error - The error caught from a `stat` call
+ * @returns {boolean} Whether `error` is an `EACCES` failure
+ */
+function isPermissionError(error: unknown): boolean {
+    return error instanceof Error && (error as NodeJS.ErrnoException).code === 'EACCES'
 }
