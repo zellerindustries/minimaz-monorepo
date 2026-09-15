@@ -15,7 +15,7 @@ import { InvalidTemplateNameError, TemplateNotFoundError } from './errors.js'
 import type { Settings } from './types.js'
 
 /** Names of the templates bundled with this package and seeded on first `config` run. */
-export const DEFAULT_TEMPLATE_NAMES = ['default', 'simple'] as const
+export const defaultTemplateNames = ['default', 'simple'] as const
 
 /**
  * Rejects template names that would escape the templates directory when
@@ -154,7 +154,7 @@ export async function seedDefaults(
         throw new Error(`Seed templates not found at "${seedsDir}" — run "npm run build" first`)
     }
 
-    for (const name of DEFAULT_TEMPLATE_NAMES) {
+    for (const name of defaultTemplateNames) {
         const src = join(seedsDir, name)
         const dest = join(templatesDir, name)
         const exists = await pathExists(dest)

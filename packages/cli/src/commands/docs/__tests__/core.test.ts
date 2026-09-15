@@ -2,11 +2,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { CONFIG_FILE_NAME } from '@minimaz/config'
+import { configFileName } from '@minimaz/config'
 import { buildDocs } from '../core.js'
 
 async function writeConfig(dir: string, docs: unknown): Promise<void> {
-    await writeFile(path.join(dir, CONFIG_FILE_NAME), JSON.stringify({ docs }))
+    await writeFile(path.join(dir, configFileName), JSON.stringify({ docs }))
 }
 
 describe('buildDocs', () => {

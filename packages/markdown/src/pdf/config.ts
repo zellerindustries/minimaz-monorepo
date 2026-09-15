@@ -1,10 +1,10 @@
 import type { Style } from './types.js'
 
-export const PAGE_WIDTH = 595
-export const PAGE_HEIGHT = 842
-export const MARGIN = 56
-export const LINE_HEIGHT_RATIO = 1.4
-export const HEADING_SIZES: Record<1 | 2 | 3 | 4 | 5 | 6, number> = {
+export const pageWidth = 595
+export const pageHeight = 842
+export const margin = 56
+export const lineHeightRatio = 1.4
+export const headingSizes: Record<1 | 2 | 3 | 4 | 5 | 6, number> = {
     1: 20,
     2: 17,
     3: 14,
@@ -12,17 +12,17 @@ export const HEADING_SIZES: Record<1 | 2 | 3 | 4 | 5 | 6, number> = {
     5: 11,
     6: 11,
 }
-export const BODY_SIZE = 11
-export const CODE_SIZE = 10
+export const bodySize = 11
+export const codeSize = 10
 
-export const FONT_RESOURCE: Record<Style, string> = {
+export const fontResource: Record<Style, string> = {
     regular: '/F1',
     bold: '/F2',
     italic: '/F3',
     boldItalic: '/F4',
 }
 
-export const FONT_BASENAME: Record<Style, string> = {
+export const fontBasename: Record<Style, string> = {
     regular: 'Courier',
     bold: 'Courier-Bold',
     italic: 'Courier-Oblique',

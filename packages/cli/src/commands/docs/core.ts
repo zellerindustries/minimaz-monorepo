@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { BUNDLE_NAME, BUNDLE_SEPARATOR, EXTENSIONS, loadConfig, OUTPUT_DIRS } from '@minimaz/config'
+import { bundleName, bundleSeparator, EXTENSIONS, loadConfig, OUTPUT_DIRS } from '@minimaz/config'
 import type { OutputFormat } from '@minimaz/config'
 import { MdToHtml, MdToPdf } from '@minimaz/markdown'
 import { findMarkdownFiles } from './walk.js'
@@ -54,7 +54,7 @@ export async function buildDocs(cwd: string): Promise<void> {
         const contents = await Promise.all(
             files.map((file): Promise<string> => readFile(file, 'utf8')),
         )
-        await convertAndWrite(contents.join(BUNDLE_SEPARATOR), BUNDLE_NAME, formats, cwd)
+        await convertAndWrite(contents.join(bundleSeparator), bundleName, formats, cwd)
         return
     }
 

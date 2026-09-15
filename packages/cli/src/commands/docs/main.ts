@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { CONFIG_FILE_NAME, DEFAULT_CONFIG } from '@minimaz/config'
+import { configFileName, DEFAULT_CONFIG } from '@minimaz/config'
 import { log } from '@minimaz/logger'
 import { buildDocs } from './core.js'
 
@@ -14,13 +14,13 @@ export { buildDocs }
  * @returns {Promise<void>} Resolves once the config file exists (written or already present)
  */
 export async function docsInit(cwd: string): Promise<void> {
-    const configPath = path.join(cwd, CONFIG_FILE_NAME)
+    const configPath = path.join(cwd, configFileName)
     if (existsSync(configPath)) {
-        log.info(`${CONFIG_FILE_NAME} already exists, leaving it untouched.`)
+        log.info(`${configFileName} already exists, leaving it untouched.`)
         return
     }
     await writeFile(configPath, `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`, 'utf8')
-    log.success(`Created ${CONFIG_FILE_NAME}.`)
+    log.success(`Created ${configFileName}.`)
 }
 
 /**

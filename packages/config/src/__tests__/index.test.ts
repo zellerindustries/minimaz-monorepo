@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { KnownError } from '@minimaz/errors'
 import {
-    CONFIG_FILE_NAME,
+    configFileName,
     ConfigNotFoundError,
     DEFAULT_BUILD_CONFIG,
     DEFAULT_CONFIG,
@@ -32,7 +32,7 @@ describe('loadConfig', () => {
 
     it('parses a full docs config file, defaulting the build section', async () => {
         await writeFile(
-            path.join(dir, CONFIG_FILE_NAME),
+            path.join(dir, configFileName),
             JSON.stringify({
                 docs: {
                     input: { dir: 'guides' },
@@ -66,14 +66,14 @@ describe('loadConfig', () => {
                 js: { bundling: false, minify: false },
             },
         }
-        await writeFile(path.join(dir, CONFIG_FILE_NAME), JSON.stringify(buildSection))
+        await writeFile(path.join(dir, configFileName), JSON.stringify(buildSection))
         const config = await loadConfig(dir)
         expect(config).toEqual({ ...DEFAULT_CONFIG, ...buildSection })
     })
 
     it('fills in defaults for every field when both sections are present but empty', async () => {
         await writeFile(
-            path.join(dir, CONFIG_FILE_NAME),
+            path.join(dir, configFileName),
             JSON.stringify({ docs: {}, input: {}, output: {} }),
         )
         const config = await loadConfig(dir)
@@ -81,14 +81,14 @@ describe('loadConfig', () => {
     })
 
     it('fills in every default when neither section is present', async () => {
-        await writeFile(path.join(dir, CONFIG_FILE_NAME), JSON.stringify({}))
+        await writeFile(path.join(dir, configFileName), JSON.stringify({}))
         const config = await loadConfig(dir)
         expect(config).toEqual({ ...DEFAULT_CONFIG, ...DEFAULT_BUILD_CONFIG })
     })
 
     it('drops unrecognized format values and falls back to the default formats', async () => {
         await writeFile(
-            path.join(dir, CONFIG_FILE_NAME),
+            path.join(dir, configFileName),
             JSON.stringify({ docs: { output: { formats: ['docx', 'pdf'] } } }),
         )
         const config = await loadConfig(dir)

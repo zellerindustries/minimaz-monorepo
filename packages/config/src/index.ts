@@ -11,7 +11,7 @@ minimaz-cli — see `loadConfig` below for how the two are merged.
 */
 
 /** Filename `loadConfig` looks for in the project's `cwd`. */
-export const CONFIG_FILE_NAME = 'minimaz.config.json'
+export const configFileName = 'minimaz.config.json'
 
 /** Defaults for the `docs` section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const DEFAULT_CONFIG: DocsConfig = {
@@ -112,7 +112,7 @@ function parseConfig(raw: unknown): MinimazConfig {
  * @throws {ConfigNotFoundError} When `minimaz.config.json` does not exist in `cwd`.
  */
 export async function loadConfig(cwd: string): Promise<MinimazConfig> {
-    const configPath = path.join(cwd, CONFIG_FILE_NAME)
+    const configPath = path.join(cwd, configFileName)
     let raw: string
     try {
         raw = await readFile(configPath, 'utf8')
@@ -123,10 +123,10 @@ export async function loadConfig(cwd: string): Promise<MinimazConfig> {
 }
 
 /** HTML comment inserted between docs pages when they're bundled into a single output file. */
-export const BUNDLE_SEPARATOR = '\n\n<!-- ============================== -->\n\n'
+export const bundleSeparator = '\n\n<!-- ============================== -->\n\n'
 
 /** Base filename (without extension) used for a bundled docs output file. */
-export const BUNDLE_NAME = 'bundle'
+export const bundleName = 'bundle'
 
 /** Output directory for each docs `OutputFormat`, relative to the configured build output dir. */
 export const OUTPUT_DIRS: Record<OutputFormat, string> = {

@@ -1,12 +1,12 @@
 import type { Block, Document, Inline } from '../types.js'
 import {
-    BODY_SIZE,
-    CODE_SIZE,
-    FONT_BASENAME,
-    FONT_RESOURCE,
-    HEADING_SIZES,
-    PAGE_HEIGHT,
-    PAGE_WIDTH,
+    bodySize,
+    codeSize,
+    fontBasename,
+    fontResource,
+    headingSizes,
+    pageHeight,
+    pageWidth,
 } from './config.js'
 import { LayoutEngine } from './layout.js'
 import type { Op, Style, Token, Word } from './types.js'
@@ -157,13 +157,13 @@ function renderListItem(
             ...flattenInline(first.children, 'regular'),
         ]
         const words = tokensToWords(tokens)
-        const maxChars = engine.maxCharsFor(BODY_SIZE, indent)
+        const maxChars = engine.maxCharsFor(bodySize, indent)
         for (const line of wrapWords(words, maxChars)) {
-            engine.addWordLine(line, BODY_SIZE, indent)
+            engine.addWordLine(line, bodySize, indent)
         }
         for (const rest of children.slice(1)) renderBlock(engine, rest, indent + 12)
     } else {
-        engine.addRawLine(sanitizeText(marker.trimEnd()), BODY_SIZE, indent, 'regular')
+        engine.addRawLine(sanitizeText(marker.trimEnd()), bodySize, indent, 'regular')
         for (const child of children) renderBlock(engine, child, indent + 12)
     }
 }
@@ -172,19 +172,19 @@ function renderBlock(engine: LayoutEngine, block: Block, indent: number): void {
     switch (block.type) {
         case 'heading':
             engine.addGap(6)
-            renderParagraphLike(engine, block.children, HEADING_SIZES[block.level], indent, 'bold')
+            renderParagraphLike(engine, block.children, headingSizes[block.level], indent, 'bold')
             engine.addGap(6)
             break
         case 'paragraph':
-            renderParagraphLike(engine, block.children, BODY_SIZE, indent, 'regular')
-            engine.addGap(BODY_SIZE * 0.6)
+            renderParagraphLike(engine, block.children, bodySize, indent, 'regular')
+            engine.addGap(bodySize * 0.6)
             break
         case 'code': {
             const lines = block.content.length > 0 ? block.content.split('\n') : []
             for (const line of lines) {
-                engine.addRawLine(sanitizeText(line), CODE_SIZE, indent + 12, 'regular')
+                engine.addRawLine(sanitizeText(line), codeSize, indent + 12, 'regular')
             }
-            engine.addGap(CODE_SIZE * 0.6)
+            engine.addGap(codeSize * 0.6)
             break
         }
         case 'blockquote':
@@ -195,7 +195,7 @@ function renderBlock(engine: LayoutEngine, block: Block, indent: number): void {
                 const marker = block.ordered ? `${String((block.start ?? 1) + idx)}. ` : '- '
                 renderListItem(engine, item.children, indent, marker)
             })
-            engine.addGap(BODY_SIZE * 0.4)
+            engine.addGap(bodySize * 0.4)
             break
         case 'thematicBreak':
             engine.addRule(indent)
@@ -208,7 +208,7 @@ function buildContentStream(ops: Op[]): string {
     for (const op of ops) {
         if (op.type === 'text') {
             parts.push('BT')
-            parts.push(`${FONT_RESOURCE[op.style]} ${String(op.size)} Tf`)
+            parts.push(`${fontResource[op.style]} ${String(op.size)} Tf`)
             parts.push(`1 0 0 1 ${formatNumber(op.x)} ${formatNumber(op.y)} Tm`)
             parts.push(`(${escapePdfString(op.text)}) Tj`)
             parts.push('ET')
@@ -242,15 +242,11 @@ export function renderPdf(document: Document): string {
     for (const style of styles) {
         fontObjNums.set(
             style,
-            writer.addObject(
-                `<< /Type /Font /Subtype /Type1 /BaseFont /${FONT_BASENAME[style]} >>`,
-            ),
+            writer.addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /${fontBasename[style]} >>`),
         )
     }
     const fontDict = styles
-        .map(
-            (style): string => `${FONT_RESOURCE[style]} ${String(fontObjNums.get(style) ?? 0)} 0 R`,
-        )
+        .map((style): string => `${fontResource[style]} ${String(fontObjNums.get(style) ?? 0)} 0 R`)
         .join(' ')
     const resourcesObjNum = writer.addObject(`<< /Font << ${fontDict} >> >>`)
 
@@ -262,7 +258,7 @@ export function renderPdf(document: Document): string {
             `<< /Length ${String(contentStream.length)} >>\nstream\n${contentStream}\nendstream`,
         )
         const pageObjNum = writer.addObject(
-            `<< /Type /Page /Parent ${String(pagesObjNum)} 0 R /MediaBox [0 0 ${String(PAGE_WIDTH)} ${String(PAGE_HEIGHT)}] /Resources ${String(resourcesObjNum)} 0 R /Contents ${String(contentObjNum)} 0 R >>`,
+            `<< /Type /Page /Parent ${String(pagesObjNum)} 0 R /MediaBox [0 0 ${String(pageWidth)} ${String(pageHeight)}] /Resources ${String(resourcesObjNum)} 0 R /Contents ${String(contentObjNum)} 0 R >>`,
         )
         pageObjNums.push(pageObjNum)
     }
