@@ -45,7 +45,11 @@ describe('processCss', () => {
             ext: '.css',
         }
 
-        const result = await processCss(file, makeConfig({ bundling: false, minify: false }))
+        const result = await processCss(
+            file,
+            makeConfig({ bundling: false, minify: false }),
+            new Map(),
+        )
 
         expect(result).toBe('body { color: red; }')
     })
@@ -62,7 +66,11 @@ describe('processCss', () => {
             ext: '.css',
         }
 
-        const result = await processCss(file, makeConfig({ bundling: false, minify: true }))
+        const result = await processCss(
+            file,
+            makeConfig({ bundling: false, minify: true }),
+            new Map(),
+        )
 
         expect(result).toBe('body{color:red}')
     })
@@ -81,7 +89,11 @@ describe('processCss', () => {
             ext: '.css',
         }
 
-        const result = await processCss(file, makeConfig({ bundling: true, minify: false }))
+        const result = await processCss(
+            file,
+            makeConfig({ bundling: true, minify: false }),
+            new Map(),
+        )
 
         expect(result).toContain('body { margin: 0; }')
         expect(result).toContain('h1 { color: blue; }')
@@ -102,8 +114,32 @@ describe('processCss', () => {
         const result = await processCss(
             file,
             makeConfig({ bundling: true, minify: false, replace: { __COLOR__: 'green' } }),
+            new Map(),
         )
 
         expect(result).toBe('body { color: green; }')
+    })
+
+    it('reuses a cached bundle instead of re-resolving @import from disk', async () => {
+        await mkdir(path.join(dir, 'partials'), { recursive: true })
+        await writeFile(path.join(dir, 'partials', '_base.css'), 'body { margin: 0; }', 'utf8')
+        const entryPath = path.join(dir, 'main.css')
+        const entryRaw = '@import "./partials/_base.css";\nh1 { color: blue; }'
+        await writeFile(entryPath, entryRaw, 'utf8')
+
+        const file: File = {
+            src: entryPath,
+            dest: path.join(dir, 'out.css'),
+            content: entryRaw,
+            ext: '.css',
+        }
+
+        const cache = new Map([
+            [path.resolve(entryPath), { code: 'h1 { color: cached; }', inputs: [entryPath] }],
+        ])
+
+        const result = await processCss(file, makeConfig({ bundling: true, minify: false }), cache)
+
+        expect(result).toBe('h1 { color: cached; }')
     })
 })

@@ -75,6 +75,7 @@ describe('runDiscovery', () => {
             dir,
             makeConfig({}, { css: { bundling: true, minify: false } }),
             ignoredFiles,
+            new Map(),
         )
 
         expect(ignoredFiles.has(path.resolve(dir, '_partial.css'))).toBe(true)
@@ -94,6 +95,7 @@ describe('runDiscovery', () => {
             dir,
             makeConfig({}, { css: { bundling: false, minify: false } }),
             ignoredFiles,
+            new Map(),
         )
 
         expect(ignoredFiles.size).toBe(0)
@@ -108,6 +110,7 @@ describe('runDiscovery', () => {
             dir,
             makeConfig({}, { js: { bundling: false, minify: false } }),
             ignoredFiles,
+            new Map(),
         )
 
         expect(ignoredFiles.size).toBe(0)
@@ -122,6 +125,7 @@ describe('runDiscovery', () => {
             dir,
             makeConfig({ exclude: ['node_modules'] }, { css: { bundling: true, minify: false } }),
             ignoredFiles,
+            new Map(),
         )
 
         expect(ignoredFiles.size).toBe(0)
@@ -149,6 +153,7 @@ describe('processFile', () => {
             file,
             makeConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
+            new Map(),
         )
 
         expect(await readFile(dest, 'utf8')).toBe('body { color: red; }')
@@ -163,6 +168,7 @@ describe('processFile', () => {
             file,
             makeConfig({}, { js: { bundling: false, minify: false } }),
             new Set(),
+            new Map(),
         )
 
         const jsDest = path.join(dir, 'out', 'a.js')
@@ -178,7 +184,7 @@ describe('processFile', () => {
         await writeFile(src, 'binary-ish-content', 'utf8')
 
         const file: File = { src, dest, content: '', ext: '.png' }
-        await processFile(file, makeConfig(), new Set())
+        await processFile(file, makeConfig(), new Set(), new Map())
 
         expect(await readFile(dest, 'utf8')).toBe('binary-ish-content')
     })
@@ -208,6 +214,7 @@ describe('walkFolder', () => {
             makeConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
             inDir,
+            new Map(),
         )
 
         expect(await pathExists(path.join(outDir, 'a.css'))).toBe(true)
@@ -227,6 +234,7 @@ describe('walkFolder', () => {
             makeConfig({}, { css: { bundling: false, minify: false } }),
             ignoredFiles,
             inDir,
+            new Map(),
         )
 
         expect(await pathExists(path.join(outDir, '_partial.css'))).toBe(false)
@@ -244,6 +252,7 @@ describe('walkFolder', () => {
             makeConfig({ mapping: { pages: '' } }, { html: { minify: false } }),
             new Set(),
             inDir,
+            new Map(),
         )
 
         expect(await pathExists(path.join(outDir, 'index.html'))).toBe(true)
@@ -255,7 +264,14 @@ describe('walkFolder', () => {
         await mkdir(path.join(inDir, 'node_modules'), { recursive: true })
         await writeFile(path.join(inDir, 'node_modules', 'x.css'), 'body{}', 'utf8')
 
-        await walkFolder(inDir, outDir, makeConfig({ exclude: ['node_modules'] }), new Set(), inDir)
+        await walkFolder(
+            inDir,
+            outDir,
+            makeConfig({ exclude: ['node_modules'] }),
+            new Set(),
+            inDir,
+            new Map(),
+        )
 
         expect(await pathExists(path.join(outDir, 'node_modules'))).toBe(false)
     })
@@ -286,6 +302,7 @@ describe('processExternals', () => {
             { 'vendor/lib.css': 'assets/lib.css' },
             makeConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
+            new Map(),
         )
 
         expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(true)
@@ -302,6 +319,7 @@ describe('processExternals', () => {
             { 'https://example.com/lib.css': 'assets/lib.css' },
             makeConfig(),
             new Set(),
+            new Map(),
         )
 
         expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(false)
@@ -319,6 +337,7 @@ describe('processExternals', () => {
                 { 'missing.css': 'assets/missing.css' },
                 makeConfig(),
                 new Set(),
+                new Map(),
             ),
         ).resolves.toBeUndefined()
         expect(await pathExists(path.join(outDir, 'assets', 'missing.css'))).toBe(false)

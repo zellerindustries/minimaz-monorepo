@@ -16,7 +16,7 @@ import { log } from '@minimaz/logger'
 import { processCss } from './processors/css.js'
 import { processHtml } from './processors/html.js'
 import { processJs, processTs } from './processors/javascript.js'
-import type { File } from './types.js'
+import type { CssBundleCache, File } from './types.js'
 
 const PROCESSABLE_EXTENSIONS = new Set(['.css', '.js', '.ts', '.tsx', '.html'])
 
@@ -37,16 +37,20 @@ export async function reCreateOutDir(path: string): Promise<void> {
  * `bundleCss` and adds every non-entry input path to `ignoredFiles` — so
  * the processing pass (`walkFolder`) skips them instead of emitting them
  * as standalone output files. JS/TS files are never added, since JS/TS
- * bundling isn't supported.
+ * bundling isn't supported. The bundle result is cached by resolved entry
+ * path in `cssBundleCache`, so the processing pass's `processCss` can
+ * reuse it instead of re-resolving the same `@import` graph from disk.
  *
  * @param {string} currentDir - Directory to scan (recurses into subdirectories)
  * @param {MinimazConfig} config - The loaded build configuration
  * @param {Set<string>} ignoredFiles - Mutated in place with resolved absolute paths to skip
+ * @param {CssBundleCache} cssBundleCache - Mutated in place with each bundled entry's result
  */
 export async function runDiscovery(
     currentDir: string,
     config: MinimazConfig,
     ignoredFiles: Set<string>,
+    cssBundleCache: CssBundleCache,
 ): Promise<void> {
     const items = await getDirElements(currentDir)
 
@@ -58,16 +62,17 @@ export async function runDiscovery(
         const fullPath = join(currentDir, item)
 
         if (await isDirectory(fullPath)) {
-            await runDiscovery(fullPath, config, ignoredFiles)
+            await runDiscovery(fullPath, config, ignoredFiles, cssBundleCache)
             continue
         }
 
         const ext = extname(fullPath).toLowerCase()
         if (ext === '.css' && config.output.css.bundling) {
-            const { inputs } = await bundleCss(fullPath)
             const entry = resolve(fullPath)
+            const bundleResult = await bundleCss(fullPath)
+            cssBundleCache.set(entry, bundleResult)
 
-            for (const inputPath of inputs) {
+            for (const inputPath of bundleResult.inputs) {
                 const resolvedInput = resolve(inputPath)
                 if (resolvedInput !== entry) {
                     ignoredFiles.add(resolvedInput)
@@ -86,16 +91,18 @@ export async function runDiscovery(
  * @param {File} file - The file to process
  * @param {MinimazConfig} config - The loaded build configuration
  * @param {Set<string>} ignoredFiles - Unused by processing itself, threaded through for interface symmetry with the discovery pass
+ * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
  */
 export async function processFile(
     file: File,
     config: MinimazConfig,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ignoredFiles: Set<string>,
+    cssBundleCache: CssBundleCache,
 ): Promise<void> {
     switch (file.ext) {
         case '.css': {
-            const content = await processCss(file, config)
+            const content = await processCss(file, config, cssBundleCache)
             await outputFile(file.dest, content)
             break
         }
@@ -135,6 +142,7 @@ export async function processFile(
  * @param {MinimazConfig} config - The loaded build configuration
  * @param {Set<string>} ignoredFiles - Absolute source paths to skip
  * @param {string} rootDir - The build's top-level input directory (mapping only applies at this level)
+ * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
  */
 export async function walkFolder(
     from: string,
@@ -142,6 +150,7 @@ export async function walkFolder(
     config: MinimazConfig,
     ignoredFiles: Set<string>,
     rootDir: string,
+    cssBundleCache: CssBundleCache,
 ): Promise<void> {
     const items = await getDirElements(from)
     const isRootLevel = resolve(from) === resolve(rootDir)
@@ -164,7 +173,7 @@ export async function walkFolder(
             isRootLevel && typeof mappedValue === 'string' ? join(to, mappedValue) : join(to, item)
 
         if (await isDirectory(fromPath)) {
-            await walkFolder(fromPath, nextToPath, config, ignoredFiles, rootDir)
+            await walkFolder(fromPath, nextToPath, config, ignoredFiles, rootDir, cssBundleCache)
             continue
         }
 
@@ -176,7 +185,12 @@ export async function walkFolder(
             content = applyReplacements(raw, config.output.replace)
         }
 
-        await processFile({ src: fromPath, dest: nextToPath, content, ext }, config, ignoredFiles)
+        await processFile(
+            { src: fromPath, dest: nextToPath, content, ext },
+            config,
+            ignoredFiles,
+            cssBundleCache,
+        )
     }
 }
 
@@ -194,6 +208,7 @@ export async function walkFolder(
  * @param {Record<string, string>} externals - Map of local-path-or-URL to destination
  * @param {MinimazConfig} config - The loaded build configuration
  * @param {Set<string>} ignoredFiles - Absolute source paths to skip
+ * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
  */
 export async function processExternals(
     cwd: string,
@@ -202,6 +217,7 @@ export async function processExternals(
     externals: Record<string, string>,
     config: MinimazConfig,
     ignoredFiles: Set<string>,
+    cssBundleCache: CssBundleCache,
 ): Promise<void> {
     for (const [source, destination] of Object.entries(externals)) {
         if (source.startsWith('http')) {
@@ -223,7 +239,7 @@ export async function processExternals(
         const targetPath = join(outDirPath, destination)
 
         if (await isDirectory(fullPath)) {
-            await walkFolder(fullPath, targetPath, config, ignoredFiles, rootDir)
+            await walkFolder(fullPath, targetPath, config, ignoredFiles, rootDir, cssBundleCache)
             continue
         }
 
@@ -235,6 +251,11 @@ export async function processExternals(
             content = applyReplacements(raw, config.output.replace)
         }
 
-        await processFile({ src: fullPath, dest: targetPath, content, ext }, config, ignoredFiles)
+        await processFile(
+            { src: fullPath, dest: targetPath, content, ext },
+            config,
+            ignoredFiles,
+            cssBundleCache,
+        )
     }
 }
