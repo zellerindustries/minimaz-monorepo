@@ -1,6 +1,6 @@
 import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 
-import { dirname } from 'node:path'
+import { dirname, sep } from 'node:path'
 
 import { log } from '@minimaz/logger'
 
@@ -185,6 +185,19 @@ export async function isDirectory(path: string): Promise<boolean> {
     return lstat(path)
         .then((stats) => stats.isDirectory())
         .catch(() => false)
+}
+
+/**
+ * Checks whether `child` is strictly inside `parent` - true containment,
+ * not a string-length proxy. Both paths must already be resolved/absolute;
+ * this does no path resolution itself.
+ *
+ * @param {string} child - The path to check
+ * @param {string} parent - The directory `child` must be inside
+ * @returns {boolean} Whether `child` is a strict descendant of `parent`
+ */
+export function isPathInside(child: string, parent: string): boolean {
+    return child !== parent && child.startsWith(parent + sep)
 }
 
 /**

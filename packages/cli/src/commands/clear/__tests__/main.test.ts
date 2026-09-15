@@ -50,4 +50,23 @@ describe('clear', () => {
         await expect(clear(cwd)).rejects.toThrow(/Refusing to delete/)
         expect(await pathExists(cwd)).toBe(true)
     })
+
+    it('refuses a sibling directory even though its path is longer than cwd', async () => {
+        // A string-length comparison would wrongly treat this as "safe" -
+        // it's a sibling, not a descendant, of cwd.
+        const siblingName = `${path.basename(cwd)}-backup-longer-name`
+        await writeFile(
+            path.join(cwd, 'minimaz.config.json'),
+            JSON.stringify({ output: { dir: `../${siblingName}` } }),
+            'utf8',
+        )
+        await mkdir(path.join(path.dirname(cwd), siblingName), { recursive: true })
+
+        try {
+            await expect(clear(cwd)).rejects.toThrow(/Refusing to delete/)
+            expect(await pathExists(path.join(path.dirname(cwd), siblingName))).toBe(true)
+        } finally {
+            await rm(path.join(path.dirname(cwd), siblingName), { recursive: true, force: true })
+        }
+    })
 })

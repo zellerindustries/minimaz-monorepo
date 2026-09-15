@@ -1,9 +1,10 @@
 import { resolve } from 'node:path'
 import { loadConfig } from '@minimaz/config'
-import { getDirElements } from '@minimaz/core'
+import { getDirElements, isPathInside } from '@minimaz/core'
 import { KnownError } from '@minimaz/errors'
 import { log } from '@minimaz/logger'
 import { processExternals, reCreateOutDir, runDiscovery, walkFolder } from './core.js'
+import type { CssBundleCache } from './types.js'
 
 /**
  * Builds the project according to `minimaz.config.json`, using a two-pass
@@ -16,8 +17,8 @@ import { processExternals, reCreateOutDir, runDiscovery, walkFolder } from './co
  *   `input.dir`/`output.dir` are resolved relative to it.
  * @throws {KnownError} When `output.js.bundling` is `true` (JS/TS
  *   import-graph bundling isn't implemented yet), or when the resolved
- *   `output.dir` is `cwd` itself or a parent of it (refuses to ever
- *   delete the project root).
+ *   `output.dir` isn't strictly inside `cwd` (refuses to ever delete
+ *   the project root, an ancestor of it, or an unrelated directory).
  */
 export async function build(cwd: string): Promise<void> {
     const config = await loadConfig(cwd)
@@ -31,7 +32,7 @@ export async function build(cwd: string): Promise<void> {
     const inDirPath = resolve(cwd, config.input.dir)
     const outDirPath = resolve(cwd, config.output.dir)
 
-    if (outDirPath === cwd || outDirPath.length <= cwd.length) {
+    if (!isPathInside(outDirPath, cwd)) {
         throw new KnownError(`build: refusing to delete unsafe output directory: ${outDirPath}`)
     }
 
@@ -44,12 +45,13 @@ export async function build(cwd: string): Promise<void> {
     await reCreateOutDir(outDirPath)
 
     const ignoredFiles = new Set<string>()
+    const cssBundleCache: CssBundleCache = new Map()
 
     log.info('Discovery: starting')
-    await runDiscovery(inDirPath, config, ignoredFiles)
+    await runDiscovery(inDirPath, config, ignoredFiles, cssBundleCache)
 
     log.info('Processing: starting')
-    await walkFolder(inDirPath, outDirPath, config, ignoredFiles, inDirPath)
+    await walkFolder(inDirPath, outDirPath, config, ignoredFiles, inDirPath, cssBundleCache)
 
     const externalKeys = Object.keys(config.input.externals)
     if (externalKeys.length > 0) {
@@ -61,6 +63,7 @@ export async function build(cwd: string): Promise<void> {
             config.input.externals,
             config,
             ignoredFiles,
+            cssBundleCache,
         )
     }
 

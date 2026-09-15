@@ -101,6 +101,19 @@ describe('build', () => {
         await expect(build(cwd)).rejects.toThrow(/unsafe output directory/)
     })
 
+    it('refuses a sibling directory even though its path is longer than cwd', async () => {
+        // A string-length comparison would wrongly treat this as "safe" -
+        // it's a sibling, not a descendant, of cwd.
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: `../${path.basename(cwd)}-backup-longer-name` },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/unsafe output directory/)
+    })
+
     it('does not wipe an existing output directory when input.dir is empty', async () => {
         await writeConfig({ input: { dir: 'src' }, output: { dir: 'dist' } })
         await mkdir(path.join(cwd, 'src'), { recursive: true })

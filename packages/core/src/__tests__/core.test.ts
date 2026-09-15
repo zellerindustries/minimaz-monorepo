@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as FsPromises from 'node:fs/promises'
 
-import { applyReplacements, getDirElements, readJsonFile } from '../core.js'
+import { applyReplacements, getDirElements, isPathInside, readJsonFile } from '../core.js'
 
 describe('readJsonFile', () => {
     let dir: string
@@ -123,5 +123,31 @@ describe('applyReplacements', () => {
         const result = applyReplacements('unchanged', {})
 
         expect(result).toBe('unchanged')
+    })
+})
+
+describe('isPathInside', () => {
+    it('returns true for a direct child', () => {
+        expect(isPathInside(path.join('project', 'dist'), 'project')).toBe(true)
+    })
+
+    it('returns true for a nested descendant', () => {
+        expect(isPathInside(path.join('project', 'dist', 'assets'), 'project')).toBe(true)
+    })
+
+    it('returns false for the same path', () => {
+        expect(isPathInside('project', 'project')).toBe(false)
+    })
+
+    it('returns false for a sibling whose name has the parent as a string prefix', () => {
+        expect(isPathInside('project-backup', 'project')).toBe(false)
+    })
+
+    it('returns false for an unrelated sibling directory, even with a longer path', () => {
+        expect(isPathInside(path.join('other', 'much', 'longer', 'path'), 'project')).toBe(false)
+    })
+
+    it('returns false for a parent of the given directory', () => {
+        expect(isPathInside('project', path.join('project', 'dist'))).toBe(false)
     })
 })
