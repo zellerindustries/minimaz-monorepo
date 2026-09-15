@@ -18,7 +18,7 @@ const patterns = ['**/dist', '**/coverage', '**/.cache', '**/*.tsbuildinfo']
  * what comes *after* `node_modules` rather than just testing for its
  * presence in the path.
  */
-function isDependencyPath(filePath: string): boolean {
+export function isDependencyPath(filePath: string): boolean {
     const normalized = filePath.split('\\').join('/')
     const marker = 'node_modules'
     const index = normalized.indexOf(marker)
@@ -27,7 +27,17 @@ function isDependencyPath(filePath: string): boolean {
         return false
     }
 
-    const afterNodeModules = normalized.slice(index + marker.length)
+    const afterIndex = index + marker.length
+    const boundaryChar = normalized[afterIndex]
+
+    // Require a real path-segment boundary on the right too - otherwise
+    // "node_modules_backup/dist" matches the "node_modules" prefix and is
+    // wrongly treated as dependency content.
+    if (boundaryChar !== undefined && boundaryChar !== '/') {
+        return false
+    }
+
+    const afterNodeModules = normalized.slice(afterIndex)
 
     return afterNodeModules !== '' && !afterNodeModules.startsWith('/.cache')
 }
