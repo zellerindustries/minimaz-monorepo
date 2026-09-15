@@ -41,6 +41,7 @@ describe('initGit provider branches', () => {
 
     beforeEach(async () => {
         targetDir = await mkdtemp(path.join(tmpdir(), 'site-builder-initgit-mocked-'))
+        vi.clearAllMocks()
     })
 
     afterEach(async () => {
@@ -72,6 +73,28 @@ describe('initGit provider branches', () => {
             'gh',
             ['repo', 'create', 'my-project', '--private', '--source=.', '--remote', 'origin'],
             targetDir,
+        )
+    })
+
+    it('matches a mixed-case explicit provider the same as a lowercase one', async () => {
+        await initGit('my-project', targetDir, 'GitHub')
+
+        expect(executeCommand).toHaveBeenCalledWith(
+            'gh',
+            ['repo', 'create', 'my-project', '--private', '--source=.', '--remote', 'origin'],
+            targetDir,
+        )
+    })
+
+    it('treats an explicit "Local" (mixed case) the same as "local"', async () => {
+        await initGit('my-project', targetDir, 'Local')
+
+        expect(executeCommand).toHaveBeenCalledWith('git', ['init'], targetDir)
+        expect(executeCommand).not.toHaveBeenCalledWith('gh', expect.anything(), expect.anything())
+        expect(executeCommand).not.toHaveBeenCalledWith(
+            'glab',
+            expect.anything(),
+            expect.anything(),
         )
     })
 

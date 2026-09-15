@@ -31,8 +31,9 @@ async function linkRemoteRepo(
     provider: string,
 ): Promise<void> {
     const remoteName = 'origin'
+    const normalizedProvider = provider.toLowerCase()
 
-    if (provider === 'local') {
+    if (normalizedProvider === 'local') {
         log.info('Using local Git repository')
         return
     }
@@ -43,7 +44,7 @@ async function linkRemoteRepo(
         return
     }
 
-    if (provider === 'github') {
+    if (normalizedProvider === 'github') {
         log.info(`Creating GitHub repository "${repoName}"`)
         await executeCommand(
             'gh',
@@ -53,7 +54,7 @@ async function linkRemoteRepo(
         return
     }
 
-    if (provider === 'gitlab') {
+    if (normalizedProvider === 'gitlab') {
         log.info(`Creating GitLab repository "${repoName}"`)
 
         const gitlabUser = process.env['GITLAB_USER']
@@ -86,21 +87,18 @@ export async function initGit(
     targetDir: string,
     provider?: string,
 ): Promise<void> {
-    const resolvedProvider =
+    const resolvedProvider = (
         provider ??
-        (
-            await askQuestion(
-                'Select a provider or paste a url to connect your existing repo (cli tools needed) [LOCAL/github/gitlab]:',
-                'local',
-            )
-        )
-            .toLowerCase()
-            .trim()
+        (await askQuestion(
+            'Select a provider or paste a url to connect your existing repo (cli tools needed) [LOCAL/github/gitlab]:',
+            'local',
+        ))
+    ).trim()
 
     log.info('Initializing Git repository')
     await executeCommand('git', ['init'], targetDir)
 
-    if (resolvedProvider && resolvedProvider !== 'local') {
+    if (resolvedProvider && resolvedProvider.toLowerCase() !== 'local') {
         await linkRemoteRepo(projectName, targetDir, resolvedProvider)
     } else {
         log.info('Git repository initialized locally')
