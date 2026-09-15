@@ -188,12 +188,33 @@ export async function discoverPackageDirs(repoRoot: string): Promise<string[]> {
     return dirs
 }
 
+/**
+ * Decides which package directories to build for this invocation: every
+ * discovered package when run from the repo root (the top-level `npm run
+ * build` script, which needs everything built in dependency order), or
+ * just `cwd` when it's a single package's own `build` script (`tsc -p
+ * tsconfig.json && node ../../tools/builder/dist/main.js`, run with `cwd`
+ * set to that package's directory) — scoped to that one package instead
+ * of silently rebuilding the entire workspace.
+ *
+ * @param {string} cwd - The invoking process's working directory
+ * @param {string} repoRoot - The monorepo root (see resolveRepoRoot)
+ * @param {string[]} allDirs - Every discovered package directory
+ * @returns {string[]} The directories to build for this invocation
+ */
+export function resolveTargetDirs(cwd: string, repoRoot: string, allDirs: string[]): string[] {
+    return cwd === repoRoot ? allDirs : [cwd]
+}
+
 async function run(): Promise<void> {
     try {
         const repoRoot = resolveRepoRoot(import.meta.url)
-        const dirs = await discoverPackageDirs(repoRoot)
+        const allDirs = await discoverPackageDirs(repoRoot)
+        const dirs = resolveTargetDirs(process.cwd(), repoRoot, allDirs)
 
-        log.info(`Discovered ${String(dirs.length)} candidate package directories`)
+        log.info(
+            `Building ${String(dirs.length)} package director${dirs.length === 1 ? 'y' : 'ies'}`,
+        )
 
         for (const dir of dirs) {
             try {
