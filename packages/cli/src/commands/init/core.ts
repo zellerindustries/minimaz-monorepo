@@ -19,6 +19,21 @@ export async function initNpm(targetDir: string, projectName: string): Promise<v
 }
 
 /**
+ * Case-insensitively compares a provider string against a known keyword
+ * ("local", "github", "gitlab") - the one place that knows providers are
+ * matched case-insensitively, so a new call site reaches for this instead
+ * of reinventing `.toLowerCase()` (and forgetting it, the way an
+ * explicit `--provider` flag once diverged from the interactive prompt).
+ *
+ * @param {string} provider - The provider string to check, in any case
+ * @param {string} keyword - The lowercase keyword to compare against
+ * @returns {boolean} Whether `provider` matches `keyword`, ignoring case
+ */
+function isProviderKeyword(provider: string, keyword: string): boolean {
+    return provider.toLowerCase() === keyword
+}
+
+/**
  * Creates or connects a remote Git repository. Does not create commits.
  *
  * @param {string} repoName - Repository name
@@ -31,9 +46,8 @@ async function linkRemoteRepo(
     provider: string,
 ): Promise<void> {
     const remoteName = 'origin'
-    const normalizedProvider = provider.toLowerCase()
 
-    if (normalizedProvider === 'local') {
+    if (isProviderKeyword(provider, 'local')) {
         log.info('Using local Git repository')
         return
     }
@@ -44,7 +58,7 @@ async function linkRemoteRepo(
         return
     }
 
-    if (normalizedProvider === 'github') {
+    if (isProviderKeyword(provider, 'github')) {
         log.info(`Creating GitHub repository "${repoName}"`)
         await executeCommand(
             'gh',
@@ -54,7 +68,7 @@ async function linkRemoteRepo(
         return
     }
 
-    if (normalizedProvider === 'gitlab') {
+    if (isProviderKeyword(provider, 'gitlab')) {
         log.info(`Creating GitLab repository "${repoName}"`)
 
         const gitlabUser = process.env['GITLAB_USER']
@@ -98,7 +112,7 @@ export async function initGit(
     log.info('Initializing Git repository')
     await executeCommand('git', ['init'], targetDir)
 
-    if (resolvedProvider && resolvedProvider.toLowerCase() !== 'local') {
+    if (resolvedProvider && !isProviderKeyword(resolvedProvider, 'local')) {
         await linkRemoteRepo(projectName, targetDir, resolvedProvider)
     } else {
         log.info('Git repository initialized locally')
