@@ -34,7 +34,15 @@ describe('init', () => {
         expect(html).toBe('<html></html>')
 
         const config = await readFile(path.join(targetDir, 'minimaz.config.json'), 'utf8')
-        expect(JSON.parse(config)).toHaveProperty('input')
+        const parsed = JSON.parse(config) as {
+            input: unknown
+            output: { js: { bundling: boolean } }
+        }
+        expect(parsed).toHaveProperty('input')
+        // build throws a KnownError when output.js.bundling is true (JS/TS
+        // import-graph bundling isn't implemented yet) - a freshly scaffolded
+        // project must be buildable out of the box.
+        expect(parsed.output.js.bundling).toBe(false)
     })
 
     it('throws when the target directory already exists', async () => {
