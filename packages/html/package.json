@@ -16,7 +16,7 @@
         "lint": "eslint --config ../../eslint.config.mjs .",
         "lint:fix": "eslint --config ../../eslint.config.mjs . --fix",
         "validate": "npm run lint && npm run typecheck",
-        "test": "vitest run --root ../.. --config config/vitest.config.ts packages/html",
+        "test": "vitest run --root ../.. packages/html",
         "prepack": "npm run build"
     },
     "keywords": [

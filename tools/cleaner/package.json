@@ -16,7 +16,7 @@
         "lint": "eslint --config ../../eslint.config.mjs .",
         "lint:fix": "eslint --config ../../eslint.config.mjs . --fix",
         "validate": "npm run lint && npm run typecheck",
-        "test": "vitest run --root ../.. --config config/vitest.config.ts tools/cleaner",
+        "test": "vitest run --root ../.. tools/cleaner",
         "clean": "rimraf dist"
     },
     "author": "",
