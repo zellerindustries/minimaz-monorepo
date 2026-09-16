@@ -2,7 +2,7 @@
     "name": "minimaz-monorepo",
     "version": "1.0.0",
     "description": "Monorepo for the Minimaz ecosystem.",
-    "private": false,
+    "private": true,
     "license": "MIT",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "type": "module",
