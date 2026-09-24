@@ -24,16 +24,14 @@ export interface ResolveRequestOptions {
 }
 
 /**
- * Resolves `requestedPath` (already joined onto `resolvedDir`) to either a
- * file, a listable directory, or nothing — the shared core used by both the
- * exact-match and clean-URL lookups.
+ * Resolves `requestedPath` to either a file, a listable directory, or
+ * nothing — the shared core used by both the exact-match and clean-URL
+ * lookups.
  *
- * @param {string} resolvedDir - The served directory, already resolved
  * @param {string} requestedPath - The absolute candidate path to check
  * @returns {Promise<{ kind: 'file'; filePath: string } | { kind: 'directory'; dirPath: string } | { kind: 'forbidden' } | { kind: 'miss' }>}
  */
 async function statCandidate(
-    resolvedDir: string,
     requestedPath: string,
 ): Promise<
     | { kind: 'file'; filePath: string }
@@ -86,7 +84,7 @@ export async function resolveRequest(
         return { kind: 'forbidden' }
     }
 
-    const exact = await statCandidate(resolvedDir, exactPath)
+    const exact = await statCandidate(exactPath)
 
     if (exact.kind === 'forbidden') {
         return { kind: 'forbidden' }
@@ -99,7 +97,7 @@ export async function resolveRequest(
     let directoryCandidate: string | undefined
     if (exact.kind === 'directory') {
         const indexPath = resolve(exact.dirPath, 'index.html')
-        const index = await statCandidate(resolvedDir, indexPath)
+        const index = await statCandidate(indexPath)
         if (index.kind === 'forbidden') {
             return { kind: 'forbidden' }
         }
@@ -113,7 +111,7 @@ export async function resolveRequest(
         const cleanPathname = `${pathname.replace(/\/+$/, '')}.html`
         const cleanPath = resolveWithin(cleanPathname)
         if (cleanPath !== undefined) {
-            const clean = await statCandidate(resolvedDir, cleanPath)
+            const clean = await statCandidate(cleanPath)
             if (clean.kind === 'forbidden') {
                 return { kind: 'forbidden' }
             }
@@ -130,7 +128,7 @@ export async function resolveRequest(
 
     if (options.singlePageApp) {
         const rootIndexPath = resolve(resolvedDir, 'index.html')
-        const rootIndex = await statCandidate(resolvedDir, rootIndexPath)
+        const rootIndex = await statCandidate(rootIndexPath)
         if (rootIndex.kind === 'file') {
             return { kind: 'file', filePath: rootIndex.filePath }
         }

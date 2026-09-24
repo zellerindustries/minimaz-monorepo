@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { createLogger, KnownError } from '@minimaz/logger'
 import { createLiveReload, injectReloadScript } from './live-reload.js'
 import { resolveMimeType } from './mime.js'
-import { resolveStaticFile } from './static-handler.js'
+import { renderDirectoryListing, resolveRequest } from './static-handler.js'
 
 import type { LocalServerHandle, LocalServerOptions } from './types.js'
 import type { LiveReloadController } from './live-reload.js'
@@ -33,12 +34,46 @@ async function assertServableDirectory(dir: string): Promise<void> {
 }
 
 /**
+ * Computes a weak ETag over `contents` and, when `req`'s `if-none-match`
+ * header matches it exactly, writes a `304` and returns `true` so the
+ * caller skips writing a body.
+ *
+ * @param {IncomingMessage} req - The incoming request
+ * @param {ServerResponse} res - The response to write to
+ * @param {Buffer | string} contents - The exact bytes being sent, post any
+ *   transformation (e.g. live-reload injection) — the ETag must match what
+ *   the client actually receives
+ * @returns {boolean} Whether a `304` was written and the caller should stop
+ */
+function applyCacheControl(
+    req: IncomingMessage,
+    res: ServerResponse,
+    contents: Buffer | string,
+): boolean {
+    const hash = createHash('sha1').update(contents).digest('hex').slice(0, 16)
+    const etag = `W/"${hash}"`
+
+    res.setHeader('etag', etag)
+    res.setHeader('cache-control', 'no-cache')
+
+    if (req.headers['if-none-match'] === etag) {
+        res.writeHead(304)
+        res.end()
+        return true
+    }
+
+    return false
+}
+
+/**
  * Handles a single HTTP request: routes the live-reload SSE endpoint, then
- * falls back to static file resolution and serving.
+ * falls back to request resolution and serving (a file, a directory
+ * listing, or a 403/404).
  *
  * @param {IncomingMessage} req - The incoming request
  * @param {ServerResponse} res - The response to write to
  * @param {string} dir - The directory being served
+ * @param {LocalServerOptions} options - The server's configuration
  * @param {LiveReloadController | undefined} liveReload - The live-reload
  *   controller, when enabled
  * @returns {Promise<void>} Resolves once the response has been sent
@@ -47,6 +82,7 @@ async function handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
     dir: string,
+    options: LocalServerOptions,
     liveReload: LiveReloadController | undefined,
 ): Promise<void> {
     const rawPathname = new URL(req.url ?? '/', 'http://localhost').pathname
@@ -65,17 +101,31 @@ async function handleRequest(
         return
     }
 
-    const resolution = await resolveStaticFile(dir, pathname)
+    const resolution = await resolveRequest(dir, pathname, {
+        cleanUrls: options.cleanUrls ?? false,
+        singlePageApp: options.singlePageApp ?? false,
+        directoryListing: options.directoryListing ?? false,
+    })
 
-    if (resolution.status === 403) {
+    if (resolution.kind === 'forbidden') {
         res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
         res.end('Forbidden')
         return
     }
 
-    if (resolution.status === 404) {
+    if (resolution.kind === 'notFound') {
         res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
         res.end('Not Found')
+        return
+    }
+
+    if (resolution.kind === 'listing') {
+        const html = renderDirectoryListing(pathname, resolution.entries)
+        if ((options.cacheControl ?? false) && applyCacheControl(req, res, html)) {
+            return
+        }
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        res.end(html)
         return
     }
 
@@ -94,14 +144,17 @@ async function handleRequest(
         throw error
     }
 
-    if (liveReload !== undefined && contentType.startsWith('text/html')) {
-        res.writeHead(200, { 'content-type': contentType })
-        res.end(injectReloadScript(contents.toString('utf8')))
+    const body =
+        liveReload !== undefined && contentType.startsWith('text/html')
+            ? injectReloadScript(contents.toString('utf8'))
+            : contents
+
+    if ((options.cacheControl ?? false) && applyCacheControl(req, res, body)) {
         return
     }
 
     res.writeHead(200, { 'content-type': contentType })
-    res.end(contents)
+    res.end(body)
 }
 
 /**
@@ -127,7 +180,7 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
 
     try {
         server = createServer((req, res) => {
-            handleRequest(req, res, dir, liveReload).catch((error: unknown) => {
+            handleRequest(req, res, dir, options, liveReload).catch((error: unknown) => {
                 log.error(error instanceof Error ? error.message : String(error))
                 if (!res.headersSent) {
                     res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })

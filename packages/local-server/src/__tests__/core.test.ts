@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,22 +13,22 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     return { ...actual, readFile: vi.fn(actual.readFile) }
 })
 
+let dir: string
+let handle: LocalServerHandle | undefined
+
+beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'minimaz-local-server-'))
+    await writeFile(join(dir, 'index.html'), '<html><body><h1>Hi</h1></body></html>')
+    await writeFile(join(dir, 'style.css'), 'body { color: red; }')
+})
+
+afterEach(async () => {
+    await handle?.close()
+    handle = undefined
+    await rm(dir, { recursive: true, force: true })
+})
+
 describe('startLocalServer', () => {
-    let dir: string
-    let handle: LocalServerHandle | undefined
-
-    beforeEach(async () => {
-        dir = await mkdtemp(join(tmpdir(), 'minimaz-local-server-'))
-        await writeFile(join(dir, 'index.html'), '<html><body><h1>Hi</h1></body></html>')
-        await writeFile(join(dir, 'style.css'), 'body { color: red; }')
-    })
-
-    afterEach(async () => {
-        await handle?.close()
-        handle = undefined
-        await rm(dir, { recursive: true, force: true })
-    })
-
     it('serves a static file with the correct content type', async () => {
         handle = await startLocalServer({ dir, liveReload: false })
 
@@ -132,5 +132,90 @@ describe('startLocalServer', () => {
         await expect(startLocalServer({ dir: join(dir, 'does-not-exist') })).rejects.toThrow(
             KnownError,
         )
+    })
+})
+
+describe('cleanUrls / singlePageApp / directoryListing', () => {
+    it('serves the clean-URL fallback when cleanUrls is enabled', async () => {
+        await writeFile(join(dir, 'about.html'), '<html>about</html>')
+        handle = await startLocalServer({ dir, liveReload: false, cleanUrls: true })
+
+        const response = await fetch(`${handle.url}/about`)
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('about')
+    })
+
+    it('renders a directory listing when enabled and no index.html exists', async () => {
+        await mkdir(join(dir, 'no-index'))
+        await writeFile(join(dir, 'no-index', 'file.txt'), 'hi')
+        handle = await startLocalServer({ dir, liveReload: false, directoryListing: true })
+
+        const response = await fetch(`${handle.url}/no-index`)
+
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toContain('text/html')
+        expect(await response.text()).toContain('file.txt')
+    })
+
+    it('falls back to root index.html for an unresolved path when singlePageApp is enabled', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, singlePageApp: true })
+
+        const response = await fetch(`${handle.url}/some/client/route`)
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('Hi')
+    })
+})
+
+describe('cacheControl', () => {
+    it('adds no cache headers when cacheControl is off (default)', async () => {
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.headers.get('etag')).toBeNull()
+        expect(response.headers.get('cache-control')).toBeNull()
+    })
+
+    it('adds an ETag and Cache-Control: no-cache when enabled', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.headers.get('etag')).toMatch(/^W\//)
+        expect(response.headers.get('cache-control')).toBe('no-cache')
+    })
+
+    it('returns 304 with an empty body when If-None-Match matches', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+
+        const first = await fetch(`${handle.url}/style.css`)
+        const etag = first.headers.get('etag')
+        if (etag === null) {
+            throw new Error('expected an ETag on the first response')
+        }
+
+        const second = await fetch(`${handle.url}/style.css`, {
+            headers: { 'if-none-match': etag },
+        })
+
+        expect(second.status).toBe(304)
+        expect(await second.text()).toBe('')
+    })
+
+    it('computes the ETag over the post-injection HTML body, not the on-disk file', async () => {
+        handle = await startLocalServer({ dir, liveReload: true, cacheControl: true })
+
+        const response = await fetch(`${handle.url}/index.html`)
+        const body = await response.text()
+        const etag = response.headers.get('etag')
+
+        expect(body).toContain('EventSource')
+
+        const second = await fetch(`${handle.url}/index.html`, {
+            headers: { 'if-none-match': etag ?? '' },
+        })
+        expect(second.status).toBe(304)
     })
 })

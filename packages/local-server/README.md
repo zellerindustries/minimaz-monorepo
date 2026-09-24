@@ -33,6 +33,14 @@ await handle.close()
     - `options.liveReload` — inject a live-reload script into HTML responses and watch `dir` for
       changes, pushing a `reload` event over Server-Sent Events to connected clients. Defaults to
       `true`.
+    - `options.cleanUrls` — falls back to `<path>.html` when an extensionless path has no exact
+      file match. Defaults to `false`.
+    - `options.singlePageApp` — serves the root `index.html` for any request nothing else
+      resolved. Defaults to `false`.
+    - `options.directoryListing` — renders a minimal HTML directory listing when a directory has
+      no `index.html`. Defaults to `false`.
+    - `options.cacheControl` — adds an ETag and `Cache-Control: no-cache` to every response,
+      honoring `If-None-Match` with a `304`. Defaults to `false`.
 - `LocalServerHandle`
     - `url` — the server's base URL, e.g. `"http://127.0.0.1:53241"`.
     - `port` — the bound port (resolved even when `options.port` was `0` or omitted).
@@ -43,3 +51,12 @@ resolved path outside `dir` is rejected with `403` as defense-in-depth — in pr
 reach it that way: `startLocalServer` parses each request's URL with the WHATWG `URL` API, which
 normalizes away dot-segments (`..`, `%2e%2e`, and mixed-case encodings) before the path is resolved
 against `dir`, so a request never carries an unresolved `..` past that point.
+
+Each request is resolved in this order, stopping at the first stage that matches:
+
+1. An exact file or directory `index.html` match under `dir`.
+2. The `cleanUrls` fallback (`<path>.html`), when enabled and the path has no extension.
+3. A directory listing, when `directoryListing` is enabled and the matched directory has no
+   `index.html`.
+4. The `singlePageApp` fallback to the root `index.html`, when enabled.
+5. `404` (or `403` for a path that would escape `dir`).
