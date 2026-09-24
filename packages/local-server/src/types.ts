@@ -10,6 +10,14 @@ export interface LocalServerOptions {
     host?: string
     /** Injects a live-reload script into HTML responses and watches `dir` for changes. Defaults to true. */
     liveReload?: boolean
+    /** Falls back to `<path>.html` when an extensionless path has no exact file match. Defaults to false. */
+    cleanUrls?: boolean
+    /** Serves the root `index.html` for any request nothing else resolved. Defaults to false. */
+    singlePageApp?: boolean
+    /** Renders a minimal HTML directory listing when a directory has no `index.html`. Defaults to false. */
+    directoryListing?: boolean
+    /** Adds an ETag and `Cache-Control: no-cache` to every response, honoring `If-None-Match` with a 304. Defaults to false. */
+    cacheControl?: boolean
 }
 
 /**
