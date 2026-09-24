@@ -53,4 +53,4 @@ known gaps (e.g. `validate` is currently single-file only, unlike the original's
 Depends on [`@minimaz/config`](../config), [`@minimaz/core`](../core),
 [`@minimaz/logger`](../logger), [`@minimaz/markdown`](../markdown), [`@minimaz/templates`](../templates),
 [`@minimaz/validate`](../validate), [`@minimaz/css`](../css), [`@minimaz/js`](../js), [`@minimaz/html`](../html),
-[`@minimaz/ts`](../ts), and `cross-spawn`.
+[`@minimaz/ts`](../ts), [`@minimaz/local-server`](../local-server), and `cross-spawn`.

@@ -24,9 +24,9 @@ but were folded into `@minimaz/cli` and retired before `sitekit` took their plac
 @minimaz/sitekit (the minimaz/mz bin) → @minimaz/cli
 @minimaz/cli (library implementing the minimaz/mz commands)
   → @minimaz/config, @minimaz/core, @minimaz/logger, @minimaz/markdown, @minimaz/templates,
-    @minimaz/validate, @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts
+    @minimaz/validate, @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts, @minimaz/local-server
 @minimaz/bundler      → @minimaz/ts (JS/TS import-graph resolver — not yet a @minimaz/cli dependency)
-@minimaz/local-server → @minimaz/logger (dev HTTP server — not yet a @minimaz/cli dependency)
+@minimaz/local-server → @minimaz/logger (dev HTTP server, wired into @minimaz/cli's serve command)
 @minimaz/config       → @minimaz/json, @minimaz/logger
 @minimaz/html         → @minimaz/validate
 @minimaz/templates    → @minimaz/core, @minimaz/logger

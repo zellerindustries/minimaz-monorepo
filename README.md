@@ -6,23 +6,23 @@ An npm-workspace-based rewrite of [`minimaz-cli`](https://github.com/zellerindus
 
 ## Packages
 
-| Package                                          | What it does                                                                                                                                         |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@minimaz/core`](packages/core)                 | Filesystem utilities shared across the ecosystem.                                                                                                    |
-| [`@minimaz/logger`](packages/logger)             | Minimal structured logger, plus shared CLI error handling (`KnownError`, `handleCliError`).                                                          |
-| [`@minimaz/markdown`](packages/markdown)         | Dependency-free Markdown parser with HTML/PDF renderers.                                                                                             |
-| [`@minimaz/css`](packages/css)                   | Dependency-free CSS minifier and `@import` bundler.                                                                                                  |
-| [`@minimaz/js`](packages/js)                     | Dependency-free JavaScript minifier.                                                                                                                 |
-| [`@minimaz/ts`](packages/ts)                     | TypeScript/TSX transpiler via the `typescript` compiler.                                                                                             |
-| [`@minimaz/json`](packages/json)                 | Dependency-free JSON parse/minify/format.                                                                                                            |
-| [`@minimaz/validate`](packages/validate)         | Structural validators for CSS, HTML, JS, TS, and JSON.                                                                                               |
-| [`@minimaz/html`](packages/html)                 | HTML minifier, plus `@minimaz/validate`'s HTML validator re-exported.                                                                                |
-| [`@minimaz/config`](packages/config)             | Loads and validates `minimaz.config.json`.                                                                                                           |
-| [`@minimaz/templates`](packages/templates)       | Manages the global `~/.minimaz` directory and template CRUD.                                                                                         |
-| [`@minimaz/bundler`](packages/bundler)           | Zero-dependency relative-import JS/TS module graph resolver. Not yet wired into `@minimaz/cli`'s `build` command.                                    |
-| [`@minimaz/local-server`](packages/local-server) | Dependency-free `node:http` static file server with SSE live reload, for serving a built site during development. Not yet wired into `@minimaz/cli`. |
-| [`@minimaz/cli`](packages/cli)                   | Library implementing the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`, `template`, `docs`, `clear`, `build`.            |
-| [`@minimaz/sitekit`](toolkits/sitekit)           | The published `minimaz`/`mz` binary, wrapping `@minimaz/cli`'s commands.                                                                             |
+| Package                                          | What it does                                                                                                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@minimaz/core`](packages/core)                 | Filesystem utilities shared across the ecosystem.                                                                                                              |
+| [`@minimaz/logger`](packages/logger)             | Minimal structured logger, plus shared CLI error handling (`KnownError`, `handleCliError`).                                                                    |
+| [`@minimaz/markdown`](packages/markdown)         | Dependency-free Markdown parser with HTML/PDF renderers.                                                                                                       |
+| [`@minimaz/css`](packages/css)                   | Dependency-free CSS minifier and `@import` bundler.                                                                                                            |
+| [`@minimaz/js`](packages/js)                     | Dependency-free JavaScript minifier.                                                                                                                           |
+| [`@minimaz/ts`](packages/ts)                     | TypeScript/TSX transpiler via the `typescript` compiler.                                                                                                       |
+| [`@minimaz/json`](packages/json)                 | Dependency-free JSON parse/minify/format.                                                                                                                      |
+| [`@minimaz/validate`](packages/validate)         | Structural validators for CSS, HTML, JS, TS, and JSON.                                                                                                         |
+| [`@minimaz/html`](packages/html)                 | HTML minifier, plus `@minimaz/validate`'s HTML validator re-exported.                                                                                          |
+| [`@minimaz/config`](packages/config)             | Loads and validates `minimaz.config.json`.                                                                                                                     |
+| [`@minimaz/templates`](packages/templates)       | Manages the global `~/.minimaz` directory and template CRUD.                                                                                                   |
+| [`@minimaz/bundler`](packages/bundler)           | Zero-dependency relative-import JS/TS module graph resolver. Not yet wired into `@minimaz/cli`'s `build` command.                                              |
+| [`@minimaz/local-server`](packages/local-server) | Dependency-free `node:http` static file server with SSE live reload, for serving a built site during development. Wired into `@minimaz/cli`'s `serve` command. |
+| [`@minimaz/cli`](packages/cli)                   | Library implementing the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`, `template`, `docs`, `clear`, `build`, `serve`.             |
+| [`@minimaz/sitekit`](toolkits/sitekit)           | The published `minimaz`/`mz` binary, wrapping `@minimaz/cli`'s commands.                                                                                       |
 
 Full detail on what each package actually supports today is in [`.claude/status.md`](.claude/status.md).
 
