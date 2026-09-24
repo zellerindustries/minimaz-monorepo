@@ -101,6 +101,32 @@ describe('resolveRequest', () => {
             const result = await resolveRequest(dir, '/about', allOff)
             expect(result).toEqual({ kind: 'notFound' })
         })
+
+        it('prefers <path>.html over a same-named directory with no index.html', async () => {
+            await mkdir(join(dir, 'about'))
+            const result = await resolveRequest(dir, '/about', {
+                ...allOff,
+                cleanUrls: true,
+                directoryListing: true,
+            })
+            expect(result).toEqual({ kind: 'file', filePath: join(dir, 'about.html') })
+        })
+
+        it('still lists the directory when no <path>.html exists alongside it', async () => {
+            await mkdir(join(dir, 'about-only'))
+            await writeFile(join(dir, 'about-only', 'notes.txt'), 'hi')
+
+            const result = await resolveRequest(dir, '/about-only', {
+                ...allOff,
+                cleanUrls: true,
+                directoryListing: true,
+            })
+
+            expect(result).toEqual({
+                kind: 'listing',
+                entries: [{ name: 'notes.txt', isDirectory: false }],
+            })
+        })
     })
 
     describe('directoryListing', () => {
@@ -216,5 +242,18 @@ describe('renderDirectoryListing', () => {
     it('omits a parent-directory link at the served root', () => {
         const html = renderDirectoryListing('/', [])
         expect(html).not.toContain('href="..')
+    })
+
+    it('escapes an entry name containing HTML markup', () => {
+        const html = renderDirectoryListing('/docs', [
+            { name: '<script>alert(1)</script>.txt', isDirectory: false },
+        ])
+        expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;.txt')
+        expect(html).not.toContain('<script>alert(1)</script>')
+    })
+
+    it('percent-encodes an entry name containing "&" in its href', () => {
+        const html = renderDirectoryListing('/docs', [{ name: 'a&b.txt', isDirectory: false }])
+        expect(html).toContain('href="a%26b.txt"')
     })
 })

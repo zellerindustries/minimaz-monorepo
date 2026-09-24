@@ -120,6 +120,12 @@ async function handleRequest(
     }
 
     if (resolution.kind === 'listing') {
+        if (pathname !== '' && !pathname.endsWith('/')) {
+            res.writeHead(301, { location: `${pathname}/` })
+            res.end()
+            return
+        }
+
         const html = renderDirectoryListing(pathname, resolution.entries)
         if ((options.cacheControl ?? false) && applyCacheControl(req, res, html)) {
             return

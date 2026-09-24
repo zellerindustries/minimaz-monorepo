@@ -107,7 +107,11 @@ export async function resolveRequest(
         directoryCandidate = exact.dirPath
     }
 
-    if (options.cleanUrls && exact.kind === 'miss' && extname(pathname) === '') {
+    if (
+        options.cleanUrls &&
+        (exact.kind === 'miss' || directoryCandidate !== undefined) &&
+        extname(pathname) === ''
+    ) {
         const cleanPathname = `${pathname.replace(/\/+$/, '')}.html`
         const cleanPath = resolveWithin(cleanPathname)
         if (cleanPath !== undefined) {
@@ -166,27 +170,46 @@ async function listDirectory(dirPath: string): Promise<DirectoryEntry[]> {
 export function renderDirectoryListing(pathname: string, entries: DirectoryEntry[]): string {
     const normalized = pathname === '' ? '/' : pathname
     const base = normalized.endsWith('/') ? normalized : `${normalized}/`
+    const safeBase = escapeHtml(base)
 
     const parentLink = normalized === '/' ? '' : `<li><a href="..">.. (parent directory)</a></li>`
 
     const entryLinks = entries
         .map((entry) => {
-            const href = entry.isDirectory ? `${entry.name}/` : entry.name
-            return `<li><a href="${href}">${entry.name}${entry.isDirectory ? '/' : ''}</a></li>`
+            const href = escapeHtml(encodeURIComponent(entry.name)) + (entry.isDirectory ? '/' : '')
+            const text = escapeHtml(entry.name) + (entry.isDirectory ? '/' : '')
+            return `<li><a href="${href}">${text}</a></li>`
         })
         .join('\n')
 
     return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>Index of ${base}</title></head>
+<head><meta charset="utf-8"><title>Index of ${safeBase}</title></head>
 <body>
-<h1>Index of ${base}</h1>
+<h1>Index of ${safeBase}</h1>
 <ul>
 ${parentLink}
 ${entryLinks}
 </ul>
 </body>
 </html>`
+}
+
+/**
+ * Escapes `text` for safe placement inside HTML content or an attribute
+ * value. `&` is replaced first so the other replacements' output is never
+ * itself re-escaped.
+ *
+ * @param {string} text - The raw text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
 }
 
 /**

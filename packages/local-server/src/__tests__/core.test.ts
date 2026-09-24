@@ -158,6 +158,17 @@ describe('cleanUrls / singlePageApp / directoryListing', () => {
         expect(await response.text()).toContain('file.txt')
     })
 
+    it('redirects a directory listing request with no trailing slash', async () => {
+        await mkdir(join(dir, 'no-index'))
+        await writeFile(join(dir, 'no-index', 'file.txt'), 'hi')
+        handle = await startLocalServer({ dir, liveReload: false, directoryListing: true })
+
+        const response = await fetch(`${handle.url}/no-index`, { redirect: 'manual' })
+
+        expect(response.status).toBe(301)
+        expect(response.headers.get('location')).toBe('/no-index/')
+    })
+
     it('falls back to root index.html for an unresolved path when singlePageApp is enabled', async () => {
         handle = await startLocalServer({ dir, liveReload: false, singlePageApp: true })
 
