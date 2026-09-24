@@ -12,7 +12,7 @@ import { validateCss, validateHtml, validateJs, validateJson, validateTs } from 
  * @param {string} path - Path to the file to validate
  */
 export async function validate(path: string): Promise<void> {
-    if (!path) {
+    if (path === '') {
         throw new Error('validate: --path is required')
     }
 

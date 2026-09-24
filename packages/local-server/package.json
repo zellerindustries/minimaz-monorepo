@@ -20,14 +20,14 @@
         "live-reload"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/main.js",
-        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
-        "typecheck": "tsc --noEmit",
+        "build": "tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs",
+        "clean": "rimraf ./dist ./node_modules/.cache/tsc",
+        "typecheck": "tsc -b",
         "typecheck:watch": "tsc -p tsconfig.json --watch",
-        "lint": "eslint --config ../../eslint.config.mjs .",
-        "lint:fix": "eslint --config ../../eslint.config.mjs . --fix",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
         "validate": "npm run lint && npm run typecheck",
-        "test": "vitest run --root ../.. packages/local-server",
+        "test": "vitest run --root ../.. --project @minimaz/local-server",
         "prepack": "npm run build"
     },
     "repository": {
@@ -40,7 +40,6 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/local-server#readme",
     "dependencies": {
-        "@minimaz/errors": "^0.1.0",
         "@minimaz/logger": "^0.1.0"
     }
 }

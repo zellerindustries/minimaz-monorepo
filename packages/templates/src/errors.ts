@@ -1,4 +1,4 @@
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 
 /**
  * Thrown by {@link getTemplatePath} when the named template doesn't exist

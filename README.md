@@ -9,8 +9,7 @@ An npm-workspace-based rewrite of [`minimaz-cli`](https://github.com/zellerindus
 | Package                                          | What it does                                                                                                                                         |
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`@minimaz/core`](packages/core)                 | Filesystem utilities shared across the ecosystem.                                                                                                    |
-| [`@minimaz/logger`](packages/logger)             | Minimal, performance-oriented structured logger.                                                                                                     |
-| [`@minimaz/errors`](packages/errors)             | Shared top-level CLI error classification/handling (`KnownError`, `handleCliError`).                                                                 |
+| [`@minimaz/logger`](packages/logger)             | Minimal structured logger, plus shared CLI error handling (`KnownError`, `handleCliError`).                                                          |
 | [`@minimaz/markdown`](packages/markdown)         | Dependency-free Markdown parser with HTML/PDF renderers.                                                                                             |
 | [`@minimaz/css`](packages/css)                   | Dependency-free CSS minifier and `@import` bundler.                                                                                                  |
 | [`@minimaz/js`](packages/js)                     | Dependency-free JavaScript minifier.                                                                                                                 |
@@ -49,7 +48,7 @@ See each package's own README (linked in the table above) for its API. These are
 ```txt
 packages/     @minimaz/* library packages
 toolkits/     @minimaz/sitekit, the published minimaz/mz CLI binary
-tools/        internal, never-published packages supporting the build itself (builder, cleaner)
+scripts/      repo scripts, not packages (bundle.mjs: the esbuild step of every package's build)
 docs/         CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, architecture.md, getting-started.md
 ```
 

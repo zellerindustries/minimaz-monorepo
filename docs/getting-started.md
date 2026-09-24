@@ -24,12 +24,12 @@ files at commit time, and the full validation gate at push time. You don't need 
 ## Everyday commands
 
 ```bash
-npm run build             # tsc -b (all packages) + bundle every package's entry points + copy template seeds
+npm run build             # build the build tools, then run every package's own build (tsc -b + bundle)
 npm run typecheck:watch   # tsc -b --watch — fast feedback loop while editing (doesn't re-bundle)
 npm run lint / lint:fix
 npm run format / format:check
 npm run validate          # lint + format:check + typecheck — the same gate CI runs
-npm test                  # vitest run, across every package
+npm test                  # every package's own tests
 ```
 
 Run any of these for a single package with `--workspace`:
@@ -42,11 +42,12 @@ npm run typecheck --workspace=@minimaz/cli
 Run a single test file directly with vitest (bypassing the workspace scripts):
 
 ```bash
-npx vitest run packages/css/src/minify.test.ts --config config/vitest.config.ts
+npx vitest run packages/css/src/__tests__/minify.test.ts
 ```
 
-Tests are colocated `*.test.ts` files next to the code they cover (e.g. `packages/css/src/minify.test.ts`), not
-gathered in a separate test package.
+Tests live in a `__tests__/` directory next to the code they cover (e.g. `packages/css/src/__tests__/minify.test.ts`
+for `packages/css/src/minify.ts`), not in a separate test package. `npm test` from inside a package directory runs
+only that package's tests.
 
 ## Trying the CLI locally
 

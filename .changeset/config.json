@@ -5,7 +5,7 @@
     "format": "auto",
     "changelog": ["@changesets/changelog-github", { "repo": "zellerindustries/minimaz-monorepo" }],
     "commit": false,
-    "ignore": ["@minimaz/builder-tools"],
+    "ignore": [],
     "fixed": [],
     "linked": [],
     "updateInternalDependencies": "patch"

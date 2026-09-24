@@ -1,13 +1,13 @@
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import type { IncomingMessage, Server, ServerResponse } from 'node:http'
-import { KnownError } from '@minimaz/errors'
-import { createLogger } from '@minimaz/logger'
+import { createLogger, KnownError } from '@minimaz/logger'
 import { createLiveReload, injectReloadScript } from './live-reload.js'
-import type { LiveReloadController } from './live-reload.js'
 import { resolveMimeType } from './mime.js'
 import { resolveStaticFile } from './static-handler.js'
+
 import type { LocalServerHandle, LocalServerOptions } from './types.js'
+import type { LiveReloadController } from './live-reload.js'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 
 const log = createLogger('local-server')
 

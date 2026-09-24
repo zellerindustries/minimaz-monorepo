@@ -59,7 +59,11 @@ describe('createLiveReload', () => {
 
             expect(response.status).toBe(503)
         } finally {
-            await new Promise<void>((resolve) => server.close(() => resolve()))
+            await new Promise<void>((resolve) =>
+                server.close(() => {
+                    resolve()
+                }),
+            )
         }
     })
 
@@ -103,7 +107,11 @@ describe('createLiveReload', () => {
                 expect(writeSpy).not.toHaveBeenCalled()
             } finally {
                 server.closeAllConnections()
-                await new Promise<void>((resolve) => server.close(() => resolve()))
+                await new Promise<void>((resolve) =>
+                    server.close(() => {
+                        resolve()
+                    }),
+                )
             }
         } finally {
             await rm(dir, { recursive: true, force: true })

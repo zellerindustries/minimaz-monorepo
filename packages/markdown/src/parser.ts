@@ -16,11 +16,11 @@ to keep this implementation's scope bounded):
   - No tables, footnotes, raw HTML blocks, or link reference definitions.
 */
 
-const FENCE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*(\S+)?[ \t]*$/
-const HR_RE = /^ {0,3}([-*_])( *\1){2,} *$/
-const HEADING_RE = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*#*[ \t]*$/
-const BLOCKQUOTE_RE = /^ {0,3}>/
-const ESCAPABLE = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.split(''))
+const fenceRe = /^ {0,3}(`{3,}|~{3,})[ \t]*(\S+)?[ \t]*$/
+const hrRe = /^ {0,3}([-*_])( *\1){2,} *$/
+const headingRe = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*#*[ \t]*$/
+const blockquoteRe = /^ {0,3}>/
+const escapable = new Set('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.split(''))
 
 // Matches a single list-item marker line ("- foo", "12. foo", or a bare
 // "-"/"12." with no text yet). `contentColumn` tells the list-parsing loop
@@ -55,10 +55,10 @@ function matchListMarker(line: string): ListMarkerInfo | null {
 
 function isBlockStart(line: string): boolean {
     return (
-        FENCE_RE.test(line) ||
-        HR_RE.test(line) ||
-        HEADING_RE.test(line) ||
-        BLOCKQUOTE_RE.test(line) ||
+        fenceRe.test(line) ||
+        hrRe.test(line) ||
+        headingRe.test(line) ||
+        blockquoteRe.test(line) ||
         matchListMarker(line) !== null
     )
 }
@@ -85,7 +85,9 @@ function joinParagraphLines(lines: string[]): string {
             }
         }
         parts.push(line)
-        if (!isLast) parts.push(hardBreak ? '\u0000' : ' ')
+        if (!isLast) {
+            parts.push(hardBreak ? '\u0000' : ' ')
+        }
     }
     return parts.join('')
 }
@@ -102,7 +104,7 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
             continue
         }
 
-        const fenceMatch = FENCE_RE.exec(line)
+        const fenceMatch = fenceRe.exec(line)
         if (fenceMatch !== null) {
             const marker = fenceMatch[1] ?? ''
             const fenceChar = marker[0] ?? '`'
@@ -135,13 +137,13 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
             continue
         }
 
-        if (HR_RE.test(line)) {
+        if (hrRe.test(line)) {
             blocks.push({ type: 'thematicBreak' })
             i++
             continue
         }
 
-        const headingMatch = HEADING_RE.exec(line)
+        const headingMatch = headingRe.exec(line)
         if (headingMatch !== null) {
             const level = (headingMatch[1] ?? '#').length
             const text = (headingMatch[2] ?? '').trim()
@@ -154,10 +156,10 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
             continue
         }
 
-        if (BLOCKQUOTE_RE.test(line)) {
+        if (blockquoteRe.test(line)) {
             const bqLines: string[] = []
             const bqStart = startLine + i
-            while (i < lines.length && BLOCKQUOTE_RE.test(lines[i] ?? '')) {
+            while (i < lines.length && blockquoteRe.test(lines[i] ?? '')) {
                 bqLines.push((lines[i] ?? '').replace(/^ {0,3}> ?/, ''))
                 i++
             }
@@ -174,7 +176,9 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
             const items: ListItem[] = []
             while (i < lines.length) {
                 const itemMarker = matchListMarker(lines[i] ?? '')
-                if (itemMarker?.ordered !== ordered) break
+                if (itemMarker?.ordered !== ordered) {
+                    break
+                }
                 const itemStart = startLine + i
                 const contentColumn = itemMarker.contentColumn
                 const itemLines: string[] = [itemMarker.rest]
@@ -237,8 +241,12 @@ function isWordChar(ch: string | undefined): boolean {
 
 function canOpenRun(text: string, i: number, runLen: number, allowIntraword: boolean): boolean {
     const after = text[i + runLen]
-    if (after === undefined || after === ' ' || after === '\t') return false
-    if (!allowIntraword && isWordChar(text[i - 1])) return false
+    if (after === undefined || after === ' ' || after === '\t') {
+        return false
+    }
+    if (!allowIntraword && isWordChar(text[i - 1])) {
+        return false
+    }
     return true
 }
 
@@ -253,7 +261,9 @@ function findClosingRun(
     while (j < text.length) {
         if (text[j] === ch) {
             let len = 1
-            while (text[j + len] === ch) len++
+            while (text[j + len] === ch) {
+                len++
+            }
             if (len >= runLen) {
                 const before = text[j - 1]
                 const after = text[j + len]
@@ -276,8 +286,12 @@ function findBacktickClose(text: string, from: number, runLen: number): number {
     while (j < text.length) {
         if (text[j] === '`') {
             let len = 1
-            while (text[j + len] === '`') len++
-            if (len === runLen) return j
+            while (text[j + len] === '`') {
+                len++
+            }
+            if (len === runLen) {
+                return j
+            }
             j += len
             continue
         }
@@ -294,7 +308,9 @@ interface LinkParseResult {
 }
 
 function tryParseLinkOrImage(text: string, i: number): LinkParseResult | null {
-    if (text[i] !== '[') return null
+    if (text[i] !== '[') {
+        return null
+    }
     let depth = 1
     let j = i + 1
     while (j < text.length) {
@@ -310,22 +326,30 @@ function tryParseLinkOrImage(text: string, i: number): LinkParseResult | null {
         if (text[j] === ']') {
             depth--
             j++
-            if (depth === 0) break
+            if (depth === 0) {
+                break
+            }
             continue
         }
         j++
     }
-    if (depth !== 0) return null
+    if (depth !== 0) {
+        return null
+    }
     const closeBracket = j - 1
     const label = text.slice(i + 1, closeBracket)
-    if (text[j] !== '(') return null
+    if (text[j] !== '(') {
+        return null
+    }
     const rest = text.slice(j + 1)
     // Destination is either <angle-bracketed, can contain spaces> or a bare
     // run of non-space/non-paren characters; an optional "title" or 'title'
     // follows, then the closing ")". Capture groups: 1=<...> destination,
     // 2=bare destination, 3="..." title, 4='...' title.
     const match = /^\s*(?:<([^<>\n]*)>|([^()\s]*))(?:\s+"([^"]*)"|\s+'([^']*)')?\s*\)/.exec(rest)
-    if (match === null) return null
+    if (match === null) {
+        return null
+    }
     const url = match[1] ?? match[2] ?? ''
     const title = match[3] ?? match[4]
     return { url, title, label, end: j + 1 + match[0].length }
@@ -353,7 +377,7 @@ function parseInline(text: string): Inline[] {
             continue
         }
 
-        if (ch === '\\' && ESCAPABLE.has(text[i + 1] ?? '')) {
+        if (ch === '\\' && escapable.has(text[i + 1] ?? '')) {
             buffer += text[i + 1] ?? ''
             i += 2
             continue
@@ -361,7 +385,9 @@ function parseInline(text: string): Inline[] {
 
         if (ch === '`') {
             let runLen = 1
-            while (text[i + runLen] === '`') runLen++
+            while (text[i + runLen] === '`') {
+                runLen++
+            }
             const closePos = findBacktickClose(text, i + runLen, runLen)
             if (closePos === -1) {
                 buffer += text.slice(i, i + runLen)
@@ -415,7 +441,9 @@ function parseInline(text: string): Inline[] {
 
         if (ch === '*' || ch === '_') {
             let runLen = 1
-            while (text[i + runLen] === ch) runLen++
+            while (text[i + runLen] === ch) {
+                runLen++
+            }
             const allowIntraword = ch === '*'
             if (canOpenRun(text, i, runLen, allowIntraword)) {
                 // Try to consume the longest possible marker first, so "***x***"
@@ -423,30 +451,34 @@ function parseInline(text: string): Inline[] {
                 // dangling single "*" once the double-marker case is tried.
                 const tryLens = runLen >= 3 ? [3, 2, 1] : runLen === 2 ? [2, 1] : [1]
                 let matched = false
-                for (const L of tryLens) {
-                    const closePos = findClosingRun(text, i + runLen, ch, L, allowIntraword)
+                for (const markerLen of tryLens) {
+                    const closePos = findClosingRun(text, i + runLen, ch, markerLen, allowIntraword)
                     if (closePos !== null) {
-                        const extra = runLen - L
-                        if (extra > 0) buffer += ch.repeat(extra)
+                        const extra = runLen - markerLen
+                        if (extra > 0) {
+                            buffer += ch.repeat(extra)
+                        }
                         flush()
                         const inner = text.slice(i + runLen, closePos)
                         const children = parseInline(inner)
-                        if (L >= 3) {
+                        if (markerLen >= 3) {
                             nodes.push({
                                 type: 'strong',
                                 children: [{ type: 'emphasis', children }],
                             })
-                        } else if (L === 2) {
+                        } else if (markerLen === 2) {
                             nodes.push({ type: 'strong', children })
                         } else {
                             nodes.push({ type: 'emphasis', children })
                         }
-                        i = closePos + L
+                        i = closePos + markerLen
                         matched = true
                         break
                     }
                 }
-                if (matched) continue
+                if (matched) {
+                    continue
+                }
             }
             buffer += ch.repeat(runLen)
             i += runLen

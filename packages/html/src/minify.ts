@@ -19,7 +19,7 @@ export async function minifyHtml(code: string): Promise<string> {
     }
 
     const input = code.trim()
-    if (!input) {
+    if (input === '') {
         return ''
     }
 

@@ -35,13 +35,13 @@ export interface LiveReloadController {
      * @param {ServerResponse} res - The response to stream `reload` events into
      * @returns {void}
      */
-    handleSseRequest(res: ServerResponse): void
+    handleSseRequest: (res: ServerResponse) => void
     /**
      * Stops the file watcher and closes every connected SSE client.
      *
      * @returns {void}
      */
-    close(): void
+    close: () => void
 }
 
 /**

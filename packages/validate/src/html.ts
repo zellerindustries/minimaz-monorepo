@@ -1,6 +1,6 @@
 import { ValidationError } from './errors.js'
 
-const VOID_ELEMENTS = new Set([
+const voidElements = new Set([
     'area',
     'base',
     'br',
@@ -15,6 +15,9 @@ const VOID_ELEMENTS = new Set([
     'track',
     'wbr',
 ])
+
+// Contents are text, not markup: a `<` inside them never starts a tag.
+const rawTextElements = new Set(['script', 'style', 'textarea', 'title'])
 
 /**
  * Thrown by {@link validateHtml} — carries every problem found, not just
@@ -32,7 +35,8 @@ export class HtmlValidationError extends ValidationError {
  * (mismatch or an unclosed tag remaining at EOF is an error). Void elements
  * (`br`, `img`, `input`, etc.) never need a closing tag and never push.
  * Also flags an unterminated quoted attribute and a `<` with no matching
- * `>`.
+ * `>`. The contents of `script`, `style`, `textarea` and `title` are treated
+ * as text, so a `<` inside them is never read as a tag.
  *
  * This is a structural check only: it does not validate attribute
  * grammar, DOCTYPE correctness, or anything semantic.
@@ -73,7 +77,7 @@ export function validateHtml(code: string): void {
         let quote: '"' | "'" | null = null
         while (j < len) {
             const c = code.charAt(j)
-            if (quote) {
+            if (quote !== null) {
                 if (c === quote) {
                     quote = null
                 }
@@ -91,7 +95,7 @@ export function validateHtml(code: string): void {
             j++
         }
 
-        if (quote) {
+        if (quote !== null) {
             errors.push(`unterminated attribute quote in tag starting at index ${String(i)}`)
             i = len
             continue
@@ -114,7 +118,7 @@ export function validateHtml(code: string): void {
         const nameMatch = /^\/?\s*([a-zA-Z][a-zA-Z0-9-]*)/.exec(tagContent)
         const name = nameMatch?.[1]?.toLowerCase()
 
-        if (!name) {
+        if (name === undefined) {
             errors.push(`malformed tag: <${tagContent}>`)
             continue
         }
@@ -131,8 +135,20 @@ export function validateHtml(code: string): void {
             continue
         }
 
-        if (VOID_ELEMENTS.has(name) || isSelfClosing) {
+        if (voidElements.has(name) || isSelfClosing) {
             continue
+        }
+
+        if (rawTextElements.has(name)) {
+            const closePattern = new RegExp(`</${name}[\\t\\n\\f\\r />]`, 'gi')
+            closePattern.lastIndex = i
+            const closeMatch = closePattern.exec(code)
+            if (closeMatch === null) {
+                errors.push(`unclosed tag <${name}>`)
+                i = len
+                continue
+            }
+            i = closeMatch.index
         }
 
         stack.push(name)

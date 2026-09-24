@@ -2,9 +2,10 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 import { startLocalServer } from '../core.js'
 import type * as FsPromises from 'node:fs/promises'
+import type { ReadableStreamReadResult } from 'node:stream/web'
 import type { LocalServerHandle } from '../types.js'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -107,7 +108,7 @@ describe('startLocalServer', () => {
 
         await writeFile(join(dir, 'index.html'), '<html><body>updated</body></html>')
 
-        const { value } = await reader.read()
+        const { value } = (await reader.read()) as ReadableStreamReadResult<Uint8Array>
         const chunk = new TextDecoder().decode(value)
 
         expect(chunk).toContain('event: reload')

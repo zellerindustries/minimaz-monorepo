@@ -9,8 +9,7 @@ document is about how the pieces work, not which ones exist yet.
 ```txt
 packages/     @minimaz/* library packages — published, independently versioned
 toolkits/     @minimaz/sitekit — the published minimaz/mz bin, wrapping @minimaz/cli
-tools/        internal, never-published workspace packages that support the build itself (builder, cleaner)
-config/       shared eslint/prettier/vitest config, kept out of the workspace root on purpose
+scripts/      repo scripts, not packages: bundle.mjs (the esbuild step of every package's build)
 docs/         this documentation
 .claude/      status.md / migration.md (internal working ledgers) and superpowers/ design specs and plans
 ```
@@ -24,16 +23,18 @@ but were folded into `@minimaz/cli` and retired before `sitekit` took their plac
 ```txt
 @minimaz/sitekit (the minimaz/mz bin) → @minimaz/cli
 @minimaz/cli (library implementing the minimaz/mz commands)
-  → @minimaz/core, @minimaz/logger, @minimaz/config, @minimaz/markdown, @minimaz/templates, @minimaz/validate,
-    @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts
-@minimaz/bundler   → @minimaz/ts (JS/TS import-graph resolver — not yet a @minimaz/cli dependency)
-@minimaz/config    → @minimaz/json
-@minimaz/html      → @minimaz/validate
-@minimaz/templates → @minimaz/core, @minimaz/logger
-@minimaz/core      → @minimaz/logger
-@minimaz/css       → @minimaz/core
+  → @minimaz/config, @minimaz/core, @minimaz/logger, @minimaz/markdown, @minimaz/templates,
+    @minimaz/validate, @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts
+@minimaz/bundler      → @minimaz/ts (JS/TS import-graph resolver — not yet a @minimaz/cli dependency)
+@minimaz/local-server → @minimaz/logger (dev HTTP server — not yet a @minimaz/cli dependency)
+@minimaz/config       → @minimaz/json, @minimaz/logger
+@minimaz/html         → @minimaz/validate
+@minimaz/templates    → @minimaz/core, @minimaz/logger
+@minimaz/validate     → @minimaz/logger, typescript
+@minimaz/core         → @minimaz/logger
+@minimaz/css          → @minimaz/core
+@minimaz/ts           → typescript
 @minimaz/logger, @minimaz/js, @minimaz/json, @minimaz/markdown — zero-dep, standalone
-@minimaz/ts, @minimaz/validate → typescript
 ```
 
 `@minimaz/css`, `@minimaz/js`, and `@minimaz/json` are **deliberately dependency-free** — see the design docs
@@ -42,7 +43,7 @@ duplicated rather than factored into a shared helper, to keep those packages sta
 JSON-parse-error handling appears independently in `@minimaz/core`, `@minimaz/json`, and `@minimaz/validate`) —
 see `.claude/status.md`'s "Known cleanup opportunities" before "fixing" that duplication.
 
-TypeScript project references (root `tsconfig.json`) declare `packages/*` + `tools/builder`; build order comes
+TypeScript project references (root `tsconfig.json`) declare `packages/*` and `toolkits/sitekit`; build order comes
 from those references, not from `package.json` dependencies directly.
 
 ## Per-package layout convention
@@ -50,35 +51,34 @@ from those references, not from `package.json` dependencies directly.
 Each package follows the same internal shape: `core.ts` (logic) / `main.ts` (entry point, where applicable) /
 `types.ts` / `index.ts` (a barrel of named exports only — no default exports). `@minimaz/cli` additionally has a
 `src/commands/` directory with one subdirectory per command (`help`, `version`, `validate`, `init`, `config`,
-`template`, `docs`) and a `src/cli/` directory for argument parsing, the dispatch table, and the postinstall hook.
+`template`, `docs`, `build`, `clear`) and a `src/cli/` directory for argument parsing, the dispatch table, and the postinstall hook.
 
 ## Build pipeline
 
 Each package's own `build` script is:
 
 ```bash
-tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js
+tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs
 ```
 
-`tsc` type-checks and emits declarations; `tools/builder` (internally `@minimaz/builder-tools`, never published to
-npm) then resolves the package's `main`/`bin` fields from `package.json`, maps the `dist/*.js` path back to its
-`src/*.ts` source, and bundles it with esbuild into a single minified ESM file targeting `node24`.
+`tsc -b` type-checks and emits the package (building its referenced dependencies first). `scripts/bundle.mjs` — a
+plain script, not a package, run from the package directory — then reads the package's `main`/`bin` fields, maps each
+`dist/*.js` path back to its `src/*.ts` source, and bundles it with esbuild into a single minified ESM file targeting
+`node24`.
 Dependencies/devDependencies and `node:*` imports are externalized, so cross-package `@minimaz/*` imports still
 resolve the normal workspace way at runtime — only a package's _own_ source gets bundled.
 
-`tools/builder` also cleans up after `tsc`'s declaration emit: it deletes stray `*.test.d.ts`/`.d.ts.map` files
-that leak into `dist` from colocated test files, and — whenever it deletes any — removes that package's
-`.tsbuildinfo` (cached under `node_modules/.cache/tsc/`, not `dist/`) to force a clean rebuild instead of a
-`tsc -b` incremental-state mismatch (TS6305).
+It also deletes stray `*.test`/`*.spec` output (`.js`, `.d.ts`, `.map`) that a plain `tsc -b` (`npm run typecheck`)
+leaves in `dist` from the `__tests__/` files, so it never ends up in a published package.
 
-The root `build` script runs this once for the whole graph: `tsc -b` (all project references), then
-`tools/builder`'s CLI with `--all` (bundles every package), then a script that copies `@minimaz/templates`'
-bundled seed templates from `src/seeds` into `dist/seeds`.
+The root `build` script runs every workspace's own
+`build` (`npm run build --workspaces --if-present`). npm runs workspaces alphabetically rather than in dependency
+order, which is safe because each package's `tsc -b tsconfig.build.json` builds its referenced dependencies first.
+`@minimaz/templates`' own build also copies its bundled seed templates from `src/seeds` into `dist/seeds`. The
+root `clean`, `typecheck`, `lint` and `test` scripts delegate to each workspace the same way.
 
-`npm run clean` (`tools/cleaner`) sweeps `**/dist`, `**/coverage`, `**/.cache`, and `**/*.tsbuildinfo` repo-wide.
-It deliberately does *not* use a blanket "skip anything under `node_modules`" exclusion — this repo stores its own
-tsc caches at each package's `node_modules/.cache/tsc/`, so a blanket exclusion would silently prevent `clean`
-from ever reaching them. Real dependency content (e.g. `node_modules/<pkg>/dist`) is still protected.
+`npm run clean` runs each workspace's own `clean` (its `dist/` and `node_modules/.cache/tsc/`), then removes the
+root `node_modules/.cache` (root tsbuildinfo, coverage).
 
 ## Config system
 
@@ -118,17 +118,15 @@ back to unminified output, `--key=value` parsing dropping everything after a sec
 
 ## Testing
 
-Tests are colocated `*.test.ts` files alongside the code they cover. `config/vitest.config.ts`'s include pattern
-is built from:
+Tests live in a `__tests__/` directory next to the code they cover (e.g. `src/__tests__/core.test.ts` for
+`src/core.ts`). The root `vitest.config.ts` builds one Vitest project per package directory under `packages/`,
+and `toolkits/`, named after that package's `package.json` `name`. Each project is an
+inline config with `extends: true`, which is what makes the root `test` options (`clearMocks`, `mockReset`,
+`restoreMocks`, the `**/dist/**` exclude) apply to it — a plain directory-glob project entry would not inherit
+them.
 
-```ts
-;['packages/*/src', 'toolkits/*/src', 'tools/*/src', 'app/src'].map(
-    (dir) => `${dir}/**/*.{test,spec}.ts`,
-)
-```
-
-`toolkits/*` now matches `@minimaz/sitekit`; `app/src` still matches nothing (`passWithNoTests` keeps that
-harmless).
+`npm test` runs every project; a package's own `npm test` runs `vitest run --root ../.. --project <package-name>`.
+To run a single file: `npx vitest run packages/css/src/__tests__/minify.test.ts` from the repo root.
 
 ## Releases
 

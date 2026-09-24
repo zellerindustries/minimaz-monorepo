@@ -57,7 +57,7 @@ async function inlineImports(
     }
 
     if (!(await pathExists(resolvedPath))) {
-        const context = importedFrom ? ` (imported from ${importedFrom})` : ''
+        const context = importedFrom !== undefined ? ` (imported from ${importedFrom})` : ''
         throw new Error(`bundleCss: file not found: ${resolvedPath}${context}`)
     }
 

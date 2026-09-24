@@ -3,7 +3,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { transpileTs } from '@minimaz/ts'
 import type { ModuleGraphResult } from './types.js'
 
-const RESOLVABLE_EXTENSIONS = ['.ts', '.tsx', '.js']
+const resolvableExtensions = ['.ts', '.tsx', '.js']
 
 /**
  * Matches a quoted relative import specifier following either `from` (for
@@ -14,7 +14,7 @@ const RESOLVABLE_EXTENSIONS = ['.ts', '.tsx', '.js']
  * the same text, same tradeoff as this repo's other hand-rolled JS
  * tooling (`@minimaz/js`'s minifier).
  */
-const IMPORT_SPECIFIER_RE = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
+const importSpecifierRe = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
 
 /**
  * Matches a dynamic `import('./relative')` call with a relative string
@@ -23,7 +23,7 @@ const IMPORT_SPECIFIER_RE = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
  * so an unsupported dynamic import fails loudly instead of shipping an
  * unrewritten, unresolvable specifier to the browser.
  */
-const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*(['"])(\.[^'"]*)\1\s*\)/
+const dynamicImportRe = /\bimport\s*\(\s*(['"])(\.[^'"]*)\1\s*\)/
 
 async function fileExists(filePath: string): Promise<boolean> {
     try {
@@ -61,13 +61,13 @@ async function resolveSpecifier(fromFile: string, specifier: string): Promise<st
     const baseDir = dirname(fromFile)
     const rawTarget = join(baseDir, specifier)
     const ext = extname(specifier)
-    const stripped = RESOLVABLE_EXTENSIONS.includes(ext)
+    const stripped = resolvableExtensions.includes(ext)
         ? rawTarget.slice(0, -ext.length)
         : rawTarget
 
     const candidates = [
-        ...RESOLVABLE_EXTENSIONS.map((e) => stripped + e),
-        ...RESOLVABLE_EXTENSIONS.map((e) => join(stripped, `index${e}`)),
+        ...resolvableExtensions.map((e) => stripped + e),
+        ...resolvableExtensions.map((e) => join(stripped, `index${e}`)),
     ]
 
     for (const candidate of candidates) {
@@ -101,27 +101,27 @@ async function processFile(
 
     const original = await loadAndTranspile(filePath)
 
-    const dynamicImportMatch = DYNAMIC_IMPORT_RE.exec(original)
+    const dynamicImportMatch = dynamicImportRe.exec(original)
     if (dynamicImportMatch) {
         throw new Error(
-            `Dynamic import("${dynamicImportMatch[2]}") in "${filePath}" is not supported — ` +
+            `Dynamic import("${dynamicImportMatch[2] ?? ''}") in "${filePath}" is not supported — ` +
                 `@minimaz/bundler only resolves static "import"/"export ... from" statements.`,
         )
     }
 
     const fromDir = dirname(filePath)
-    const matches = [...original.matchAll(IMPORT_SPECIFIER_RE)]
+    const matches = [...original.matchAll(importSpecifierRe)]
     const edits: Edit[] = []
 
     for (const match of matches) {
         const quote = match[1]
         const specifier = match[2]
-        if (quote === undefined || specifier === undefined || match.index === undefined) {
+        if (quote === undefined || specifier === undefined) {
             continue
         }
 
         const specifierExt = extname(specifier)
-        if (specifierExt !== '' && !RESOLVABLE_EXTENSIONS.includes(specifierExt)) {
+        if (specifierExt !== '' && !resolvableExtensions.includes(specifierExt)) {
             continue
         }
 

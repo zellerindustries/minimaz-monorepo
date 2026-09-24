@@ -39,7 +39,7 @@ export function validateCss(code: string): void {
     while (i < len) {
         const char = code.charAt(i)
 
-        if (inString) {
+        if (inString !== null) {
             if (char === '\\' && i + 1 < len) {
                 i += 2
                 continue
@@ -92,7 +92,7 @@ export function validateCss(code: string): void {
         i++
     }
 
-    if (inString) {
+    if (inString !== null) {
         errors.push('unterminated string literal')
     }
     if (braceDepth !== 0) {

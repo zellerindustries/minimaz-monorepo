@@ -19,7 +19,7 @@ export function transpileTs(code: string, options?: { jsx?: boolean }): string {
     const compilerOptions: ts.CompilerOptions = {
         target: ts.ScriptTarget.ES2022,
         module: ts.ModuleKind.ESNext,
-        ...(options?.jsx ? { jsx: ts.JsxEmit.React } : {}),
+        ...(options?.jsx === true ? { jsx: ts.JsxEmit.React } : {}),
     }
 
     const result = ts.transpileModule(code, {

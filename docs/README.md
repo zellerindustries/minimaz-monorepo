@@ -25,7 +25,6 @@ Each package, toolkit, and internal tool has its own README with install/usage/A
 | [`@minimaz/templates`](../packages/templates) | Manages the global `~/.minimaz` directory and template CRUD.                  |
 | [`@minimaz/cli`](../packages/cli)             | Library implementing the `minimaz`/`mz` commands.                             |
 | [`@minimaz/sitekit`](../toolkits/sitekit)     | The published `minimaz`/`mz` binary, wrapping `@minimaz/cli`'s commands.      |
-| [`@minimaz/builder-tools`](../tools/builder)  | Internal `esbuild` bundler for every package's publish output. Not published. |
 
 Project status and the `minimaz-cli` migration checklist are internal working ledgers, not published docs — see
 [`.claude/status.md`](../.claude/status.md) and [`.claude/migration.md`](../.claude/migration.md).

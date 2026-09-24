@@ -67,8 +67,8 @@ Thumbs.db
 .superpowers/
 .worktrees/
 
-.vscode
-
+.vscode/*
+.vscode/
 
 **/coverage/
 **/.vitest-result/

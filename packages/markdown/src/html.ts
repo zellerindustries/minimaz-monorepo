@@ -83,7 +83,7 @@ function renderBlocks(blocks: Block[]): string {
     return blocks.map(renderBlock).join('\n')
 }
 
-const DEFAULT_TITLE = 'Document'
+const defaultTitle = 'Document'
 
 function fullPage(body: string, title: string): string {
     return [
@@ -111,5 +111,5 @@ function fullPage(body: string, title: string): string {
  */
 export function renderHtml(document: Document, options: RenderHtmlOptions = {}): string {
     const body = renderBlocks(document.children)
-    return options.full === true ? fullPage(body, options.title ?? DEFAULT_TITLE) : body
+    return options.full === true ? fullPage(body, options.title ?? defaultTitle) : body
 }

@@ -10,7 +10,6 @@
         { "path": "./packages/config" },
         { "path": "./packages/core" },
         { "path": "./packages/css" },
-        { "path": "./packages/errors" },
         { "path": "./packages/html" },
         { "path": "./packages/js" },
         { "path": "./packages/json" },
@@ -20,8 +19,7 @@
         { "path": "./packages/templates" },
         { "path": "./packages/ts" },
         { "path": "./packages/validate" },
-        { "path": "./toolkits/sitekit" },
-        { "path": "./tools/builder" }
+        { "path": "./toolkits/sitekit" }
     ],
     "include": ["vitest.config.ts"]
 }

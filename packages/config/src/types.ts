@@ -10,7 +10,7 @@ export interface DocsOutputConfig {
     formats: OutputFormat[]
 }
 
-/** The `docs` section of `minimaz.config.json`, defaulted by `parseDocsConfig`/`DEFAULT_CONFIG`. */
+/** The `docs` section of `minimaz.config.json`, defaulted by `parseDocsConfig`/`defaultConfig`. */
 export interface DocsConfig {
     docs: {
         input: DocsInputConfig
@@ -39,7 +39,7 @@ export interface BuildOutputConfig {
     js: BuildBundleOptions
 }
 
-/** The build (`input`/`output`) section of `minimaz.config.json`, defaulted by `parseBuildConfig`/`DEFAULT_BUILD_CONFIG`. */
+/** The build (`input`/`output`) section of `minimaz.config.json`, defaulted by `parseBuildConfig`/`defaultBuildConfig`. */
 export interface BuildConfig {
     input: BuildInputConfig
     output: BuildOutputConfig

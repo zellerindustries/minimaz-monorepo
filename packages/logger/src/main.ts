@@ -1,21 +1,14 @@
 import { emit } from './core.js'
+import type { Logger } from './types.js'
 
 /**
  * Creates a logger bound to a fixed context label. Each method maps to a
  * `LogType` (or a variant of one) and forwards to {@link emit}.
  *
  * @param {string} [context='app'] - The context label tagged onto every line this logger emits
- * @returns {{
- *   debug: (message: string | string[]) => void,
- *   default: (message: string | string[]) => void,
- *   error: (message: string | string[]) => void,
- *   info: (message: string | string[]) => void,
- *   success: (message: string | string[]) => void,
- *   verbose: (message: string | string[]) => void,
- *   warn: (message: string | string[]) => void,
- * }} A logger with one method per log level/variant
+ * @returns {Logger} A logger with one method per log level/variant
  */
-export function createLogger(context = 'app') {
+export function createLogger(context = 'app'): Logger {
     return {
         // forceVerboseOnly: debug output is noise outside VERBOSE mode
         debug(message: string | string[]) {
@@ -51,4 +44,4 @@ export function createLogger(context = 'app') {
 }
 
 /** Default-context (`"app"`) logger instance, ready to use without setup. */
-export const log = createLogger('app')
+export const log: Logger = createLogger('app')

@@ -13,7 +13,7 @@ export { validateMd } from './validate.js'
  * @param {RenderHtmlOptions} [options] - Rendering options (full page vs fragment, page title)
  * @returns {string} Rendered HTML
  */
-export function MdToHtml(markdown: string, options?: RenderHtmlOptions): string {
+export function mdToHtml(markdown: string, options?: RenderHtmlOptions): string {
     const { document } = parseMarkdown(markdown)
     return renderHtml(document, options)
 }
@@ -25,7 +25,7 @@ export function MdToHtml(markdown: string, options?: RenderHtmlOptions): string 
  * @param {string} markdown - Markdown source to convert
  * @returns {string} PDF file contents as a byte string
  */
-export function MdToPdf(markdown: string): string {
+export function mdToPdf(markdown: string): string {
     const { document } = parseMarkdown(markdown)
     return renderPdf(document)
 }

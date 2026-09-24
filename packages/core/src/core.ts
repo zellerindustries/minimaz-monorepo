@@ -1,6 +1,6 @@
 import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 
-import { dirname, sep } from 'node:path'
+import { dirname, isAbsolute, relative, sep } from 'node:path'
 
 import { log } from '@minimaz/logger'
 
@@ -198,6 +198,29 @@ export async function isDirectory(path: string): Promise<boolean> {
  */
 export function isPathInside(child: string, parent: string): boolean {
     return child !== parent && child.startsWith(parent + sep)
+}
+
+function isSameOrInside(child: string, parent: string): boolean {
+    const rel = relative(parent, child)
+    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+}
+
+/**
+ * True when two absolute paths are the same directory, or one contains the
+ * other. Compares case-insensitively on Windows and macOS, whose default
+ * filesystems ignore case — a case-only difference is still the same
+ * directory on disk.
+ *
+ * @param {string} a - First absolute path
+ * @param {string} b - Second absolute path
+ * @returns {boolean}
+ */
+export function pathsOverlap(a: string, b: string): boolean {
+    const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin'
+    const left = caseInsensitive ? a.toLowerCase() : a
+    const right = caseInsensitive ? b.toLowerCase() : b
+
+    return isSameOrInside(left, right) || isSameOrInside(right, left)
 }
 
 /**

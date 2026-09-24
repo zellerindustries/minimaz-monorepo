@@ -22,6 +22,8 @@ minimaz init [name] [--template=<name>] [--npm] [--git] [--gitprovider=<provider
 minimaz config [--overwrite]
 minimaz template [path] [--list] [--delete=<name>] [--update[=<name>]]
 minimaz docs <init|build>
+minimaz build
+minimaz clear
 ```
 
 - `validate` — validate a CSS, HTML, JS, TS, or JSON file.
@@ -36,11 +38,16 @@ minimaz docs <init|build>
   as a new template by default. Destructive actions prompt for confirmation.
 - `docs init` / `docs build` — scaffold or build a directory of Markdown into HTML/PDF, per `minimaz.config.json`'s
   `docs` section.
+- `build` — build `input.dir` into `output.dir` per `minimaz.config.json`, minifying/bundling CSS, JS, TS and HTML.
+  Refuses to run (without deleting anything) when `output.dir` isn't inside the project, when it overlaps
+  `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. JS/TS import-graph
+  bundling (`output.js.bundling: true`) isn't supported yet and throws.
+- `clear` — delete `output.dir`, with the same safety checks as `build`.
 
-This covers `minimaz-cli`'s full command set except `build`/`clear`, which aren't implemented yet — see
-`.claude/status.md` in the monorepo root for current status and known gaps (e.g. `validate` is currently single-file
-only, unlike the original's recursive directory mode).
+This covers `minimaz-cli`'s full command set — see `.claude/status.md` in the monorepo root for current status and
+known gaps (e.g. `validate` is currently single-file only, unlike the original's recursive directory mode).
 
-Depends on [`@minimaz/core`](../core), [`@minimaz/logger`](../logger), [`@minimaz/config`](../config),
-[`@minimaz/markdown`](../markdown), [`@minimaz/templates`](../templates), [`@minimaz/validate`](../validate), and
-`cross-spawn`.
+Depends on [`@minimaz/config`](../config), [`@minimaz/core`](../core),
+[`@minimaz/logger`](../logger), [`@minimaz/markdown`](../markdown), [`@minimaz/templates`](../templates),
+[`@minimaz/validate`](../validate), [`@minimaz/css`](../css), [`@minimaz/js`](../js), [`@minimaz/html`](../html),
+[`@minimaz/ts`](../ts), and `cross-spawn`.

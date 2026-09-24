@@ -18,7 +18,18 @@ import { processHtml } from './processors/html.js'
 import { processJs, processTs } from './processors/javascript.js'
 import type { CssBundleCache, File } from './types.js'
 
-const PROCESSABLE_EXTENSIONS = new Set(['.css', '.js', '.ts', '.tsx', '.html'])
+/**
+ * True for an `input.externals` key that names a remote URL rather than a local path. Matches only an explicit
+ * `http://` or `https://` scheme, so a local folder like `httpdocs/` is still treated as a path.
+ *
+ * @param {string} source - An `input.externals` key
+ * @returns {boolean}
+ */
+export function isRemoteExternal(source: string): boolean {
+    return /^https?:\/\//i.test(source)
+}
+
+const processableExtensions = new Set(['.css', '.js', '.ts', '.tsx', '.html'])
 
 /**
  * Removes and recreates the build output directory, so every build starts
@@ -90,14 +101,11 @@ export async function runDiscovery(
  *
  * @param {File} file - The file to process
  * @param {MinimazConfig} config - The loaded build configuration
- * @param {Set<string>} ignoredFiles - Unused by processing itself, threaded through for interface symmetry with the discovery pass
  * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
  */
 export async function processFile(
     file: File,
     config: MinimazConfig,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ignoredFiles: Set<string>,
     cssBundleCache: CssBundleCache,
 ): Promise<void> {
     switch (file.ext) {
@@ -180,17 +188,12 @@ export async function walkFolder(
         const ext = extname(fromPath).toLowerCase()
         let content = ''
 
-        if (PROCESSABLE_EXTENSIONS.has(ext)) {
+        if (processableExtensions.has(ext)) {
             const raw = await readFile(fromPath, 'utf8')
             content = applyReplacements(raw, config.output.replace)
         }
 
-        await processFile(
-            { src: fromPath, dest: nextToPath, content, ext },
-            config,
-            ignoredFiles,
-            cssBundleCache,
-        )
+        await processFile({ src: fromPath, dest: nextToPath, content, ext }, config, cssBundleCache)
     }
 }
 
@@ -220,7 +223,7 @@ export async function processExternals(
     cssBundleCache: CssBundleCache,
 ): Promise<void> {
     for (const [source, destination] of Object.entries(externals)) {
-        if (source.startsWith('http')) {
+        if (isRemoteExternal(source)) {
             log.info(`Remote external: ${source} -> ${destination}`)
             continue
         }
@@ -246,16 +249,11 @@ export async function processExternals(
         const ext = extname(fullPath).toLowerCase()
         let content = ''
 
-        if (PROCESSABLE_EXTENSIONS.has(ext)) {
+        if (processableExtensions.has(ext)) {
             const raw = await readFile(fullPath, 'utf8')
             content = applyReplacements(raw, config.output.replace)
         }
 
-        await processFile(
-            { src: fullPath, dest: targetPath, content, ext },
-            config,
-            ignoredFiles,
-            cssBundleCache,
-        )
+        await processFile({ src: fullPath, dest: targetPath, content, ext }, config, cssBundleCache)
     }
 }

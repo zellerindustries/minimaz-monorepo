@@ -1,4 +1,4 @@
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 
 /**
  * Base for this package's per-format validation errors — carries every

@@ -9,7 +9,7 @@ import type { CommandHelp } from './types.js'
  * @param {string} [cmdName] - Optional command name to show help for
  */
 export function help(cmdName?: string): void {
-    if (cmdName) {
+    if (cmdName !== undefined && cmdName !== '') {
         const cmd: CommandHelp | undefined = commandsHelp[cmdName]
         if (!cmd) {
             log.default(`No help found for: ${cmdName}\n`)

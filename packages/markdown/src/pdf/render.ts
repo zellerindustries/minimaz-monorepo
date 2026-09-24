@@ -96,7 +96,9 @@ function tokensToWords(tokens: Token[]): (Word | 'break')[] {
             continue
         }
         for (const word of token.text.split(/\s+/)) {
-            if (word.length > 0) out.push({ text: word, style: token.style })
+            if (word.length > 0) {
+                out.push({ text: word, style: token.style })
+            }
         }
     }
     return out
@@ -122,11 +124,15 @@ function wrapWords(words: (Word | 'break')[], maxChars: number): Word[][] {
             current = []
             currentLen = 0
         }
-        if (current.length > 0) currentLen += 1
+        if (current.length > 0) {
+            currentLen += 1
+        }
         current.push(word)
         currentLen += word.text.length
     }
-    if (current.length > 0 || lines.length === 0) lines.push(current)
+    if (current.length > 0 || lines.length === 0) {
+        lines.push(current)
+    }
     return lines
 }
 
@@ -161,10 +167,14 @@ function renderListItem(
         for (const line of wrapWords(words, maxChars)) {
             engine.addWordLine(line, bodySize, indent)
         }
-        for (const rest of children.slice(1)) renderBlock(engine, rest, indent + 12)
+        for (const rest of children.slice(1)) {
+            renderBlock(engine, rest, indent + 12)
+        }
     } else {
         engine.addRawLine(sanitizeText(marker.trimEnd()), bodySize, indent, 'regular')
-        for (const child of children) renderBlock(engine, child, indent + 12)
+        for (const child of children) {
+            renderBlock(engine, child, indent + 12)
+        }
     }
 }
 
@@ -188,13 +198,15 @@ function renderBlock(engine: LayoutEngine, block: Block, indent: number): void {
             break
         }
         case 'blockquote':
-            for (const child of block.children) renderBlock(engine, child, indent + 16)
+            for (const child of block.children) {
+                renderBlock(engine, child, indent + 16)
+            }
             break
         case 'list':
-            block.items.forEach((item, idx): void => {
+            for (const [idx, item] of block.items.entries()) {
                 const marker = block.ordered ? `${String((block.start ?? 1) + idx)}. ` : '- '
                 renderListItem(engine, item.children, indent, marker)
-            })
+            }
             engine.addGap(bodySize * 0.4)
             break
         case 'thematicBreak':

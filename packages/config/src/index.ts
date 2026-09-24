@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 import { parseJson } from '@minimaz/json'
 import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js'
 
@@ -14,7 +14,7 @@ minimaz-cli — see `loadConfig` below for how the two are merged.
 export const configFileName = 'minimaz.config.json'
 
 /** Defaults for the `docs` section of `MinimazConfig`, used to fill in whatever the config file omits. */
-export const DEFAULT_CONFIG: DocsConfig = {
+export const defaultConfig: DocsConfig = {
     docs: {
         input: { dir: 'docs' },
         output: { bundle: false, formats: ['html'] },
@@ -22,7 +22,7 @@ export const DEFAULT_CONFIG: DocsConfig = {
 }
 
 /** Defaults for the build (`input`/`output`) section of `MinimazConfig`, used to fill in whatever the config file omits. */
-export const DEFAULT_BUILD_CONFIG: BuildConfig = {
+export const defaultBuildConfig: BuildConfig = {
     input: { dir: './src', mapping: {}, externals: {}, exclude: [] },
     output: {
         dir: './dist',
@@ -49,8 +49,8 @@ function isOutputFormat(value: string): value is OutputFormat {
 }
 
 function parseDocsConfig(parsed: RawConfig): DocsConfig {
-    const inputDir = parsed.docs?.input?.dir ?? DEFAULT_CONFIG.docs.input.dir
-    const bundle = parsed.docs?.output?.bundle ?? DEFAULT_CONFIG.docs.output.bundle
+    const inputDir = parsed.docs?.input?.dir ?? defaultConfig.docs.input.dir
+    const bundle = parsed.docs?.output?.bundle ?? defaultConfig.docs.output.bundle
     const rawFormats = parsed.docs?.output?.formats
     const formats = Array.isArray(rawFormats) ? rawFormats.filter(isOutputFormat) : []
 
@@ -59,7 +59,7 @@ function parseDocsConfig(parsed: RawConfig): DocsConfig {
             input: { dir: inputDir },
             output: {
                 bundle,
-                formats: formats.length > 0 ? formats : DEFAULT_CONFIG.docs.output.formats,
+                formats: formats.length > 0 ? formats : defaultConfig.docs.output.formats,
             },
         },
     }
@@ -71,24 +71,24 @@ function parseBuildConfig(parsed: RawConfig): BuildConfig {
 
     return {
         input: {
-            dir: input?.dir ?? DEFAULT_BUILD_CONFIG.input.dir,
-            mapping: input?.mapping ?? DEFAULT_BUILD_CONFIG.input.mapping,
-            externals: input?.externals ?? DEFAULT_BUILD_CONFIG.input.externals,
-            exclude: input?.exclude ?? DEFAULT_BUILD_CONFIG.input.exclude,
+            dir: input?.dir ?? defaultBuildConfig.input.dir,
+            mapping: input?.mapping ?? defaultBuildConfig.input.mapping,
+            externals: input?.externals ?? defaultBuildConfig.input.externals,
+            exclude: input?.exclude ?? defaultBuildConfig.input.exclude,
         },
         output: {
-            dir: output?.dir ?? DEFAULT_BUILD_CONFIG.output.dir,
-            replace: output?.replace ?? DEFAULT_BUILD_CONFIG.output.replace,
+            dir: output?.dir ?? defaultBuildConfig.output.dir,
+            replace: output?.replace ?? defaultBuildConfig.output.replace,
             css: {
-                bundling: output?.css?.bundling ?? DEFAULT_BUILD_CONFIG.output.css.bundling,
-                minify: output?.css?.minify ?? DEFAULT_BUILD_CONFIG.output.css.minify,
+                bundling: output?.css?.bundling ?? defaultBuildConfig.output.css.bundling,
+                minify: output?.css?.minify ?? defaultBuildConfig.output.css.minify,
             },
             html: {
-                minify: output?.html?.minify ?? DEFAULT_BUILD_CONFIG.output.html.minify,
+                minify: output?.html?.minify ?? defaultBuildConfig.output.html.minify,
             },
             js: {
-                bundling: output?.js?.bundling ?? DEFAULT_BUILD_CONFIG.output.js.bundling,
-                minify: output?.js?.minify ?? DEFAULT_BUILD_CONFIG.output.js.minify,
+                bundling: output?.js?.bundling ?? defaultBuildConfig.output.js.bundling,
+                minify: output?.js?.minify ?? defaultBuildConfig.output.js.minify,
             },
         },
     }
@@ -129,13 +129,13 @@ export const bundleSeparator = '\n\n<!-- ============================== -->\n\n'
 export const bundleName = 'bundle'
 
 /** Output directory for each docs `OutputFormat`, relative to the configured build output dir. */
-export const OUTPUT_DIRS: Record<OutputFormat, string> = {
+export const outputDirs: Record<OutputFormat, string> = {
     html: 'dist/html',
     pdf: 'dist/pdf',
 }
 
 /** File extension for each docs `OutputFormat`. */
-export const EXTENSIONS: Record<OutputFormat, string> = {
+export const outputExtensions: Record<OutputFormat, string> = {
     html: '.html',
     pdf: '.pdf',
 }

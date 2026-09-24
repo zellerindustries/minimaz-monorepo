@@ -57,8 +57,12 @@ export class LayoutEngine {
         let x = margin + indent
         for (let idx = 0; idx < line.length; idx++) {
             const word = line[idx]
-            if (word === undefined) continue
-            if (idx > 0) x += cw
+            if (word === undefined) {
+                continue
+            }
+            if (idx > 0) {
+                x += cw
+            }
             this.currentOps.push({
                 type: 'text',
                 x,

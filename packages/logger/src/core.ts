@@ -95,7 +95,9 @@ export function print(type: LogType, message: string, context: string): void {
  */
 export function ts(): string {
     const verbose = isVerbose()
-    if (!verbose) return ''
+    if (!verbose) {
+        return ''
+    }
     return `[${formatTs()}] `
 }
 
@@ -121,17 +123,19 @@ export function emit(
 ): void {
     const verbose = isVerbose()
 
-    if (forceVerboseOnly && !verbose) return
+    if (forceVerboseOnly && !verbose) {
+        return
+    }
 
     const msgs: string[] = normalize(message)
 
-    for (const message of msgs) {
+    for (const line of msgs) {
         if (noPrefix) {
-            console.log(verbose ? `${ts()}[${context}] ${message}` : `[${context}] ${message}`)
+            console.log(verbose ? `${ts()}[${context}] ${line}` : `[${context}] ${line}`)
 
             continue
         }
 
-        print(type, message, context)
+        print(type, line, context)
     }
 }

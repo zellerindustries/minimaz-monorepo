@@ -6,7 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as FsPromises from 'node:fs/promises'
 
-import { applyReplacements, getDirElements, isPathInside, readJsonFile } from '../core.js'
+import {
+    applyReplacements,
+    getDirElements,
+    isPathInside,
+    pathsOverlap,
+    readJsonFile,
+} from '../core.js'
 
 describe('readJsonFile', () => {
     let dir: string
@@ -150,4 +156,35 @@ describe('isPathInside', () => {
     it('returns false for a parent of the given directory', () => {
         expect(isPathInside('project', path.join('project', 'dist'))).toBe(false)
     })
+})
+
+describe('pathsOverlap', () => {
+    const root = path.join('C:', 'project')
+
+    it('is true for the same path', () => {
+        expect(pathsOverlap(path.join(root, 'src'), path.join(root, 'src'))).toBe(true)
+    })
+
+    it('is true when the first path contains the second', () => {
+        expect(pathsOverlap(path.join(root, 'public'), path.join(root, 'public', 'src'))).toBe(true)
+    })
+
+    it('is true when the first path is nested inside the second', () => {
+        expect(pathsOverlap(path.join(root, 'src', 'assets'), path.join(root, 'src'))).toBe(true)
+    })
+
+    it('is false for siblings sharing a name prefix', () => {
+        expect(pathsOverlap(path.join(root, 'src-old'), path.join(root, 'src'))).toBe(false)
+    })
+
+    it('is false for a child directory whose name starts with two dots', () => {
+        expect(pathsOverlap(path.join(root, 'dist'), path.join(root, '..cache'))).toBe(false)
+    })
+
+    it.runIf(process.platform === 'win32' || process.platform === 'darwin')(
+        'ignores case on case-insensitive platforms',
+        () => {
+            expect(pathsOverlap(path.join(root, 'Src'), path.join(root, 'src'))).toBe(true)
+        },
+    )
 })

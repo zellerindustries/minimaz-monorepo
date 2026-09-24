@@ -1,4 +1,4 @@
-const NO_SPACE_CHARS = '{};,'
+const noSpaceChars = '{};,'
 
 function isWhitespace(char: string): boolean {
     return char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f'
@@ -27,7 +27,7 @@ export function minifyCss(code: string): string {
     while (i < len) {
         const char = code.charAt(i)
 
-        if (inString) {
+        if (inString !== null) {
             result += char
             if (char === '\\' && i + 1 < len) {
                 result += code.charAt(i + 1)
@@ -57,14 +57,16 @@ export function minifyCss(code: string): string {
 
         if (isWhitespace(char)) {
             let j = i
-            while (j < len && isWhitespace(code.charAt(j))) j++
+            while (j < len && isWhitespace(code.charAt(j))) {
+                j++
+            }
             const nextChar: string | undefined = j < len ? code.charAt(j) : undefined
 
             const removeEntirely =
                 lastNonSpace === '' ||
-                NO_SPACE_CHARS.includes(lastNonSpace) ||
+                noSpaceChars.includes(lastNonSpace) ||
                 lastNonSpace === ':' ||
-                (nextChar !== undefined && NO_SPACE_CHARS.includes(nextChar))
+                (nextChar !== undefined && noSpaceChars.includes(nextChar))
 
             if (nextChar !== undefined && !removeEntirely) {
                 result += ' '

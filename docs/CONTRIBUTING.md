@@ -38,13 +38,13 @@ npm run validate                  # lint + format:check + typecheck — the full
 
 Run a single package's scripts with `--workspace`, e.g.
 `npm run build --workspace=@minimaz/css`. Every package also has its own scoped `lint`, `lint:fix`,
-`typecheck:watch`, `validate` (lint + typecheck for just that package), and `test` (vitest filtered to that
-package's colocated `*.test.ts` files) — run these from inside the package directory, or via `--workspace` from
-the root.
+`typecheck:watch`, `validate` (lint + typecheck for just that package), and `test` (vitest's `--project` filter
+for that package, running its `__tests__/` files) — run these from inside the package directory, or via
+`--workspace` from the root.
 
 ## Code conventions
 
-- 4-space indentation, single quotes, semicolons, trailing commas — enforced
+- 4-space indentation, 100-character lines, single quotes, no semicolons, trailing commas — enforced
   by Prettier and a pre-commit hook (`husky` + `lint-staged`); you don't need
   to format manually.
 - TypeScript strict mode, NodeNext modules, named exports only (no default

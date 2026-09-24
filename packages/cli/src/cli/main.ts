@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path'
-import { handleCliError } from '@minimaz/errors'
-import { log } from '@minimaz/logger'
+import { handleCliError, log } from '@minimaz/logger'
 import { getGlobalDir, getTemplatesDir } from '@minimaz/templates'
 import {
     buildDocs,
@@ -73,9 +72,9 @@ export async function runCli(pkgPath: string): Promise<void> {
         h: () => {
             help()
         },
-        version: () => version(pkgPath),
-        v: () => version(pkgPath),
-        validate: () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
+        version: async () => version(pkgPath),
+        v: async () => version(pkgPath),
+        validate: async () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
         build: async () => {
             await build(cwd)
         },

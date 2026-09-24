@@ -5,7 +5,7 @@ import { askQuestion } from '../../cli/index.js'
 import { initGit, initNpm } from './core.js'
 import type { InitCommandOptions } from './types.js'
 
-const MINIMAZ_CONFIG_TEMPLATE = {
+const minimazConfigTemplate = {
     input: {
         dir: './src',
         mapping: { pages: '', scripts: '', styles: '', public: '' },
@@ -49,7 +49,7 @@ export async function init(
     const configPath = join(targetDir, 'minimaz.config.json')
     if (!(await pathExists(configPath))) {
         log.debug('Initializing minimaz.config.json')
-        await outputFile(configPath, `${JSON.stringify(MINIMAZ_CONFIG_TEMPLATE, null, 2)}\n`)
+        await outputFile(configPath, `${JSON.stringify(minimazConfigTemplate, null, 2)}\n`)
     }
 
     try {

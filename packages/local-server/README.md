@@ -25,7 +25,7 @@ await handle.close()
 
 - `startLocalServer(options)` — starts a `node:http` static file server for `options.dir` and
   resolves to a `LocalServerHandle` once it's listening. Throws a `KnownError` (from
-  `@minimaz/errors`) when `dir` doesn't exist or isn't a directory, or when a fixed `port` is
+  `@minimaz/logger`) when `dir` doesn't exist or isn't a directory, or when a fixed `port` is
   already in use.
     - `options.dir` — the directory to serve. Must exist and be a directory.
     - `options.port` — port to bind. Defaults to `0` (an OS-assigned ephemeral port).

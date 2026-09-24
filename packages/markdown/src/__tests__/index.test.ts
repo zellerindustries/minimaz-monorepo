@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { MdToHtml, MdToPdf, validateMd } from '../index.js'
+import { mdToHtml, mdToPdf, validateMd } from '../index.js'
 
 describe('public API', () => {
-    it('MdToHtml converts markdown to an HTML fragment by default', () => {
-        expect(MdToHtml('# Hi')).toBe('<h1>Hi</h1>')
+    it('mdToHtml converts markdown to an HTML fragment by default', () => {
+        expect(mdToHtml('# Hi')).toBe('<h1>Hi</h1>')
     })
 
-    it('MdToHtml can render a full page', () => {
-        expect(MdToHtml('# Hi', { full: true })).toContain('<!DOCTYPE html>')
+    it('mdToHtml can render a full page', () => {
+        expect(mdToHtml('# Hi', { full: true })).toContain('<!DOCTYPE html>')
     })
 
-    it('MdToPdf converts markdown to a PDF byte string', () => {
-        const pdf = MdToPdf('# Hi')
+    it('mdToPdf converts markdown to a PDF byte string', () => {
+        const pdf = mdToPdf('# Hi')
         expect(pdf.startsWith('%PDF-1.4\n')).toBe(true)
     })
 

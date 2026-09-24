@@ -1,4 +1,4 @@
-const KEYWORDS_BEFORE_REGEX = new Set([
+const keywordsBeforeRegex = new Set([
     'return',
     'typeof',
     'instanceof',
@@ -61,7 +61,7 @@ export function minifyJs(code: string): string {
     while (i < len) {
         const char = code.charAt(i)
 
-        if (inString) {
+        if (inString !== null) {
             result += char
             if (char === '\\' && i + 1 < len) {
                 result += code.charAt(i + 1)
@@ -191,7 +191,9 @@ export function minifyJs(code: string): string {
                 j++
             }
             let flagsEnd = j + 1
-            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) flagsEnd++
+            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) {
+                flagsEnd++
+            }
             result += code.slice(i, Math.min(flagsEnd, len))
             i = Math.min(flagsEnd, len)
             regexAllowed = false
@@ -202,26 +204,40 @@ export function minifyJs(code: string): string {
             let j = i
             if (char === '0' && (code.charAt(i + 1) === 'x' || code.charAt(i + 1) === 'X')) {
                 j += 2
-                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) j++
+                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) {
+                    j++
+                }
             } else if (char === '0' && /[bBoO]/.test(code.charAt(i + 1))) {
                 j += 2
-                while (j < len && /[0-9_]/.test(code.charAt(j))) j++
+                while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                    j++
+                }
             } else {
-                while (j < len && /[0-9_]/.test(code.charAt(j))) j++
+                while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                    j++
+                }
                 if (code.charAt(j) === '.') {
                     j++
-                    while (j < len && /[0-9_]/.test(code.charAt(j))) j++
+                    while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                        j++
+                    }
                 }
                 if (code.charAt(j) === 'e' || code.charAt(j) === 'E') {
                     let k = j + 1
-                    if (code.charAt(k) === '+' || code.charAt(k) === '-') k++
+                    if (code.charAt(k) === '+' || code.charAt(k) === '-') {
+                        k++
+                    }
                     if (/[0-9]/.test(code.charAt(k))) {
                         j = k
-                        while (j < len && /[0-9_]/.test(code.charAt(j))) j++
+                        while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                            j++
+                        }
                     }
                 }
             }
-            if (code.charAt(j) === 'n') j++
+            if (code.charAt(j) === 'n') {
+                j++
+            }
             result += code.slice(i, j)
             i = j
             regexAllowed = false
@@ -230,10 +246,12 @@ export function minifyJs(code: string): string {
 
         if (isIdentifierStart(char)) {
             let j = i
-            while (j < len && isIdentifierPart(code.charAt(j))) j++
+            while (j < len && isIdentifierPart(code.charAt(j))) {
+                j++
+            }
             const word = code.slice(i, j)
             result += word
-            regexAllowed = KEYWORDS_BEFORE_REGEX.has(word)
+            regexAllowed = keywordsBeforeRegex.has(word)
             i = j
             continue
         }

@@ -22,7 +22,7 @@ export function createPkgTemplate(name: string): Record<string, unknown> {
     }
 }
 
-export const GITIGNORE_TEMPLATE = `node_modules
+export const gitignoreTemplate = `node_modules
 dist
 .env
 .vscode

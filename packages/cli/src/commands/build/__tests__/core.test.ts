@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { DEFAULT_BUILD_CONFIG, DEFAULT_CONFIG } from '@minimaz/config'
+import { defaultBuildConfig, defaultConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { pathExists } from '@minimaz/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -13,10 +13,10 @@ function makeConfig(
     outputOverrides: Partial<MinimazConfig['output']> = {},
 ): MinimazConfig {
     return {
-        ...DEFAULT_CONFIG,
-        ...DEFAULT_BUILD_CONFIG,
-        input: { ...DEFAULT_BUILD_CONFIG.input, ...overrides },
-        output: { ...DEFAULT_BUILD_CONFIG.output, ...outputOverrides },
+        ...defaultConfig,
+        ...defaultBuildConfig,
+        input: { ...defaultBuildConfig.input, ...overrides },
+        output: { ...defaultBuildConfig.output, ...outputOverrides },
     }
 }
 
@@ -152,7 +152,6 @@ describe('processFile', () => {
         await processFile(
             file,
             makeConfig({}, { css: { bundling: false, minify: false } }),
-            new Set(),
             new Map(),
         )
 
@@ -167,7 +166,6 @@ describe('processFile', () => {
         await processFile(
             file,
             makeConfig({}, { js: { bundling: false, minify: false } }),
-            new Set(),
             new Map(),
         )
 
@@ -184,7 +182,7 @@ describe('processFile', () => {
         await writeFile(src, 'binary-ish-content', 'utf8')
 
         const file: File = { src, dest, content: '', ext: '.png' }
-        await processFile(file, makeConfig(), new Set(), new Map())
+        await processFile(file, makeConfig(), new Map())
 
         expect(await readFile(dest, 'utf8')).toBe('binary-ish-content')
     })
@@ -323,6 +321,26 @@ describe('processExternals', () => {
         )
 
         expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(false)
+    })
+
+    it('copies a local external whose path merely starts with "http"', async () => {
+        const externalSrc = path.join(dir, 'httpdocs', 'lib.css')
+        await mkdir(path.dirname(externalSrc), { recursive: true })
+        await writeFile(externalSrc, 'body{}', 'utf8')
+        const outDir = path.join(dir, 'dist')
+        await mkdir(outDir, { recursive: true })
+
+        await processExternals(
+            dir,
+            dir,
+            outDir,
+            { 'httpdocs/lib.css': 'assets/lib.css' },
+            makeConfig({}, { css: { bundling: false, minify: false } }),
+            new Set(),
+            new Map(),
+        )
+
+        expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(true)
     })
 
     it('skips externals not found on disk', async () => {

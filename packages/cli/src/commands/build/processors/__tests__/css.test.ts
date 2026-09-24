@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { DEFAULT_BUILD_CONFIG, DEFAULT_CONFIG } from '@minimaz/config'
+import { defaultBuildConfig, defaultConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { File } from '../../types.js'
@@ -13,10 +13,10 @@ function makeConfig(overrides: {
     replace?: Record<string, string>
 }): MinimazConfig {
     return {
-        ...DEFAULT_CONFIG,
-        ...DEFAULT_BUILD_CONFIG,
+        ...defaultConfig,
+        ...defaultBuildConfig,
         output: {
-            ...DEFAULT_BUILD_CONFIG.output,
+            ...defaultBuildConfig.output,
             replace: overrides.replace ?? {},
             css: { bundling: overrides.bundling, minify: overrides.minify },
         },

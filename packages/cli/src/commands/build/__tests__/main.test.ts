@@ -86,11 +86,96 @@ describe('build', () => {
         expect(await pathExists(path.join(cwd, 'dist', 'main.js'))).toBe(true)
     })
 
-    it('logs an error and returns without throwing when input.dir is empty', async () => {
+    it('throws when input.dir is empty', async () => {
         await writeConfig({ input: { dir: 'src' }, output: { dir: 'dist' } })
         await mkdir(path.join(cwd, 'src'), { recursive: true })
 
-        await expect(build(cwd)).resolves.toBeUndefined()
+        await expect(build(cwd)).rejects.toThrow(/missing or empty/)
+    })
+
+    it('throws when input.dir does not exist', async () => {
+        await writeConfig({ input: { dir: 'srcc' }, output: { dir: 'dist' } })
+
+        await expect(build(cwd)).rejects.toThrow(/missing or empty/)
+    })
+
+    it('refuses an output directory equal to input.dir, leaving the source intact', async () => {
+        await writeConfig({ input: { dir: 'src' }, output: { dir: './src' } })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/overlaps input directory/)
+        expect(await pathExists(path.join(cwd, 'src', 'a.html'))).toBe(true)
+    })
+
+    it('refuses an output directory that contains input.dir, leaving the source intact', async () => {
+        await writeConfig({ input: { dir: 'public/src' }, output: { dir: 'public' } })
+        await mkdir(path.join(cwd, 'public', 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'public', 'src', 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/overlaps input directory/)
+        expect(await pathExists(path.join(cwd, 'public', 'src', 'a.html'))).toBe(true)
+    })
+
+    it('refuses an output directory nested inside input.dir', async () => {
+        await writeConfig({ input: { dir: 'src' }, output: { dir: 'src/dist' } })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/overlaps input directory/)
+    })
+
+    it.runIf(process.platform === 'win32' || process.platform === 'darwin')(
+        'refuses an output directory differing from input.dir only by case, leaving the source intact',
+        async () => {
+            await writeConfig({ input: { dir: 'src' }, output: { dir: './Src' } })
+            await mkdir(path.join(cwd, 'src'), { recursive: true })
+            await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+
+            await expect(build(cwd)).rejects.toThrow(/overlaps input directory/)
+            expect(await pathExists(path.join(cwd, 'src', 'a.html'))).toBe(true)
+        },
+    )
+
+    it('checks a local external whose path merely starts with "http" for overlap', async () => {
+        await writeConfig({
+            input: { dir: 'src', externals: { 'httpdocs/vendor': 'vendor' } },
+            output: { dir: './httpdocs' },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'httpdocs', 'vendor'), { recursive: true })
+        await writeFile(path.join(cwd, 'httpdocs', 'vendor', 'lib.js'), 'export {}', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/overlaps external/)
+        expect(await pathExists(path.join(cwd, 'httpdocs', 'vendor', 'lib.js'))).toBe(true)
+    })
+
+    it('refuses an output directory that contains an external source, leaving it intact', async () => {
+        await writeConfig({
+            input: { dir: 'src', externals: { './dist/vendor': 'vendor' } },
+            output: { dir: './dist' },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'dist', 'vendor'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'vendor', 'lib.js'), 'export {}', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/overlaps external/)
+        expect(await pathExists(path.join(cwd, 'dist', 'vendor', 'lib.js'))).toBe(true)
+    })
+
+    it('accepts a relative cwd', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+
+        await build(path.relative(process.cwd(), cwd))
+
+        expect(await pathExists(path.join(cwd, 'dist', 'index.html'))).toBe(true)
     })
 
     it('refuses to build into an unsafe output directory', async () => {
@@ -120,7 +205,7 @@ describe('build', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'previous-build.html'), '<html></html>', 'utf8')
 
-        await build(cwd)
+        await expect(build(cwd)).rejects.toThrow(/missing or empty/)
 
         expect(await pathExists(path.join(cwd, 'dist', 'previous-build.html'))).toBe(true)
     })

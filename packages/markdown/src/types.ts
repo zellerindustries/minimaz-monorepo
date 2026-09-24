@@ -1,4 +1,4 @@
-/** Options controlling `renderHtml`/`MdToHtml` output. */
+/** Options controlling `renderHtml`/`mdToHtml` output. */
 export interface RenderHtmlOptions {
     /** Render a full `<html>` document instead of a bare fragment. */
     full?: boolean

@@ -1,8 +1,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { bundleName, bundleSeparator, EXTENSIONS, loadConfig, OUTPUT_DIRS } from '@minimaz/config'
+import {
+    bundleName,
+    bundleSeparator,
+    outputExtensions,
+    loadConfig,
+    outputDirs,
+} from '@minimaz/config'
 import type { OutputFormat } from '@minimaz/config'
-import { MdToHtml, MdToPdf } from '@minimaz/markdown'
+import { mdToHtml, mdToPdf } from '@minimaz/markdown'
 import { findMarkdownFiles } from './walk.js'
 
 /*
@@ -10,7 +16,7 @@ Orchestrator described in the original src/core.ts comment: load config,
 walk docs.input.dir for .md files, then either bundle everything into one
 converted output or convert each file individually, per docs.output.bundle.
 Output paths (dist/html, dist/pdf) match the original src/markdown.ts
-comment's stated targets, since @minimaz/markdown's MdToHtml/MdToPdf
+comment's stated targets, since @minimaz/markdown's mdToHtml/mdToPdf
 only return strings — writing files is this orchestrator's job.
 */
 
@@ -24,12 +30,12 @@ async function convertAndWrite(
         formats.map(async (format) => {
             const content =
                 format === 'html'
-                    ? MdToHtml(markdown, { full: true, title: outputName })
-                    : MdToPdf(markdown)
+                    ? mdToHtml(markdown, { full: true, title: outputName })
+                    : mdToPdf(markdown)
             const outPath = path.join(
                 cwd,
-                OUTPUT_DIRS[format],
-                `${outputName}${EXTENSIONS[format]}`,
+                outputDirs[format],
+                `${outputName}${outputExtensions[format]}`,
             )
             await mkdir(path.dirname(outPath), { recursive: true })
             await writeFile(outPath, content, 'utf8')
@@ -52,7 +58,7 @@ export async function buildDocs(cwd: string): Promise<void> {
 
     if (config.docs.output.bundle) {
         const contents = await Promise.all(
-            files.map((file): Promise<string> => readFile(file, 'utf8')),
+            files.map(async (file): Promise<string> => readFile(file, 'utf8')),
         )
         await convertAndWrite(contents.join(bundleSeparator), bundleName, formats, cwd)
         return

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 import { ValidationError } from '../errors.js'
 
 describe('ValidationError', () => {

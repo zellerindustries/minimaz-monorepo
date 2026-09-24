@@ -25,7 +25,7 @@ export async function template(
     options: TemplateCommandOptions,
     sourcePath: string,
 ): Promise<void> {
-    if (options.list) {
+    if (options.list === true) {
         const names = await listTemplates(templatesDir)
 
         if (names.length === 0) {
@@ -40,7 +40,7 @@ export async function template(
         return
     }
 
-    if (options.delete) {
+    if (options.delete !== undefined && options.delete !== '') {
         const name = options.delete
         const confirmed = (await askQuestion(`Confirm delete "${name}"? [y/N]:`, 'n'))
             .toLowerCase()
@@ -55,7 +55,7 @@ export async function template(
         return
     }
 
-    if (options.update) {
+    if (options.update !== undefined && options.update !== false && options.update !== '') {
         if (typeof options.update === 'string' && options.update.trim() !== '') {
             const name = options.update.trim()
             const confirmed = (

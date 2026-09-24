@@ -26,5 +26,5 @@ export interface LocalServerHandle {
      *
      * @returns {Promise<void>} Resolves once the server has fully closed
      */
-    close(): Promise<void>
+    close: () => Promise<void>
 }

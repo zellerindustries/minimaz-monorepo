@@ -1,7 +1,7 @@
 import { join, outputFile } from '@minimaz/core'
 import { log } from '@minimaz/logger'
 import { askQuestion, executeCommand } from '../../cli/index.js'
-import { createPkgTemplate, GITIGNORE_TEMPLATE } from './constants.js'
+import { createPkgTemplate, gitignoreTemplate } from './constants.js'
 
 /**
  * Writes `package.json` and runs `npm install` in the target directory.
@@ -72,7 +72,7 @@ async function linkRemoteRepo(
         log.info(`Creating GitLab repository "${repoName}"`)
 
         const gitlabUser = process.env['GITLAB_USER']
-        if (!gitlabUser) {
+        if (gitlabUser === undefined || gitlabUser === '') {
             throw new Error('GITLAB_USER not set')
         }
 
@@ -112,12 +112,12 @@ export async function initGit(
     log.info('Initializing Git repository')
     await executeCommand('git', ['init'], targetDir)
 
-    if (resolvedProvider && !isProviderKeyword(resolvedProvider, 'local')) {
+    if (resolvedProvider !== '' && !isProviderKeyword(resolvedProvider, 'local')) {
         await linkRemoteRepo(projectName, targetDir, resolvedProvider)
     } else {
         log.info('Git repository initialized locally')
     }
 
-    await outputFile(join(targetDir, '.gitignore'), GITIGNORE_TEMPLATE)
+    await outputFile(join(targetDir, '.gitignore'), gitignoreTemplate)
     log.success('Git repository initialized')
 }

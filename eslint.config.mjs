@@ -1,14 +1,14 @@
 // @ts-check
 
-import { dirname } from 'node:path'
 import js from '@eslint/js'
+import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import globals from 'globals'
 
-const repoRoot = dirname(import.meta.dirname)
+const repoRoot = import.meta.dirname
 
-export default tseslint.config(
+export default defineConfig(
     // ============================================================
     // Global ignores
     // ============================================================
@@ -16,7 +16,7 @@ export default tseslint.config(
         ignores: [
             '**/node_modules/**',
             '**/dist/**',
-            '**/build/**',
+            'build/**',
             '**/out/**',
             '**/coverage/**',
             '**/.cache/**',
@@ -44,9 +44,7 @@ export default tseslint.config(
         files: ['**/*.{ts,tsx,cts,mts}'],
         languageOptions: {
             parserOptions: {
-                projectService: {
-                    allowDefaultProject: ['vitest.config.ts', 'config/vitest.config.ts'],
-                },
+                projectService: true,
                 tsconfigRootDir: repoRoot,
             },
         },
@@ -73,6 +71,74 @@ export default tseslint.config(
             ],
 
             eqeqeq: ['error', 'always'],
+
+            // Types & API surface
+            '@typescript-eslint/explicit-module-boundary-types': 'error',
+            '@typescript-eslint/explicit-function-return-type': [
+                'error',
+                { allowExpressions: true, allowTypedFunctionExpressions: true },
+            ],
+            '@typescript-eslint/consistent-type-exports': 'error',
+            '@typescript-eslint/no-import-type-side-effects': 'error',
+            '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+            '@typescript-eslint/method-signature-style': ['error', 'property'],
+            '@typescript-eslint/prefer-readonly': 'error',
+            '@typescript-eslint/switch-exhaustiveness-check': [
+                'error',
+                { considerDefaultExhaustiveForUnions: true },
+            ],
+            '@typescript-eslint/require-array-sort-compare': [
+                'error',
+                { ignoreStringArrays: true },
+            ],
+            '@typescript-eslint/promise-function-async': 'error',
+            '@typescript-eslint/strict-boolean-expressions': [
+                'error',
+                { allowString: false, allowNumber: false, allowNullableObject: true },
+            ],
+            '@typescript-eslint/no-shadow': 'error',
+            '@typescript-eslint/naming-convention': [
+                'error',
+                { selector: 'default', format: ['camelCase'], leadingUnderscore: 'allow' },
+                { selector: 'import', format: ['camelCase', 'PascalCase'] },
+                { selector: 'typeLike', format: ['PascalCase'] },
+                { selector: 'variable', modifiers: ['destructured'], format: null },
+                { selector: 'objectLiteralProperty', format: null },
+                { selector: 'typeProperty', format: null },
+                { selector: 'enumMember', format: ['PascalCase'] },
+            ],
+
+            // Control flow & style
+            'no-param-reassign': 'error',
+            'no-else-return': ['error', { allowElseIf: false }],
+            'no-implicit-coercion': 'error',
+            'no-console': 'error',
+            'object-shorthand': 'error',
+            'prefer-template': 'error',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: "CallExpression[callee.property.name='forEach']",
+                    message: 'Use a for...of loop instead of .forEach().',
+                },
+            ],
+        },
+    },
+
+    // Mock factories return promises without awaiting anything, which `require-await` forbids marking
+    // `async` — the two rules can't both hold there.
+    {
+        files: ['**/__tests__/**/*.ts'],
+        rules: {
+            '@typescript-eslint/promise-function-async': 'off',
+        },
+    },
+
+    // The logger, and standalone repo scripts, are the places that are supposed to write to the console.
+    {
+        files: ['packages/logger/src/core.ts', 'scripts/**'],
+        rules: {
+            'no-console': 'off',
         },
     },
 
@@ -80,11 +146,11 @@ export default tseslint.config(
     // JavaScript files
     // ============================================================
 
-    // Automatically disables type-aware rules for .js, .cjs, .mjs files
-    tseslint.configs.disableTypeChecked,
-
+    // Disables type-aware rules for .js, .cjs, .mjs files only — left unscoped, it also switched off
+    // every type-aware rule (and the project service) for the TypeScript files above.
     {
         files: ['**/*.{js,mjs,cjs}'],
+        extends: [tseslint.configs.disableTypeChecked],
         languageOptions: {
             // Automatically injects `process`, `URL`, `__dirname`, etc.
             globals: {
@@ -98,4 +164,11 @@ export default tseslint.config(
     // Prettier (Must be last)
     // ============================================================
     eslintConfigPrettier,
+
+    // eslint-config-prettier turns `curly` off; its "all" option is compatible with Prettier, so re-enable it here.
+    {
+        rules: {
+            curly: ['error', 'all'],
+        },
+    },
 )

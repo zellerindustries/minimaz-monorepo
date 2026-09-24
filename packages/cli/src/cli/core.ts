@@ -58,7 +58,7 @@ export function parseArgs(rawArgs: string[]): Args {
  * @param {boolean} [verbose] - Enables verbose logging when true
  */
 export function initEnv(verbose?: boolean): void {
-    process.env['VERBOSE'] = verbose ? 'true' : 'false'
+    process.env['VERBOSE'] = verbose === true ? 'true' : 'false'
     process.env['CLI_WORKDIR'] = process.cwd()
 
     log.debug([
@@ -76,7 +76,7 @@ export function initEnv(verbose?: boolean): void {
  * @param {string} [defaultAnswer] - Fallback when the user gives no answer in time
  * @returns {Promise<string>} User input as a trimmed string
  */
-export function askQuestion(query: string, defaultAnswer = ''): Promise<string> {
+export async function askQuestion(query: string, defaultAnswer = ''): Promise<string> {
     return new Promise((resolvePromise) => {
         const rl = createInterface({
             input: process.stdin,
@@ -91,7 +91,7 @@ export function askQuestion(query: string, defaultAnswer = ''): Promise<string> 
         rl.question(`[QUESTION] ${query} `, (answer) => {
             clearTimeout(timer)
             rl.close()
-            resolvePromise(answer.trim() || defaultAnswer)
+            resolvePromise(answer.trim() === '' ? defaultAnswer : answer.trim())
         })
 
         rl.on('SIGINT', () => {
@@ -110,7 +110,7 @@ export function askQuestion(query: string, defaultAnswer = ''): Promise<string> 
  * @param {string} cwd - Working directory to run the command in
  * @returns {Promise<void>} Resolves on exit code 0, rejects otherwise
  */
-export function executeCommand(command: string, args: string[], cwd: string): Promise<void> {
+export async function executeCommand(command: string, args: string[], cwd: string): Promise<void> {
     return new Promise((resolvePromise, reject) => {
         const child: ChildProcess = spawn(command, args, {
             cwd,
@@ -137,10 +137,16 @@ export function executeCommand(command: string, args: string[], cwd: string): Pr
  * @returns {boolean | undefined}
  */
 export function parseBooleanFlag(flag?: string | boolean): boolean | undefined {
-    if (flag === undefined) return undefined
-    if (typeof flag === 'boolean') return flag
+    if (flag === undefined) {
+        return undefined
+    }
+    if (typeof flag === 'boolean') {
+        return flag
+    }
 
     const val = flag.toLowerCase()
-    if (val === 'false' || val === '0' || val === 'n') return false
+    if (val === 'false' || val === '0' || val === 'n') {
+        return false
+    }
     return true
 }

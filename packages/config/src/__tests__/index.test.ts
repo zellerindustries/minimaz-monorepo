@@ -2,12 +2,12 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { KnownError } from '@minimaz/errors'
+import { KnownError } from '@minimaz/logger'
 import {
     configFileName,
     ConfigNotFoundError,
-    DEFAULT_BUILD_CONFIG,
-    DEFAULT_CONFIG,
+    defaultBuildConfig,
+    defaultConfig,
     loadConfig,
 } from '../index.js'
 
@@ -46,7 +46,7 @@ describe('loadConfig', () => {
                 input: { dir: 'guides' },
                 output: { bundle: true, formats: ['pdf'] },
             },
-            ...DEFAULT_BUILD_CONFIG,
+            ...defaultBuildConfig,
         })
     })
 
@@ -68,7 +68,7 @@ describe('loadConfig', () => {
         }
         await writeFile(path.join(dir, configFileName), JSON.stringify(buildSection))
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...DEFAULT_CONFIG, ...buildSection })
+        expect(config).toEqual({ ...defaultConfig, ...buildSection })
     })
 
     it('fills in defaults for every field when both sections are present but empty', async () => {
@@ -77,13 +77,13 @@ describe('loadConfig', () => {
             JSON.stringify({ docs: {}, input: {}, output: {} }),
         )
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...DEFAULT_CONFIG, ...DEFAULT_BUILD_CONFIG })
+        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig })
     })
 
     it('fills in every default when neither section is present', async () => {
         await writeFile(path.join(dir, configFileName), JSON.stringify({}))
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...DEFAULT_CONFIG, ...DEFAULT_BUILD_CONFIG })
+        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig })
     })
 
     it('drops unrecognized format values and falls back to the default formats', async () => {
