@@ -169,6 +169,29 @@ describe('cleanUrls / singlePageApp / directoryListing', () => {
         expect(response.headers.get('location')).toBe('/no-index/')
     })
 
+    it('preserves the query string on a directory-listing redirect', async () => {
+        await mkdir(join(dir, 'no-index'))
+        handle = await startLocalServer({ dir, liveReload: false, directoryListing: true })
+
+        const response = await fetch(`${handle.url}/no-index?sort=name`, { redirect: 'manual' })
+
+        expect(response.status).toBe(301)
+        expect(response.headers.get('location')).toBe('/no-index/?sort=name')
+    })
+
+    it('percent-encodes a non-ASCII directory name on redirect instead of throwing', async () => {
+        const dirName = 'résumés'
+        await mkdir(join(dir, dirName))
+        handle = await startLocalServer({ dir, liveReload: false, directoryListing: true })
+
+        const response = await fetch(`${handle.url}/${encodeURIComponent(dirName)}`, {
+            redirect: 'manual',
+        })
+
+        expect(response.status).toBe(301)
+        expect(response.headers.get('location')).toBe(`/${encodeURIComponent(dirName)}/`)
+    })
+
     it('falls back to root index.html for an unresolved path when singlePageApp is enabled', async () => {
         handle = await startLocalServer({ dir, liveReload: false, singlePageApp: true })
 
@@ -228,5 +251,29 @@ describe('cacheControl', () => {
             headers: { 'if-none-match': etag ?? '' },
         })
         expect(second.status).toBe(304)
+    })
+
+    it('reuses the same ETag across repeated requests for an unchanged file', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+
+        const first = await fetch(`${handle.url}/style.css`)
+        const second = await fetch(`${handle.url}/style.css`)
+
+        expect(first.headers.get('etag')).toBe(second.headers.get('etag'))
+    })
+
+    it('computes a new ETag once the file changes on disk', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+
+        const first = await fetch(`${handle.url}/style.css`)
+        const firstEtag = first.headers.get('etag')
+
+        await writeFile(join(dir, 'style.css'), 'body { color: blue; }')
+        const second = await fetch(`${handle.url}/style.css`, {
+            headers: { 'if-none-match': firstEtag ?? '' },
+        })
+
+        expect(second.status).toBe(200)
+        expect(second.headers.get('etag')).not.toBe(firstEtag)
     })
 })

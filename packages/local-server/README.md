@@ -57,6 +57,8 @@ Each request is resolved in this order, stopping at the first stage that matches
 1. An exact file or directory `index.html` match under `dir`.
 2. The `cleanUrls` fallback (`<path>.html`), when enabled and the path has no extension.
 3. A directory listing, when `directoryListing` is enabled and the matched directory has no
-   `index.html`.
+   `index.html`. A request for that directory without a trailing slash gets a `301` to the
+   slash-terminated URL first (preserving any query string), so the listing's relative links
+   resolve correctly.
 4. The `singlePageApp` fallback to the root `index.html`, when enabled.
 5. `404` (or `403` for a path that would escape `dir`).

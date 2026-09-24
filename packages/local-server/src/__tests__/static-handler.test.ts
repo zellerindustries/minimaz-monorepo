@@ -125,6 +125,7 @@ describe('resolveRequest', () => {
             expect(result).toEqual({
                 kind: 'listing',
                 entries: [{ name: 'notes.txt', isDirectory: false }],
+                redirectTo: '/about-only/',
             })
         })
     })
@@ -175,6 +176,27 @@ describe('resolveRequest', () => {
             const result = await resolveRequest(dir, '/empty-dir', allOff)
             expect(result).toEqual({ kind: 'notFound' })
         })
+
+        it('omits redirectTo when the request already ends in a trailing slash', async () => {
+            const result = await resolveRequest(dir, '/empty-dir/', {
+                ...allOff,
+                directoryListing: true,
+            })
+            expect(result).toEqual({ kind: 'listing', entries: [] })
+        })
+
+        it('percent-encodes each segment of a redirect target', async () => {
+            await mkdir(join(dir, 'a dir'))
+            const result = await resolveRequest(dir, '/a dir', {
+                ...allOff,
+                directoryListing: true,
+            })
+            expect(result).toEqual({
+                kind: 'listing',
+                entries: [],
+                redirectTo: '/a%20dir/',
+            })
+        })
     })
 
     describe('singlePageApp', () => {
@@ -214,6 +236,7 @@ describe('resolveRequest', () => {
             expect(result).toEqual({
                 kind: 'listing',
                 entries: [{ name: 'notes.txt', isDirectory: false }],
+                redirectTo: '/empty-dir/',
             })
         })
 

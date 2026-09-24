@@ -6,7 +6,7 @@ import { extname, resolve, sep } from 'node:path'
  */
 export type RequestResolution =
     | { kind: 'file'; filePath: string }
-    | { kind: 'listing'; entries: DirectoryEntry[] }
+    | { kind: 'listing'; entries: DirectoryEntry[]; redirectTo?: string }
     | { kind: 'forbidden' }
     | { kind: 'notFound' }
 
@@ -127,6 +127,9 @@ export async function resolveRequest(
 
     if (options.directoryListing && directoryCandidate !== undefined) {
         const entries = await listDirectory(directoryCandidate)
+        if (pathname !== '' && !pathname.endsWith('/')) {
+            return { kind: 'listing', entries, redirectTo: buildRedirectLocation(pathname) }
+        }
         return { kind: 'listing', entries }
     }
 
@@ -139,6 +142,24 @@ export async function resolveRequest(
     }
 
     return { kind: 'notFound' }
+}
+
+/**
+ * Builds a same-origin redirect target for a directory listing that was
+ * requested without a trailing slash, percent-encoding each path segment
+ * so the header value is always valid Latin-1 bytes (a raw non-ASCII
+ * pathname would either throw or be mis-encoded if written straight into
+ * an HTTP header).
+ *
+ * @param {string} pathname - The decoded request pathname, missing its trailing slash
+ * @returns {string} `pathname` with each segment percent-encoded, plus a trailing slash
+ */
+function buildRedirectLocation(pathname: string): string {
+    const encoded = pathname
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/')
+    return `${encoded}/`
 }
 
 /**
@@ -176,7 +197,10 @@ export function renderDirectoryListing(pathname: string, entries: DirectoryEntry
 
     const entryLinks = entries
         .map((entry) => {
-            const href = escapeHtml(encodeURIComponent(entry.name)) + (entry.isDirectory ? '/' : '')
+            // encodeURIComponent already percent-encodes &, <, >, and " — the one
+            // HTML-unsafe character it leaves literal is a plain apostrophe.
+            const href =
+                encodeURIComponent(entry.name).replace(/'/g, '%27') + (entry.isDirectory ? '/' : '')
             const text = escapeHtml(entry.name) + (entry.isDirectory ? '/' : '')
             return `<li><a href="${href}">${text}</a></li>`
         })

@@ -33,26 +33,36 @@ async function assertServableDirectory(dir: string): Promise<void> {
     }
 }
 
+/** A file's cached ETag, valid only while its `mtimeMs`/`size` still match. */
+interface CachedEtag {
+    mtimeMs: number
+    size: number
+    etag: string
+}
+
 /**
- * Computes a weak ETag over `contents` and, when `req`'s `if-none-match`
- * header matches it exactly, writes a `304` and returns `true` so the
- * caller skips writing a body.
+ * Computes a weak ETag over `contents`.
+ *
+ * @param {Buffer | string} contents - The exact bytes an ETag is needed for
+ * @returns {string} The weak ETag
+ */
+function computeEtag(contents: Buffer | string): string {
+    const hash = createHash('sha1').update(contents).digest('hex').slice(0, 16)
+    return `W/"${hash}"`
+}
+
+/**
+ * Writes `etag`'s `ETag`/`Cache-Control` headers and, when `req`'s
+ * `if-none-match` header matches it exactly, writes a `304` and returns
+ * `true` so the caller skips writing a body.
  *
  * @param {IncomingMessage} req - The incoming request
  * @param {ServerResponse} res - The response to write to
- * @param {Buffer | string} contents - The exact bytes being sent, post any
- *   transformation (e.g. live-reload injection) — the ETag must match what
- *   the client actually receives
+ * @param {string} etag - The ETag to apply, already matching the exact
+ *   bytes being sent (post any transformation, e.g. live-reload injection)
  * @returns {boolean} Whether a `304` was written and the caller should stop
  */
-function applyCacheControl(
-    req: IncomingMessage,
-    res: ServerResponse,
-    contents: Buffer | string,
-): boolean {
-    const hash = createHash('sha1').update(contents).digest('hex').slice(0, 16)
-    const etag = `W/"${hash}"`
-
+function applyCacheHeaders(req: IncomingMessage, res: ServerResponse, etag: string): boolean {
     res.setHeader('etag', etag)
     res.setHeader('cache-control', 'no-cache')
 
@@ -76,6 +86,10 @@ function applyCacheControl(
  * @param {LocalServerOptions} options - The server's configuration
  * @param {LiveReloadController | undefined} liveReload - The live-reload
  *   controller, when enabled
+ * @param {Map<string, CachedEtag>} etagCache - Per-server cache of each
+ *   file's last-computed ETag, keyed by file path and validated against
+ *   the file's current `mtimeMs`/`size` — avoids re-hashing an unchanged
+ *   file's full contents on every request
  * @returns {Promise<void>} Resolves once the response has been sent
  */
 async function handleRequest(
@@ -84,7 +98,13 @@ async function handleRequest(
     dir: string,
     options: LocalServerOptions,
     liveReload: LiveReloadController | undefined,
+    etagCache: Map<string, CachedEtag>,
 ): Promise<void> {
+    const cleanUrls = options.cleanUrls ?? false
+    const singlePageApp = options.singlePageApp ?? false
+    const directoryListing = options.directoryListing ?? false
+    const cacheControlEnabled = options.cacheControl ?? false
+
     const rawPathname = new URL(req.url ?? '/', 'http://localhost').pathname
 
     if (liveReload !== undefined && rawPathname === liveReloadEndpoint) {
@@ -102,9 +122,9 @@ async function handleRequest(
     }
 
     const resolution = await resolveRequest(dir, pathname, {
-        cleanUrls: options.cleanUrls ?? false,
-        singlePageApp: options.singlePageApp ?? false,
-        directoryListing: options.directoryListing ?? false,
+        cleanUrls,
+        singlePageApp,
+        directoryListing,
     })
 
     if (resolution.kind === 'forbidden') {
@@ -120,14 +140,15 @@ async function handleRequest(
     }
 
     if (resolution.kind === 'listing') {
-        if (pathname !== '' && !pathname.endsWith('/')) {
-            res.writeHead(301, { location: `${pathname}/` })
+        if (resolution.redirectTo !== undefined) {
+            const search = new URL(req.url ?? '/', 'http://localhost').search
+            res.writeHead(301, { location: `${resolution.redirectTo}${search}` })
             res.end()
             return
         }
 
         const html = renderDirectoryListing(pathname, resolution.entries)
-        if ((options.cacheControl ?? false) && applyCacheControl(req, res, html)) {
+        if (cacheControlEnabled && applyCacheHeaders(req, res, computeEtag(html))) {
             return
         }
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
@@ -136,6 +157,27 @@ async function handleRequest(
     }
 
     const contentType = resolveMimeType(resolution.filePath)
+    const willInject = liveReload !== undefined && contentType.startsWith('text/html')
+
+    // A cached ETag is only trustworthy for a response that isn't
+    // transformed after being read — live-reload injection changes the
+    // bytes sent, so an HTML file with live reload on always re-hashes.
+    if (cacheControlEnabled && !willInject) {
+        const fileStats = await stat(resolution.filePath).catch(() => undefined)
+        const cached = fileStats === undefined ? undefined : etagCache.get(resolution.filePath)
+        if (
+            fileStats !== undefined &&
+            cached?.mtimeMs === fileStats.mtimeMs &&
+            cached.size === fileStats.size &&
+            req.headers['if-none-match'] === cached.etag
+        ) {
+            res.setHeader('etag', cached.etag)
+            res.setHeader('cache-control', 'no-cache')
+            res.writeHead(304)
+            res.end()
+            return
+        }
+    }
 
     let contents: Buffer
     try {
@@ -150,13 +192,23 @@ async function handleRequest(
         throw error
     }
 
-    const body =
-        liveReload !== undefined && contentType.startsWith('text/html')
-            ? injectReloadScript(contents.toString('utf8'))
-            : contents
+    const body = willInject ? injectReloadScript(contents.toString('utf8')) : contents
 
-    if ((options.cacheControl ?? false) && applyCacheControl(req, res, body)) {
-        return
+    if (cacheControlEnabled) {
+        const etag = computeEtag(body)
+        if (!willInject) {
+            const fileStats = await stat(resolution.filePath).catch(() => undefined)
+            if (fileStats !== undefined) {
+                etagCache.set(resolution.filePath, {
+                    mtimeMs: fileStats.mtimeMs,
+                    size: fileStats.size,
+                    etag,
+                })
+            }
+        }
+        if (applyCacheHeaders(req, res, etag)) {
+            return
+        }
     }
 
     res.writeHead(200, { 'content-type': contentType })
@@ -179,6 +231,7 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
     await assertServableDirectory(dir)
 
     const liveReload = liveReloadEnabled ? createLiveReload(dir) : undefined
+    const etagCache = new Map<string, CachedEtag>()
 
     let port: number
     let url: string
@@ -186,7 +239,7 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
 
     try {
         server = createServer((req, res) => {
-            handleRequest(req, res, dir, options, liveReload).catch((error: unknown) => {
+            handleRequest(req, res, dir, options, liveReload, etagCache).catch((error: unknown) => {
                 log.error(error instanceof Error ? error.message : String(error))
                 if (!res.headersSent) {
                     res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })

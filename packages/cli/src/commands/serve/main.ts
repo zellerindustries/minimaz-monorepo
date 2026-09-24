@@ -61,10 +61,12 @@ export async function serve(cwdArg: string, options: ServeCommandOptions = {}): 
         const shutdown = (): void => {
             handle
                 .close()
-                .then(() => {
-                    resolveServe()
+                .catch((error: unknown) => {
+                    log.warn(
+                        `serve: error while shutting down: ${error instanceof Error ? error.message : String(error)}`,
+                    )
                 })
-                .catch(() => {
+                .finally(() => {
                     resolveServe()
                 })
         }
