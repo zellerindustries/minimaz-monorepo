@@ -2,7 +2,14 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { KnownError } from '@minimaz/logger'
 import { parseJson } from '@minimaz/json'
-import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js'
+import type {
+    BuildConfig,
+    DocsConfig,
+    MinimazConfig,
+    OutputFormat,
+    RawConfig,
+    ServeConfig,
+} from './types.js'
 
 /*
 This module understands both the docs-builder config shape (`docs.input`/
@@ -30,6 +37,19 @@ export const defaultBuildConfig: BuildConfig = {
         css: { bundling: true, minify: true },
         html: { minify: true },
         js: { bundling: false, minify: true },
+    },
+}
+
+/** Defaults for the `serve` section of `MinimazConfig`, used to fill in whatever the config file omits. */
+export const defaultServeConfig: ServeConfig = {
+    serve: {
+        port: 0,
+        host: '127.0.0.1',
+        liveReload: true,
+        cleanUrls: false,
+        singlePageApp: false,
+        directoryListing: false,
+        cacheControl: false,
     },
 }
 
@@ -94,11 +114,28 @@ function parseBuildConfig(parsed: RawConfig): BuildConfig {
     }
 }
 
+function parseServeConfig(parsed: RawConfig): ServeConfig {
+    const serve = parsed.serve
+
+    return {
+        serve: {
+            port: serve?.port ?? defaultServeConfig.serve.port,
+            host: serve?.host ?? defaultServeConfig.serve.host,
+            liveReload: serve?.liveReload ?? defaultServeConfig.serve.liveReload,
+            cleanUrls: serve?.cleanUrls ?? defaultServeConfig.serve.cleanUrls,
+            singlePageApp: serve?.singlePageApp ?? defaultServeConfig.serve.singlePageApp,
+            directoryListing: serve?.directoryListing ?? defaultServeConfig.serve.directoryListing,
+            cacheControl: serve?.cacheControl ?? defaultServeConfig.serve.cacheControl,
+        },
+    }
+}
+
 function parseConfig(raw: unknown): MinimazConfig {
     const parsed: RawConfig = typeof raw === 'object' && raw !== null ? raw : {}
     return {
         ...parseDocsConfig(parsed),
         ...parseBuildConfig(parsed),
+        ...parseServeConfig(parsed),
     }
 }
 
@@ -151,4 +188,5 @@ export type {
     MinimazConfig,
     OutputFormat,
     RawConfig,
+    ServeConfig,
 } from './types.js'

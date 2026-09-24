@@ -8,6 +8,7 @@ import {
     ConfigNotFoundError,
     defaultBuildConfig,
     defaultConfig,
+    defaultServeConfig,
     loadConfig,
 } from '../index.js'
 
@@ -47,6 +48,7 @@ describe('loadConfig', () => {
                 output: { bundle: true, formats: ['pdf'] },
             },
             ...defaultBuildConfig,
+            ...defaultServeConfig,
         })
     })
 
@@ -68,7 +70,7 @@ describe('loadConfig', () => {
         }
         await writeFile(path.join(dir, configFileName), JSON.stringify(buildSection))
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...defaultConfig, ...buildSection })
+        expect(config).toEqual({ ...defaultConfig, ...buildSection, ...defaultServeConfig })
     })
 
     it('fills in defaults for every field when both sections are present but empty', async () => {
@@ -77,13 +79,13 @@ describe('loadConfig', () => {
             JSON.stringify({ docs: {}, input: {}, output: {} }),
         )
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig })
+        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig, ...defaultServeConfig })
     })
 
     it('fills in every default when neither section is present', async () => {
         await writeFile(path.join(dir, configFileName), JSON.stringify({}))
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig })
+        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig, ...defaultServeConfig })
     })
 
     it('drops unrecognized format values and falls back to the default formats', async () => {
@@ -93,5 +95,34 @@ describe('loadConfig', () => {
         )
         const config = await loadConfig(dir)
         expect(config.docs.output.formats).toEqual(['pdf'])
+    })
+
+    it('parses a full serve config file, defaulting the docs and build sections', async () => {
+        const serveSection = {
+            serve: {
+                port: 5000,
+                host: '0.0.0.0',
+                liveReload: false,
+                cleanUrls: true,
+                singlePageApp: true,
+                directoryListing: true,
+                cacheControl: true,
+            },
+        }
+        await writeFile(path.join(dir, configFileName), JSON.stringify(serveSection))
+        const config = await loadConfig(dir)
+        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig, ...serveSection })
+    })
+
+    it('fills in serve defaults when the serve section is present but empty', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: {} }))
+        const config = await loadConfig(dir)
+        expect(config.serve).toEqual(defaultServeConfig.serve)
+    })
+
+    it('fills in serve defaults when the serve section is absent entirely', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({}))
+        const config = await loadConfig(dir)
+        expect(config.serve).toEqual(defaultServeConfig.serve)
     })
 })

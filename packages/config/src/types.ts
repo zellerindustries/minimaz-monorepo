@@ -45,8 +45,21 @@ export interface BuildConfig {
     output: BuildOutputConfig
 }
 
-/** Full config shape `loadConfig` returns: `docs` and build sections are both always present, independently defaulted. */
-export interface MinimazConfig extends DocsConfig, BuildConfig {}
+/** The `serve` section of `minimaz.config.json`, defaulted by `parseServeConfig`/`defaultServeConfig`. */
+export interface ServeConfig {
+    serve: {
+        port: number
+        host: string
+        liveReload: boolean
+        cleanUrls: boolean
+        singlePageApp: boolean
+        directoryListing: boolean
+        cacheControl: boolean
+    }
+}
+
+/** Full config shape `loadConfig` returns: `docs`, build, and `serve` sections are all always present, independently defaulted. */
+export interface MinimazConfig extends DocsConfig, BuildConfig, ServeConfig {}
 
 /** Shape of the untrusted JSON parsed from `minimaz.config.json`, before defaults are filled in and validated. */
 export interface RawConfig {
@@ -66,5 +79,14 @@ export interface RawConfig {
         css?: { bundling?: boolean; minify?: boolean }
         html?: { minify?: boolean }
         js?: { bundling?: boolean; minify?: boolean }
+    }
+    serve?: {
+        port?: number
+        host?: string
+        liveReload?: boolean
+        cleanUrls?: boolean
+        singlePageApp?: boolean
+        directoryListing?: boolean
+        cacheControl?: boolean
     }
 }
