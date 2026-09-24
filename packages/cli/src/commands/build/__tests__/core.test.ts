@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { defaultBuildConfig, defaultConfig } from '@minimaz/config'
+import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { pathExists } from '@minimaz/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -15,6 +15,7 @@ function makeConfig(
     return {
         ...defaultConfig,
         ...defaultBuildConfig,
+        ...defaultServeConfig,
         input: { ...defaultBuildConfig.input, ...overrides },
         output: { ...defaultBuildConfig.output, ...outputOverrides },
     }

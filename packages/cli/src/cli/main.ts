@@ -11,6 +11,7 @@ import {
     help,
     init,
     resolveDocsCommand,
+    serve,
     template,
     validate,
     version,
@@ -80,6 +81,9 @@ export async function runCli(pkgPath: string): Promise<void> {
         },
         clear: async () => {
             await clear(cwd)
+        },
+        serve: async () => {
+            await serve(cwd)
         },
 
         init: async () => {

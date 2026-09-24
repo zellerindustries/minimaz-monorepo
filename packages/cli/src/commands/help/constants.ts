@@ -56,4 +56,9 @@ export const commandsHelp: Record<string, CommandHelp> = {
         usage: 'minimaz clear',
         description: 'Remove the configured build output directory',
     },
+    serve: {
+        usage: 'minimaz serve',
+        description:
+            "Serve the configured build output directory over HTTP, per minimaz.config.json's serve section",
+    },
 }

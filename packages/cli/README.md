@@ -24,6 +24,7 @@ minimaz template [path] [--list] [--delete=<name>] [--update[=<name>]]
 minimaz docs <init|build>
 minimaz build
 minimaz clear
+minimaz serve
 ```
 
 - `validate` — validate a CSS, HTML, JS, TS, or JSON file.
@@ -43,6 +44,8 @@ minimaz clear
   `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. JS/TS import-graph
   bundling (`output.js.bundling: true`) isn't supported yet and throws.
 - `clear` — delete `output.dir`, with the same safety checks as `build`.
+- `serve` — start a local HTTP server on `output.dir`, honoring `minimaz.config.json`'s `serve` section (clean
+  URLs, SPA fallback, directory listing, cache-control, live reload).
 
 This covers `minimaz-cli`'s full command set — see `.claude/status.md` in the monorepo root for current status and
 known gaps (e.g. `validate` is currently single-file only, unlike the original's recursive directory mode).

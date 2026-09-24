@@ -1,4 +1,4 @@
-import { defaultBuildConfig, defaultConfig } from '@minimaz/config'
+import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { describe, expect, it } from 'vitest'
 import type { File } from '../../types.js'
@@ -8,6 +8,7 @@ function makeConfig(minify: boolean): MinimazConfig {
     return {
         ...defaultConfig,
         ...defaultBuildConfig,
+        ...defaultServeConfig,
         output: {
             ...defaultBuildConfig.output,
             js: { bundling: false, minify },

@@ -44,6 +44,7 @@
         "@minimaz/html": "^0.1.0",
         "@minimaz/js": "^0.1.0",
         "@minimaz/logger": "^0.1.0",
+        "@minimaz/local-server": "^0.1.0",
         "@minimaz/markdown": "^0.1.0",
         "@minimaz/templates": "^0.1.0",
         "@minimaz/ts": "^0.1.0",

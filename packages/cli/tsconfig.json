@@ -16,6 +16,7 @@
 
         { "path": "../html" },
         { "path": "../js" },
+        { "path": "../local-server" },
         { "path": "../logger" },
         { "path": "../markdown" },
         { "path": "../templates" },
