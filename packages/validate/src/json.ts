@@ -1,11 +1,11 @@
-import { ValidationError } from './errors.js';
+import { ValidationError } from './errors.js'
 
 /**
  * Thrown by {@link validateJson} — carries the single parse error found.
  */
 export class JsonValidationError extends ValidationError {
     constructor(errors: string[]) {
-        super('JsonValidationError', 'JSON validation error', errors);
+        super('JsonValidationError', 'JSON validation error', errors)
     }
 }
 
@@ -17,13 +17,13 @@ export class JsonValidationError extends ValidationError {
  */
 export function validateJson(code: string): void {
     if (typeof code !== 'string') {
-        throw new JsonValidationError(['code must be a string']);
+        throw new JsonValidationError(['code must be a string'])
     }
 
     try {
-        JSON.parse(code);
+        JSON.parse(code)
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new JsonValidationError([message]);
+        const message = error instanceof Error ? error.message : String(error)
+        throw new JsonValidationError([message])
     }
 }

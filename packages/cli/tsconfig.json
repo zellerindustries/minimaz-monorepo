@@ -3,9 +3,7 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
         "tsBuildInfoFile": "./node_modules/.cache/tsc/cli.tsbuildinfo"
     },
@@ -14,9 +12,15 @@
     "references": [
         { "path": "../config" },
         { "path": "../core" },
+        { "path": "../css" },
+
+        { "path": "../html" },
+        { "path": "../js" },
+        { "path": "../local-server" },
         { "path": "../logger" },
         { "path": "../markdown" },
         { "path": "../templates" },
+        { "path": "../ts" },
         { "path": "../validate" }
     ]
 }

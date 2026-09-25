@@ -9,17 +9,24 @@
 
         "types": ["node"],
 
+        // Monorepo requirement for `tsc -b`
+        "composite": true,
+        "incremental": true,
+
         "strict": true,
         "noImplicitOverride": true,
-
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
         "noUncheckedIndexedAccess": true,
-
         "exactOptionalPropertyTypes": true,
         "noPropertyAccessFromIndexSignature": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "noUncheckedSideEffectImports": true,
+        // Bans enums, namespaces and parameter properties — syntax Node's type stripping can't erase.
+        "erasableSyntaxOnly": true,
 
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
@@ -28,11 +35,12 @@
         "isolatedModules": true,
         "resolveJsonModule": true,
 
-        "declaration": true,
+        // Only generates .d.ts files (Assumes esbuild/vite handles the .js output)
+        "declaration": true, // Must be true when composite is true
+        "emitDeclarationOnly": false, // Emits both .js and .d.ts
         "declarationMap": false,
-        "sourceMap": false,
-        "emitDeclarationOnly": true,
-
-        "incremental": true
-    }
+        "sourceMap": false
+    },
+    // Do NOT exclude tests here, so `tsc -b` will still typecheck them.
+    "exclude": ["dist", "node_modules"]
 }

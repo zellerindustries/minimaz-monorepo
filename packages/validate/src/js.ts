@@ -1,5 +1,5 @@
-import ts from 'typescript';
-import { ValidationError } from './errors.js';
+import ts from 'typescript'
+import { ValidationError } from './errors.js'
 
 /**
  * Thrown by {@link validateJs} — carries every diagnostic found, not just
@@ -7,7 +7,7 @@ import { ValidationError } from './errors.js';
  */
 export class JsValidationError extends ValidationError {
     constructor(errors: string[]) {
-        super('JsValidationError', 'JavaScript validation error', errors);
+        super('JsValidationError', 'JavaScript validation error', errors)
     }
 }
 
@@ -22,7 +22,7 @@ export class JsValidationError extends ValidationError {
  */
 export function validateJs(code: string): void {
     if (typeof code !== 'string') {
-        throw new JsValidationError(['code must be a string']);
+        throw new JsValidationError(['code must be a string'])
     }
 
     const result = ts.transpileModule(code, {
@@ -31,12 +31,12 @@ export function validateJs(code: string): void {
             module: ts.ModuleKind.ESNext,
         },
         reportDiagnostics: true,
-    });
+    })
 
     if (result.diagnostics && result.diagnostics.length > 0) {
         const errors = result.diagnostics.map((diagnostic) =>
             ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-        );
-        throw new JsValidationError(errors);
+        )
+        throw new JsValidationError(errors)
     }
 }

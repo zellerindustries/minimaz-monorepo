@@ -3,9 +3,7 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
         "tsBuildInfoFile": "./node_modules/.cache/tsc/templates.tsbuildinfo"
     },

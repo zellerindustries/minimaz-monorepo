@@ -3,13 +3,11 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
         "tsBuildInfoFile": "./node_modules/.cache/tsc/config.tsbuildinfo"
     },
     "include": ["src"],
     "exclude": ["dist", "node_modules"],
-    "references": [{ "path": "../json" }]
+    "references": [{ "path": "../logger" }, { "path": "../json" }]
 }

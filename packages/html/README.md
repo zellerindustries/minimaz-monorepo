@@ -11,9 +11,9 @@ npm install @minimaz/html
 ## Usage
 
 ```ts
-import { minifyHtml, validateHtml, HtmlValidationError } from '@minimaz/html';
+import { minifyHtml, validateHtml, HtmlValidationError } from '@minimaz/html'
 
-const minified = await minifyHtml(htmlSource);
+const minified = await minifyHtml(htmlSource)
 ```
 
 ## API

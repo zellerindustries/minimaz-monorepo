@@ -3,12 +3,11 @@
     "compilerOptions": {
         "rootDir": "./src",
         "outDir": "./dist",
-
         "types": ["node"],
-
         "composite": true,
         "tsBuildInfoFile": "./node_modules/.cache/tsc/validate.tsbuildinfo"
     },
     "include": ["src"],
-    "exclude": ["dist", "node_modules"]
+    "exclude": ["dist", "node_modules"],
+    "references": [{ "path": "../logger" }]
 }

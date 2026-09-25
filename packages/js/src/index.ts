@@ -1,1 +1,1 @@
-export { minifyJs } from './minify.js';
+export { minifyJs } from './minify.js'

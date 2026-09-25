@@ -1,14 +1,14 @@
-import { basename, join, pathExists } from '@minimaz/core';
-import { log } from '@minimaz/logger';
+import { basename, join, pathExists } from '@minimaz/core'
+import { log } from '@minimaz/logger'
 import {
     deleteTemplate,
     listTemplates,
     saveTemplate,
     seedDefaults,
     updateTemplateFrom,
-} from '@minimaz/templates';
-import { askQuestion } from '../../cli/index.js';
-import type { TemplateCommandOptions } from './types.js';
+} from '@minimaz/templates'
+import { askQuestion } from '../../cli/index.js'
+import type { TemplateCommandOptions } from './types.js'
 
 /**
  * Handles the `template` command: list, save, delete, or update global
@@ -25,99 +25,99 @@ export async function template(
     options: TemplateCommandOptions,
     sourcePath: string,
 ): Promise<void> {
-    if (options.list) {
-        const names = await listTemplates(templatesDir);
+    if (options.list === true) {
+        const names = await listTemplates(templatesDir)
 
         if (names.length === 0) {
-            log.info('No global templates available');
-            return;
+            log.info('No global templates available')
+            return
         }
 
-        log.info('Available global templates:');
+        log.info('Available global templates:')
         for (const name of names) {
-            log.default(name);
+            log.default(name)
         }
-        return;
+        return
     }
 
-    if (options.delete) {
-        const name = options.delete;
+    if (options.delete !== undefined && options.delete !== '') {
+        const name = options.delete
         const confirmed = (await askQuestion(`Confirm delete "${name}"? [y/N]:`, 'n'))
             .toLowerCase()
-            .startsWith('y');
+            .startsWith('y')
 
         if (!confirmed) {
-            log.info('Delete cancelled');
-            return;
+            log.info('Delete cancelled')
+            return
         }
 
-        await deleteTemplate(templatesDir, name);
-        return;
+        await deleteTemplate(templatesDir, name)
+        return
     }
 
-    if (options.update) {
+    if (options.update !== undefined && options.update !== false && options.update !== '') {
         if (typeof options.update === 'string' && options.update.trim() !== '') {
-            const name = options.update.trim();
+            const name = options.update.trim()
             const confirmed = (
                 await askQuestion(`Update "${name}" with current directory? [Y/n]:`, 'y')
             )
                 .toLowerCase()
-                .startsWith('y');
+                .startsWith('y')
 
             if (!confirmed) {
-                log.info('Update cancelled');
-                return;
+                log.info('Update cancelled')
+                return
             }
 
-            await updateTemplateFrom(templatesDir, name, sourcePath);
-            return;
+            await updateTemplateFrom(templatesDir, name, sourcePath)
+            return
         }
 
         const confirmed = (
             await askQuestion('Update local templates, overwriting them with defaults? [Y/n]:', 'y')
         )
             .toLowerCase()
-            .startsWith('y');
+            .startsWith('y')
 
         if (!confirmed) {
-            log.info('Update cancelled');
-            return;
+            log.info('Update cancelled')
+            return
         }
 
-        await seedDefaults(globalDir, templatesDir, true);
-        return;
+        await seedDefaults(globalDir, templatesDir, true)
+        return
     }
 
     // Default action: save sourcePath as a new template.
-    let source = sourcePath;
+    let source = sourcePath
 
     if (!(await pathExists(source))) {
-        log.warn(`Not found: ${source}`);
+        log.warn(`Not found: ${source}`)
         const useCwd = (await askQuestion('Use current directory? [Y/n]:', 'y'))
             .toLowerCase()
-            .startsWith('y');
+            .startsWith('y')
 
         if (!useCwd) {
-            throw new Error('Operation cancelled');
+            throw new Error('Operation cancelled')
         }
 
-        source = process.env['CLI_WORKDIR'] ?? process.cwd();
+        source = process.env['CLI_WORKDIR'] ?? process.cwd()
     }
 
-    const name = basename(source);
-    const dest = join(templatesDir, name);
-    let overwrite = true;
+    const name = basename(source)
+    const dest = join(templatesDir, name)
+    let overwrite = true
 
     if (await pathExists(dest)) {
         overwrite = (await askQuestion(`Template "${name}" exists. Overwrite? [y/N]:`, 'n'))
             .toLowerCase()
-            .startsWith('y');
+            .startsWith('y')
 
         if (!overwrite) {
-            log.info('Save cancelled');
-            return;
+            log.info('Save cancelled')
+            return
         }
     }
 
-    await saveTemplate(templatesDir, source, name, overwrite);
+    await saveTemplate(templatesDir, source, name, overwrite)
 }

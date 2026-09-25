@@ -1,4 +1,4 @@
-import type { CommandHelp } from './types.js';
+import type { CommandHelp } from './types.js'
 
 export const commandsHelp: Record<string, CommandHelp> = {
     help: {
@@ -48,4 +48,17 @@ export const commandsHelp: Record<string, CommandHelp> = {
         usage: 'minimaz docs <init|build>',
         description: 'Scaffold or build Markdown documentation',
     },
-};
+    build: {
+        usage: 'minimaz build',
+        description: 'Build the project into the configured output directory',
+    },
+    clear: {
+        usage: 'minimaz clear',
+        description: 'Remove the configured build output directory',
+    },
+    serve: {
+        usage: 'minimaz serve',
+        description:
+            "Serve the configured build output directory over HTTP, per minimaz.config.json's serve section",
+    },
+}

@@ -1,125 +1,181 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { parseJson } from '@minimaz/json';
-import type { BuildConfig, DocsConfig, MinimazConfig, OutputFormat, RawConfig } from './types.js';
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { KnownError } from '@minimaz/logger'
+import { parseJson } from '@minimaz/json'
+import type {
+    BuildConfig,
+    DocsConfig,
+    MinimazConfig,
+    OutputFormat,
+    RawConfig,
+    ServeConfig,
+} from './types.js'
 
 /*
-Loads config the way src/core.ts's original comment described (loadConfig
-"from minimaz/core"), except minimaz isn't a published dependency yet. This
-is a local stand-in, not a reimplementation of minimaz/core under another
-name — swap it for the real thing once that package exists.
+This module understands both the docs-builder config shape (`docs.input`/
+`docs.output`) and the build-oriented shape (`input`/`output`) ported from
+minimaz-cli — see `loadConfig` below for how the two are merged.
 */
 
-export const CONFIG_FILE_NAME = 'minimaz.config.json';
+/** Filename `loadConfig` looks for in the project's `cwd`. */
+export const configFileName = 'minimaz.config.json'
 
-export const DEFAULT_CONFIG: DocsConfig = {
+/** Defaults for the `docs` section of `MinimazConfig`, used to fill in whatever the config file omits. */
+export const defaultConfig: DocsConfig = {
     docs: {
         input: { dir: 'docs' },
         output: { bundle: false, formats: ['html'] },
     },
-};
+}
 
-export const DEFAULT_BUILD_CONFIG: BuildConfig = {
+/** Defaults for the build (`input`/`output`) section of `MinimazConfig`, used to fill in whatever the config file omits. */
+export const defaultBuildConfig: BuildConfig = {
     input: { dir: './src', mapping: {}, externals: {}, exclude: [] },
     output: {
         dir: './dist',
         replace: {},
         css: { bundling: true, minify: true },
         html: { minify: true },
-        js: { bundling: true, minify: true },
+        js: { bundling: false, minify: true },
     },
-};
+}
 
-export class ConfigNotFoundError extends Error {
+/** Defaults for the `serve` section of `MinimazConfig`, used to fill in whatever the config file omits. */
+export const defaultServeConfig: ServeConfig = {
+    serve: {
+        port: 0,
+        host: '127.0.0.1',
+        liveReload: true,
+        cleanUrls: false,
+        singlePageApp: false,
+        directoryListing: false,
+        cacheControl: false,
+    },
+}
+
+/** Thrown by `loadConfig` when `minimaz.config.json` is missing from the target directory. */
+export class ConfigNotFoundError extends KnownError {
+    /**
+     * @param {string} configPath - Absolute path where the config file was expected.
+     */
     constructor(configPath: string) {
-        super(`No config file found at ${configPath}. Run "minimaz docs init" first.`);
-        this.name = 'ConfigNotFoundError';
+        super(`No config file found at ${configPath}. Run "minimaz docs init" first.`)
+        this.name = 'ConfigNotFoundError'
     }
 }
 
 function isOutputFormat(value: string): value is OutputFormat {
-    return value === 'html' || value === 'pdf';
+    return value === 'html' || value === 'pdf'
 }
 
 function parseDocsConfig(parsed: RawConfig): DocsConfig {
-    const inputDir = parsed.docs?.input?.dir ?? DEFAULT_CONFIG.docs.input.dir;
-    const bundle = parsed.docs?.output?.bundle ?? DEFAULT_CONFIG.docs.output.bundle;
-    const rawFormats = parsed.docs?.output?.formats;
-    const formats = Array.isArray(rawFormats) ? rawFormats.filter(isOutputFormat) : [];
+    const inputDir = parsed.docs?.input?.dir ?? defaultConfig.docs.input.dir
+    const bundle = parsed.docs?.output?.bundle ?? defaultConfig.docs.output.bundle
+    const rawFormats = parsed.docs?.output?.formats
+    const formats = Array.isArray(rawFormats) ? rawFormats.filter(isOutputFormat) : []
 
     return {
         docs: {
             input: { dir: inputDir },
             output: {
                 bundle,
-                formats: formats.length > 0 ? formats : DEFAULT_CONFIG.docs.output.formats,
+                formats: formats.length > 0 ? formats : defaultConfig.docs.output.formats,
             },
         },
-    };
+    }
 }
 
 function parseBuildConfig(parsed: RawConfig): BuildConfig {
-    const input = parsed.input;
-    const output = parsed.output;
+    const input = parsed.input
+    const output = parsed.output
 
     return {
         input: {
-            dir: input?.dir ?? DEFAULT_BUILD_CONFIG.input.dir,
-            mapping: input?.mapping ?? DEFAULT_BUILD_CONFIG.input.mapping,
-            externals: input?.externals ?? DEFAULT_BUILD_CONFIG.input.externals,
-            exclude: input?.exclude ?? DEFAULT_BUILD_CONFIG.input.exclude,
+            dir: input?.dir ?? defaultBuildConfig.input.dir,
+            mapping: input?.mapping ?? defaultBuildConfig.input.mapping,
+            externals: input?.externals ?? defaultBuildConfig.input.externals,
+            exclude: input?.exclude ?? defaultBuildConfig.input.exclude,
         },
         output: {
-            dir: output?.dir ?? DEFAULT_BUILD_CONFIG.output.dir,
-            replace: output?.replace ?? DEFAULT_BUILD_CONFIG.output.replace,
+            dir: output?.dir ?? defaultBuildConfig.output.dir,
+            replace: output?.replace ?? defaultBuildConfig.output.replace,
             css: {
-                bundling: output?.css?.bundling ?? DEFAULT_BUILD_CONFIG.output.css.bundling,
-                minify: output?.css?.minify ?? DEFAULT_BUILD_CONFIG.output.css.minify,
+                bundling: output?.css?.bundling ?? defaultBuildConfig.output.css.bundling,
+                minify: output?.css?.minify ?? defaultBuildConfig.output.css.minify,
             },
             html: {
-                minify: output?.html?.minify ?? DEFAULT_BUILD_CONFIG.output.html.minify,
+                minify: output?.html?.minify ?? defaultBuildConfig.output.html.minify,
             },
             js: {
-                bundling: output?.js?.bundling ?? DEFAULT_BUILD_CONFIG.output.js.bundling,
-                minify: output?.js?.minify ?? DEFAULT_BUILD_CONFIG.output.js.minify,
+                bundling: output?.js?.bundling ?? defaultBuildConfig.output.js.bundling,
+                minify: output?.js?.minify ?? defaultBuildConfig.output.js.minify,
             },
         },
-    };
+    }
+}
+
+function parseServeConfig(parsed: RawConfig): ServeConfig {
+    const serve = parsed.serve
+
+    return {
+        serve: {
+            port: serve?.port ?? defaultServeConfig.serve.port,
+            host: serve?.host ?? defaultServeConfig.serve.host,
+            liveReload: serve?.liveReload ?? defaultServeConfig.serve.liveReload,
+            cleanUrls: serve?.cleanUrls ?? defaultServeConfig.serve.cleanUrls,
+            singlePageApp: serve?.singlePageApp ?? defaultServeConfig.serve.singlePageApp,
+            directoryListing: serve?.directoryListing ?? defaultServeConfig.serve.directoryListing,
+            cacheControl: serve?.cacheControl ?? defaultServeConfig.serve.cacheControl,
+        },
+    }
 }
 
 function parseConfig(raw: unknown): MinimazConfig {
-    const parsed: RawConfig = typeof raw === 'object' && raw !== null ? raw : {};
+    const parsed: RawConfig = typeof raw === 'object' && raw !== null ? raw : {}
     return {
         ...parseDocsConfig(parsed),
         ...parseBuildConfig(parsed),
-    };
-}
-
-/** Reads `minimaz.config.json` from `cwd`, filling in defaults for missing/invalid fields in the `docs` and build (`input`/`output`) sections independently — both are always present in the result regardless of which sections the file provided. */
-export async function loadConfig(cwd: string): Promise<MinimazConfig> {
-    const configPath = path.join(cwd, CONFIG_FILE_NAME);
-    let raw: string;
-    try {
-        raw = await readFile(configPath, 'utf8');
-    } catch {
-        throw new ConfigNotFoundError(configPath);
+        ...parseServeConfig(parsed),
     }
-    return parseConfig(parseJson(raw));
 }
 
-export const BUNDLE_SEPARATOR = '\n\n<!-- ============================== -->\n\n';
+/**
+ * Reads `minimaz.config.json` from `cwd`, filling in defaults for missing/invalid fields in the
+ * `docs` and build (`input`/`output`) sections independently — both are always present in the
+ * result regardless of which sections the file provided.
+ *
+ * @param {string} cwd - Directory to look for `minimaz.config.json` in.
+ * @returns {Promise<MinimazConfig>} The parsed config with defaults filled in.
+ * @throws {ConfigNotFoundError} When `minimaz.config.json` does not exist in `cwd`.
+ */
+export async function loadConfig(cwd: string): Promise<MinimazConfig> {
+    const configPath = path.join(cwd, configFileName)
+    let raw: string
+    try {
+        raw = await readFile(configPath, 'utf8')
+    } catch {
+        throw new ConfigNotFoundError(configPath)
+    }
+    return parseConfig(parseJson(raw))
+}
 
-export const BUNDLE_NAME = 'bundle';
+/** HTML comment inserted between docs pages when they're bundled into a single output file. */
+export const bundleSeparator = '\n\n<!-- ============================== -->\n\n'
 
-export const OUTPUT_DIRS: Record<OutputFormat, string> = {
+/** Base filename (without extension) used for a bundled docs output file. */
+export const bundleName = 'bundle'
+
+/** Output directory for each docs `OutputFormat`, relative to the configured build output dir. */
+export const outputDirs: Record<OutputFormat, string> = {
     html: 'dist/html',
     pdf: 'dist/pdf',
-};
+}
 
-export const EXTENSIONS: Record<OutputFormat, string> = {
+/** File extension for each docs `OutputFormat`. */
+export const outputExtensions: Record<OutputFormat, string> = {
     html: '.html',
     pdf: '.pdf',
-};
+}
 
 export type {
     BuildBundleOptions,
@@ -132,4 +188,5 @@ export type {
     MinimazConfig,
     OutputFormat,
     RawConfig,
-} from './types.js';
+    ServeConfig,
+} from './types.js'

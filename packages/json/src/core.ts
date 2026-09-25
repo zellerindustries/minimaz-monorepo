@@ -9,16 +9,16 @@
  */
 export function parseJson(code: string): unknown {
     if (typeof code !== 'string') {
-        throw new Error('parseJson: code must be a string');
+        throw new Error('parseJson: code must be a string')
     }
 
     try {
-        return JSON.parse(code);
+        return JSON.parse(code)
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error)
         throw new Error(`parseJson: invalid JSON: ${message}`, {
             cause: error,
-        });
+        })
     }
 }
 
@@ -30,7 +30,7 @@ export function parseJson(code: string): unknown {
  * @returns {string} Minified JSON
  */
 export function minifyJson(code: string): string {
-    return JSON.stringify(parseJson(code));
+    return JSON.stringify(parseJson(code))
 }
 
 /**
@@ -42,5 +42,5 @@ export function minifyJson(code: string): string {
  * @returns {string} Formatted JSON
  */
 export function formatJson(code: string, indent = 4): string {
-    return JSON.stringify(parseJson(code), null, indent);
+    return JSON.stringify(parseJson(code), null, indent)
 }

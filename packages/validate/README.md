@@ -11,10 +11,10 @@ npm install @minimaz/validate
 ## Usage
 
 ```ts
-import { validateCss, validateHtml, validateJs, validateTs, validateJson } from '@minimaz/validate';
+import { validateCss, validateHtml, validateJs, validateTs, validateJson } from '@minimaz/validate'
 
 try {
-    validateHtml(htmlSource);
+    validateHtml(htmlSource)
 } catch (error) {
     // error is an HtmlValidationError
 }
@@ -26,11 +26,13 @@ none of them return a false-success result or swallow errors internally.
 ## API
 
 - `validateCss(code)` / `CssValidationError`
-- `validateHtml(code)` / `HtmlValidationError` — zero-dep brace/tag-balance structural check.
+- `validateHtml(code)` / `HtmlValidationError` — zero-dep tag-balance structural check. The contents of
+  `<script>`, `<style>`, `<textarea>` and `<title>` are treated as text, so a `<` inside them is never read as a
+  tag.
 - `validateJs(code)` / `JsValidationError`
 - `validateTs(code, options?: { jsx?: boolean })` / `TsValidationError` — via `typescript`'s parser diagnostics.
 - `validateJson(code)` / `JsonValidationError` — via `JSON.parse`.
 
 Config validation (`minimaz.config.json`) is not duplicated here — see [`@minimaz/config`](../config).
 
-Depends on `typescript`.
+Depends on [`@minimaz/logger`](../logger) and `typescript`.

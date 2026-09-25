@@ -9,10 +9,15 @@
         "dist"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
-        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
-        "prepack": "npm run build",
-        "typecheck": "tsc --noEmit"
+        "build": "tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs",
+        "clean": "rimraf ./dist ./node_modules/.cache/tsc",
+        "typecheck": "tsc -b",
+        "typecheck:watch": "tsc -p tsconfig.json --watch",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "validate": "npm run lint && npm run typecheck",
+        "test": "vitest run --root ../.. --project @minimaz/html",
+        "prepack": "npm run build"
     },
     "keywords": [
         "html",

@@ -1,0 +1,28 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/cli.build.tsbuildinfo"
+    },
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "src/**/__tests__/**",
+        "src/**/__mocks__/**"
+    ],
+    "references": [
+        { "path": "../config/tsconfig.build.json" },
+        { "path": "../core/tsconfig.build.json" },
+        { "path": "../css/tsconfig.build.json" },
+
+        { "path": "../html/tsconfig.build.json" },
+        { "path": "../js/tsconfig.build.json" },
+        { "path": "../local-server/tsconfig.build.json" },
+        { "path": "../logger/tsconfig.build.json" },
+        { "path": "../markdown/tsconfig.build.json" },
+        { "path": "../templates/tsconfig.build.json" },
+        { "path": "../ts/tsconfig.build.json" },
+        { "path": "../validate/tsconfig.build.json" }
+    ]
+}

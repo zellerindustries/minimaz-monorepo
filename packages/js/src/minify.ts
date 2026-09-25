@@ -1,4 +1,4 @@
-const KEYWORDS_BEFORE_REGEX = new Set([
+const keywordsBeforeRegex = new Set([
     'return',
     'typeof',
     'instanceof',
@@ -14,14 +14,14 @@ const KEYWORDS_BEFORE_REGEX = new Set([
     'else',
     'await',
     'default',
-]);
+])
 
 function isIdentifierPart(char: string): boolean {
-    return /[A-Za-z0-9_$]/.test(char);
+    return /[A-Za-z0-9_$]/.test(char)
 }
 
 function isIdentifierStart(char: string): boolean {
-    return /[A-Za-z_$]/.test(char);
+    return /[A-Za-z_$]/.test(char)
 }
 
 /**
@@ -47,72 +47,72 @@ function isIdentifierStart(char: string): boolean {
  */
 export function minifyJs(code: string): string {
     if (typeof code !== 'string') {
-        throw new Error('minifyJs: code must be a string');
+        throw new Error('minifyJs: code must be a string')
     }
 
-    let result = '';
-    let i = 0;
-    const len = code.length;
+    let result = ''
+    let i = 0
+    const len = code.length
 
-    let inString: '"' | "'" | null = null;
-    const templateDepths: number[] = [];
-    let regexAllowed = true;
+    let inString: '"' | "'" | null = null
+    const templateDepths: number[] = []
+    let regexAllowed = true
 
     while (i < len) {
-        const char = code.charAt(i);
+        const char = code.charAt(i)
 
-        if (inString) {
-            result += char;
+        if (inString !== null) {
+            result += char
             if (char === '\\' && i + 1 < len) {
-                result += code.charAt(i + 1);
-                i += 2;
-                continue;
+                result += code.charAt(i + 1)
+                i += 2
+                continue
             }
             if (char === inString) {
-                inString = null;
-                regexAllowed = false;
+                inString = null
+                regexAllowed = false
             }
-            i++;
-            continue;
+            i++
+            continue
         }
 
         if (templateDepths.length > 0 && templateDepths[templateDepths.length - 1] === 0) {
             if (char === '\\' && i + 1 < len) {
-                result += char + code.charAt(i + 1);
-                i += 2;
-                continue;
+                result += char + code.charAt(i + 1)
+                i += 2
+                continue
             }
             if (char === '`') {
-                templateDepths.pop();
-                result += char;
-                regexAllowed = false;
-                i++;
-                continue;
+                templateDepths.pop()
+                result += char
+                regexAllowed = false
+                i++
+                continue
             }
             if (char === '$' && code.charAt(i + 1) === '{') {
-                templateDepths[templateDepths.length - 1] = 1;
-                result += '${';
-                i += 2;
-                regexAllowed = true;
-                continue;
+                templateDepths[templateDepths.length - 1] = 1
+                result += '${'
+                i += 2
+                regexAllowed = true
+                continue
             }
-            result += char;
-            i++;
-            continue;
+            result += char
+            i++
+            continue
         }
 
         if (char === '"' || char === "'") {
-            inString = char;
-            result += char;
-            i++;
-            continue;
+            inString = char
+            result += char
+            i++
+            continue
         }
 
         if (char === '`') {
-            templateDepths.push(0);
-            result += char;
-            i++;
-            continue;
+            templateDepths.push(0)
+            result += char
+            i++
+            continue
         }
 
         if (
@@ -120,12 +120,12 @@ export function minifyJs(code: string): string {
             templateDepths.length > 0 &&
             (templateDepths[templateDepths.length - 1] ?? 0) > 0
         ) {
-            const depth = templateDepths[templateDepths.length - 1] ?? 0;
-            templateDepths[templateDepths.length - 1] = depth === 1 ? 0 : depth - 1;
-            result += char;
-            regexAllowed = false;
-            i++;
-            continue;
+            const depth = templateDepths[templateDepths.length - 1] ?? 0
+            templateDepths[templateDepths.length - 1] = depth === 1 ? 0 : depth - 1
+            result += char
+            regexAllowed = false
+            i++
+            continue
         }
 
         if (
@@ -134,132 +134,150 @@ export function minifyJs(code: string): string {
             (templateDepths[templateDepths.length - 1] ?? 0) > 0
         ) {
             templateDepths[templateDepths.length - 1] =
-                (templateDepths[templateDepths.length - 1] ?? 0) + 1;
-            result += char;
-            regexAllowed = true;
-            i++;
-            continue;
+                (templateDepths[templateDepths.length - 1] ?? 0) + 1
+            result += char
+            regexAllowed = true
+            i++
+            continue
         }
 
         if (char === '/' && !regexAllowed) {
-            const next = code.charAt(i + 1);
+            const next = code.charAt(i + 1)
             if (next === '/') {
-                const end = code.indexOf('\n', i + 2);
-                i = end === -1 ? len : end;
-                continue;
+                const end = code.indexOf('\n', i + 2)
+                i = end === -1 ? len : end
+                continue
             }
             if (next === '*') {
-                const end = code.indexOf('*/', i + 2);
-                i = end === -1 ? len : end + 2;
-                continue;
+                const end = code.indexOf('*/', i + 2)
+                i = end === -1 ? len : end + 2
+                continue
             }
-            result += char;
-            regexAllowed = true;
-            i++;
-            continue;
+            result += char
+            regexAllowed = true
+            i++
+            continue
         }
 
         if (char === '/' && regexAllowed) {
-            const next = code.charAt(i + 1);
+            const next = code.charAt(i + 1)
             if (next === '/') {
-                const end = code.indexOf('\n', i + 2);
-                i = end === -1 ? len : end;
-                continue;
+                const end = code.indexOf('\n', i + 2)
+                i = end === -1 ? len : end
+                continue
             }
             if (next === '*') {
-                const end = code.indexOf('*/', i + 2);
-                i = end === -1 ? len : end + 2;
-                continue;
+                const end = code.indexOf('*/', i + 2)
+                i = end === -1 ? len : end + 2
+                continue
             }
-            let j = i + 1;
-            let inClass = false;
+            let j = i + 1
+            let inClass = false
             while (j < len) {
-                const c = code.charAt(j);
+                const c = code.charAt(j)
                 if (c === '\\') {
-                    j += 2;
-                    continue;
+                    j += 2
+                    continue
                 }
                 if (c === '[') {
-                    inClass = true;
+                    inClass = true
                 } else if (c === ']') {
-                    inClass = false;
+                    inClass = false
                 } else if (c === '/' && !inClass) {
-                    break;
+                    break
                 } else if (c === '\n') {
-                    break;
+                    break
                 }
-                j++;
+                j++
             }
-            let flagsEnd = j + 1;
-            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) flagsEnd++;
-            result += code.slice(i, Math.min(flagsEnd, len));
-            i = Math.min(flagsEnd, len);
-            regexAllowed = false;
-            continue;
+            let flagsEnd = j + 1
+            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) {
+                flagsEnd++
+            }
+            result += code.slice(i, Math.min(flagsEnd, len))
+            i = Math.min(flagsEnd, len)
+            regexAllowed = false
+            continue
         }
 
         if (/[0-9]/.test(char) || (char === '.' && /[0-9]/.test(code.charAt(i + 1)))) {
-            let j = i;
+            let j = i
             if (char === '0' && (code.charAt(i + 1) === 'x' || code.charAt(i + 1) === 'X')) {
-                j += 2;
-                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) j++;
+                j += 2
+                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) {
+                    j++
+                }
             } else if (char === '0' && /[bBoO]/.test(code.charAt(i + 1))) {
-                j += 2;
-                while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
+                j += 2
+                while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                    j++
+                }
             } else {
-                while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
+                while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                    j++
+                }
                 if (code.charAt(j) === '.') {
-                    j++;
-                    while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
+                    j++
+                    while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                        j++
+                    }
                 }
                 if (code.charAt(j) === 'e' || code.charAt(j) === 'E') {
-                    let k = j + 1;
-                    if (code.charAt(k) === '+' || code.charAt(k) === '-') k++;
+                    let k = j + 1
+                    if (code.charAt(k) === '+' || code.charAt(k) === '-') {
+                        k++
+                    }
                     if (/[0-9]/.test(code.charAt(k))) {
-                        j = k;
-                        while (j < len && /[0-9_]/.test(code.charAt(j))) j++;
+                        j = k
+                        while (j < len && /[0-9_]/.test(code.charAt(j))) {
+                            j++
+                        }
                     }
                 }
             }
-            if (code.charAt(j) === 'n') j++;
-            result += code.slice(i, j);
-            i = j;
-            regexAllowed = false;
-            continue;
+            if (code.charAt(j) === 'n') {
+                j++
+            }
+            result += code.slice(i, j)
+            i = j
+            regexAllowed = false
+            continue
         }
 
         if (isIdentifierStart(char)) {
-            let j = i;
-            while (j < len && isIdentifierPart(code.charAt(j))) j++;
-            const word = code.slice(i, j);
-            result += word;
-            regexAllowed = KEYWORDS_BEFORE_REGEX.has(word);
-            i = j;
-            continue;
+            let j = i
+            while (j < len && isIdentifierPart(code.charAt(j))) {
+                j++
+            }
+            const word = code.slice(i, j)
+            result += word
+            regexAllowed = keywordsBeforeRegex.has(word)
+            i = j
+            continue
         }
 
         if (/\s/.test(char)) {
-            result += char;
-            i++;
-            continue;
+            result += char
+            i++
+            continue
         }
 
-        result += char;
-        regexAllowed = !(char === ')' || char === ']');
-        i++;
+        result += char
+        regexAllowed = !(char === ')' || char === ']')
+        i++
     }
 
-    const lines = result.split('\n').map((line) => line.trim());
-    const collapsed: string[] = [];
-    let previousBlank = false;
+    const lines = result.split('\n').map((line) => line.trim())
+    const collapsed: string[] = []
+    let previousBlank = false
     for (const line of lines) {
-        const isBlank = line === '';
+        const isBlank = line === ''
         if (isBlank && previousBlank) {
-            continue;
+            continue
         }
-        collapsed.push(line);
-        previousBlank = isBlank;
+        collapsed.push(line)
+        previousBlank = isBlank
     }
 
-    return collapsed.join('\n').trim();
+    return collapsed.join('\n').trim()
 }

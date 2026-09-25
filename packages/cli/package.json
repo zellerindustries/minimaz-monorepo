@@ -1,24 +1,23 @@
 {
     "name": "@minimaz/cli",
     "version": "0.1.0",
-    "description": "minimaz/mz CLI — help, version, validate, init, config, template, docs.",
+    "description": "Command implementations for the minimaz/mz CLI. Not published as a bin itself — see @minimaz/sitekit.",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
-    "bin": {
-        "minimaz": "./dist/cli/main.js",
-        "mz": "./dist/cli/main.js"
-    },
     "files": [
         "dist"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json && node ../../tools/builder/dist/cli.js",
-        "clean": "node -e \"const fs = require('fs'); for (const p of ['dist', 'node_modules/.cache/tsc']) fs.rmSync(p, { recursive: true, force: true });\"",
-        "prepack": "npm run build",
-        "dev": "tsx src/cli/main.ts",
-        "typecheck": "tsc --noEmit",
-        "postinstall": "node dist/cli/main.js || exit 0"
+        "build": "tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs",
+        "clean": "rimraf ./dist ./node_modules/.cache/tsc",
+        "typecheck": "tsc -b",
+        "typecheck:watch": "tsc -p tsconfig.json --watch",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "validate": "npm run lint && npm run typecheck",
+        "test": "vitest run --root ../.. --project @minimaz/cli",
+        "prepack": "npm run build"
     },
     "keywords": [
         "cli",
@@ -41,9 +40,14 @@
     "dependencies": {
         "@minimaz/config": "^0.1.0",
         "@minimaz/core": "^0.1.0",
+        "@minimaz/css": "^0.1.0",
+        "@minimaz/html": "^0.1.0",
+        "@minimaz/js": "^0.1.0",
         "@minimaz/logger": "^0.1.0",
+        "@minimaz/local-server": "^0.1.0",
         "@minimaz/markdown": "^0.1.0",
         "@minimaz/templates": "^0.1.0",
+        "@minimaz/ts": "^0.1.0",
         "@minimaz/validate": "^0.1.0",
         "cross-spawn": "7.0.6"
     },

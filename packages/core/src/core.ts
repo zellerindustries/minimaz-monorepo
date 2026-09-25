@@ -1,8 +1,8 @@
-import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, relative, sep } from 'node:path'
 
-import { log } from '@minimaz/logger';
+import { log } from '@minimaz/logger'
 
 /* =========================================================
     VALIDATION / INSPECTION
@@ -22,10 +22,10 @@ import { log } from '@minimaz/logger';
  */
 export async function pathExists(path: string): Promise<boolean> {
     try {
-        await stat(path);
-        return true;
+        await stat(path)
+        return true
     } catch {
-        return false;
+        return false
     }
 }
 
@@ -42,22 +42,30 @@ export async function pathExists(path: string): Promise<boolean> {
  * @returns {Promise<T>}
  */
 export async function readJsonFile<T>(file: string): Promise<T> {
-    const exists = await pathExists(file);
-
-    if (!exists) {
-        throw new Error(`NOT FOUND: "${file}" does not exist`);
-    }
+    let content: string
 
     try {
-        const content = await readFile(file, 'utf8');
-
-        return JSON.parse(content) as T;
+        content = await readFile(file, 'utf8')
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            throw new Error(`NOT FOUND: "${file}" does not exist`, { cause: error })
+        }
+
+        const message = error instanceof Error ? error.message : String(error)
 
         throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
             cause: error,
-        });
+        })
+    }
+
+    try {
+        return JSON.parse(content) as T
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+
+        throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
+            cause: error,
+        })
     }
 }
 
@@ -71,16 +79,14 @@ export async function readJsonFile<T>(file: string): Promise<T> {
  * @returns {Promise<string[]>}
  */
 export async function getDirElements(dir: string): Promise<string[]> {
-    log.debug(`Reading directory: ${dir}`);
+    log.debug(`Reading directory: ${dir}`)
 
-    const exists = await pathExists(dir);
-
-    if (!exists) {
-        log.warn(`Directory does not exist: ${dir}`);
-        return [];
+    try {
+        return await readdir(dir)
+    } catch {
+        log.warn(`Directory does not exist: ${dir}`)
+        return []
     }
-
-    return await readdir(dir);
 }
 
 /* =========================================================
@@ -100,7 +106,7 @@ export async function remove(path: string): Promise<void> {
     await rm(path, {
         recursive: true,
         force: true,
-    });
+    })
 }
 
 /**
@@ -116,7 +122,7 @@ export async function remove(path: string): Promise<void> {
 export async function ensureDir(path: string): Promise<void> {
     await mkdir(path, {
         recursive: true,
-    });
+    })
 }
 
 /**
@@ -132,12 +138,12 @@ export async function ensureDir(path: string): Promise<void> {
  */
 export async function copy(src: string, dest: string, overwrite = false): Promise<void> {
     if (overwrite) {
-        log.debug(`${dest} exists, removing...`);
-        await rm(dest, { recursive: true, force: true });
+        log.debug(`${dest} exists, removing...`)
+        await rm(dest, { recursive: true, force: true })
     }
 
-    log.debug(`[COPY] ${src} to ${dest}...`);
-    await cp(src, dest, { recursive: true });
+    log.debug(`[COPY] ${src} to ${dest}...`)
+    await cp(src, dest, { recursive: true })
 }
 
 /**
@@ -159,15 +165,13 @@ export async function outputFile(
     data: string | Uint8Array,
     options?: Parameters<typeof writeFile>[2],
 ): Promise<void> {
-    const dir = dirname(path);
+    const dir = dirname(path)
 
-    // Ensure target directory exists before writing
     await mkdir(dir, {
         recursive: true,
-    });
+    })
 
-    // Default to UTF-8 for text content
-    await writeFile(path, data, options ?? 'utf8');
+    await writeFile(path, data, options ?? 'utf8')
 }
 /**
  * Checks if a path is a directory.
@@ -180,7 +184,43 @@ export async function outputFile(
 export async function isDirectory(path: string): Promise<boolean> {
     return lstat(path)
         .then((stats) => stats.isDirectory())
-        .catch(() => false);
+        .catch(() => false)
+}
+
+/**
+ * Checks whether `child` is strictly inside `parent` - true containment,
+ * not a string-length proxy. Both paths must already be resolved/absolute;
+ * this does no path resolution itself.
+ *
+ * @param {string} child - The path to check
+ * @param {string} parent - The directory `child` must be inside
+ * @returns {boolean} Whether `child` is a strict descendant of `parent`
+ */
+export function isPathInside(child: string, parent: string): boolean {
+    return child !== parent && child.startsWith(parent + sep)
+}
+
+function isSameOrInside(child: string, parent: string): boolean {
+    const rel = relative(parent, child)
+    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+}
+
+/**
+ * True when two absolute paths are the same directory, or one contains the
+ * other. Compares case-insensitively on Windows and macOS, whose default
+ * filesystems ignore case — a case-only difference is still the same
+ * directory on disk.
+ *
+ * @param {string} a - First absolute path
+ * @param {string} b - Second absolute path
+ * @returns {boolean}
+ */
+export function pathsOverlap(a: string, b: string): boolean {
+    const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin'
+    const left = caseInsensitive ? a.toLowerCase() : a
+    const right = caseInsensitive ? b.toLowerCase() : b
+
+    return isSameOrInside(left, right) || isSameOrInside(right, left)
 }
 
 /**
@@ -194,10 +234,33 @@ export async function isDirectory(path: string): Promise<boolean> {
  */
 export async function getFileContent(path: string): Promise<string> {
     try {
-        return await readFile(path, 'utf8');
+        return await readFile(path, 'utf8')
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to read file at "${path}": ${message}`);
-        return '';
+        const message = error instanceof Error ? error.message : String(error)
+        log.error(`Failed to read file at "${path}": ${message}`)
+        return ''
     }
+}
+
+/* =========================================================
+    STRING TRANSFORMATION
+========================================================= */
+
+/**
+ * Replaces every literal occurrence of each key in `replacements` with its
+ * value. Not regex-based — keys are matched as plain substrings, so no
+ * escaping is needed for special characters.
+ *
+ * @param {string} content - Source text to transform
+ * @param {Record<string, string>} replacements - Map of literal search string to replacement
+ * @returns {string} `content` with every replacement applied
+ */
+export function applyReplacements(content: string, replacements: Record<string, string>): string {
+    let result = content
+
+    for (const [search, replacement] of Object.entries(replacements)) {
+        result = result.split(search).join(replacement)
+    }
+
+    return result
 }

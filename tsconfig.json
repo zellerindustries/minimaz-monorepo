@@ -5,6 +5,7 @@
         "tsBuildInfoFile": "./node_modules/.cache/tsc/root.tsbuildinfo"
     },
     "references": [
+        { "path": "./packages/bundler" },
         { "path": "./packages/cli" },
         { "path": "./packages/config" },
         { "path": "./packages/core" },
@@ -13,10 +14,12 @@
         { "path": "./packages/js" },
         { "path": "./packages/json" },
         { "path": "./packages/logger" },
+        { "path": "./packages/local-server" },
         { "path": "./packages/markdown" },
         { "path": "./packages/templates" },
         { "path": "./packages/ts" },
         { "path": "./packages/validate" },
-        { "path": "./tools/builder" }
-    ]
+        { "path": "./toolkits/sitekit" }
+    ],
+    "include": ["vitest.config.ts"]
 }

@@ -20,11 +20,11 @@ import {
     updateTemplateFrom,
     writeSettings,
     seedDefaults,
-} from '@minimaz/templates';
+} from '@minimaz/templates'
 
-const globalDir = getGlobalDir();
-const templatesDir = getTemplatesDir(globalDir);
-const names = await listTemplates(templatesDir);
+const globalDir = getGlobalDir()
+const templatesDir = getTemplatesDir(globalDir)
+const names = await listTemplates(templatesDir)
 ```
 
 ## API

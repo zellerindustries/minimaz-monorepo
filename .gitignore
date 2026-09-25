@@ -65,3 +65,12 @@ Thumbs.db
 # ==========================================
 .claude/
 .superpowers/
+.worktrees/
+
+.vscode/*
+.vscode/
+
+**/coverage/
+**/.vitest-result/
+**/*.received.*
+**/*.tmp.*

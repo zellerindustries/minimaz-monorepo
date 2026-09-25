@@ -1,11 +1,11 @@
-import { copy, join, outputFile, pathExists, remove } from '@minimaz/core';
-import { log } from '@minimaz/logger';
-import { getTemplatePath } from '@minimaz/templates';
-import { askQuestion } from '../../cli/index.js';
-import { initGit, initNpm } from './core.js';
-import type { InitCommandOptions } from './types.js';
+import { copy, join, outputFile, pathExists, remove } from '@minimaz/core'
+import { log } from '@minimaz/logger'
+import { getTemplatePath } from '@minimaz/templates'
+import { askQuestion } from '../../cli/index.js'
+import { initGit, initNpm } from './core.js'
+import type { InitCommandOptions } from './types.js'
 
-const MINIMAZ_CONFIG_TEMPLATE = {
+const minimazConfigTemplate = {
     input: {
         dir: './src',
         mapping: { pages: '', scripts: '', styles: '', public: '' },
@@ -17,9 +17,9 @@ const MINIMAZ_CONFIG_TEMPLATE = {
         replace: {},
         css: { bundling: true, minify: true },
         html: { minify: true },
-        js: { bundling: true, minify: true },
+        js: { bundling: false, minify: true },
     },
-};
+}
 
 /**
  * Scaffolds a new project: copies the chosen template, writes
@@ -38,38 +38,40 @@ export async function init(
     templatesDir: string,
 ): Promise<void> {
     if (await pathExists(targetDir)) {
-        throw new Error(`Target directory "${targetDir}" already exists`);
+        throw new Error(`Target directory "${targetDir}" already exists`)
     }
 
-    const templateDir = await getTemplatePath(templatesDir, options.template);
+    const templateDir = await getTemplatePath(templatesDir, options.template)
 
-    log.debug(`Copying template from "${templateDir}" to "${targetDir}"`);
-    await copy(templateDir, targetDir);
+    log.debug(`Copying template from "${templateDir}" to "${targetDir}"`)
+    await copy(templateDir, targetDir)
 
-    const configPath = join(targetDir, 'minimaz.config.json');
+    const configPath = join(targetDir, 'minimaz.config.json')
     if (!(await pathExists(configPath))) {
-        log.debug('Initializing minimaz.config.json');
-        await outputFile(configPath, `${JSON.stringify(MINIMAZ_CONFIG_TEMPLATE, null, 2)}\n`);
+        log.debug('Initializing minimaz.config.json')
+        await outputFile(configPath, `${JSON.stringify(minimazConfigTemplate, null, 2)}\n`)
     }
 
     try {
         const useNpm =
             options.npm ??
-            (await askQuestion('Init NPM? [Y/n]:', 'y')).toLowerCase().startsWith('y');
+            (await askQuestion('Init NPM? [Y/n]:', 'y')).toLowerCase().startsWith('y')
         if (useNpm) {
-            await initNpm(targetDir, projectName);
+            await initNpm(targetDir, projectName)
         }
 
         const useGit =
             options.git ??
-            (await askQuestion('Init Git repository? [Y/n]:', 'y')).toLowerCase().startsWith('y');
+            (await askQuestion('Init Git repository? [Y/n]:', 'y')).toLowerCase().startsWith('y')
         if (useGit) {
-            await initGit(projectName, targetDir, options.gitprovider);
+            await initGit(projectName, targetDir, options.gitprovider)
         }
     } catch (error) {
-        await remove(targetDir);
-        throw error;
+        // Roll back the partially-scaffolded directory so a failed npm/git step
+        // doesn't leave a half-created project behind for the user to clean up.
+        await remove(targetDir)
+        throw error
     }
 
-    log.success(`Project "${projectName}" created using template "${options.template}"`);
+    log.success(`Project "${projectName}" created using template "${options.template}"`)
 }

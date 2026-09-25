@@ -1,4 +1,4 @@
-import { minify } from 'html-minifier-terser';
+import { minify } from 'html-minifier-terser'
 
 /**
  * Minifies HTML via `html-minifier-terser`: collapses whitespace, strips
@@ -15,12 +15,12 @@ import { minify } from 'html-minifier-terser';
  */
 export async function minifyHtml(code: string): Promise<string> {
     if (typeof code !== 'string') {
-        throw new Error('minifyHtml: code must be a string');
+        throw new Error('minifyHtml: code must be a string')
     }
 
-    const input = code.trim();
-    if (!input) {
-        return '';
+    const input = code.trim()
+    if (input === '') {
+        return ''
     }
 
     try {
@@ -36,11 +36,11 @@ export async function minifyHtml(code: string): Promise<string> {
             processConditionalComments: true,
             ignoreCustomComments: [/^!/],
             caseSensitive: true,
-        });
+        })
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error)
         throw new Error(`minifyHtml: failed to minify HTML: ${message}`, {
             cause: error,
-        });
+        })
     }
 }

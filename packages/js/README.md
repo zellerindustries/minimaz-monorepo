@@ -11,9 +11,9 @@ npm install @minimaz/js
 ## Usage
 
 ```ts
-import { minifyJs } from '@minimaz/js';
+import { minifyJs } from '@minimaz/js'
 
-const minified = minifyJs(jsSource);
+const minified = minifyJs(jsSource)
 ```
 
 ## API

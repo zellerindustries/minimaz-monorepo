@@ -1,0 +1,14 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.cache/tsc/logger.build.tsbuildinfo"
+    },
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "src/**/__tests__/**",
+        "src/**/__mocks__/**"
+    ]
+}

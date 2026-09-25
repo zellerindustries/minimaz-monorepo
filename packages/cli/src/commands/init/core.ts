@@ -1,7 +1,7 @@
-import { join, outputFile } from '@minimaz/core';
-import { log } from '@minimaz/logger';
-import { askQuestion, executeCommand } from '../../cli/index.js';
-import { createPkgTemplate, GITIGNORE_TEMPLATE } from './constants.js';
+import { join, outputFile } from '@minimaz/core'
+import { log } from '@minimaz/logger'
+import { askQuestion, executeCommand } from '../../cli/index.js'
+import { createPkgTemplate, gitignoreTemplate } from './constants.js'
 
 /**
  * Writes `package.json` and runs `npm install` in the target directory.
@@ -10,12 +10,27 @@ import { createPkgTemplate, GITIGNORE_TEMPLATE } from './constants.js';
  * @param {string} projectName - Name to write into `package.json`
  */
 export async function initNpm(targetDir: string, projectName: string): Promise<void> {
-    log.info('npm: initializing');
+    log.info('npm: initializing')
     await outputFile(
         join(targetDir, 'package.json'),
         `${JSON.stringify(createPkgTemplate(projectName), null, 2)}\n`,
-    );
-    await executeCommand('npm', ['i'], targetDir);
+    )
+    await executeCommand('npm', ['i'], targetDir)
+}
+
+/**
+ * Case-insensitively compares a provider string against a known keyword
+ * ("local", "github", "gitlab") - the one place that knows providers are
+ * matched case-insensitively, so a new call site reaches for this instead
+ * of reinventing `.toLowerCase()` (and forgetting it, the way an
+ * explicit `--provider` flag once diverged from the interactive prompt).
+ *
+ * @param {string} provider - The provider string to check, in any case
+ * @param {string} keyword - The lowercase keyword to compare against
+ * @returns {boolean} Whether `provider` matches `keyword`, ignoring case
+ */
+function isProviderKeyword(provider: string, keyword: string): boolean {
+    return provider.toLowerCase() === keyword
 }
 
 /**
@@ -30,47 +45,47 @@ async function linkRemoteRepo(
     targetDir: string,
     provider: string,
 ): Promise<void> {
-    const remoteName = 'origin';
+    const remoteName = 'origin'
 
-    if (provider === 'local') {
-        log.info('Using local Git repository');
-        return;
+    if (isProviderKeyword(provider, 'local')) {
+        log.info('Using local Git repository')
+        return
     }
 
     if (/^https?:\/\//.test(provider) || provider.startsWith('git@')) {
-        log.info(`Connecting existing remote "${provider}"`);
-        await executeCommand('git', ['remote', 'add', remoteName, provider], targetDir);
-        return;
+        log.info(`Connecting existing remote "${provider}"`)
+        await executeCommand('git', ['remote', 'add', remoteName, provider], targetDir)
+        return
     }
 
-    if (provider === 'github') {
-        log.info(`Creating GitHub repository "${repoName}"`);
+    if (isProviderKeyword(provider, 'github')) {
+        log.info(`Creating GitHub repository "${repoName}"`)
         await executeCommand(
             'gh',
             ['repo', 'create', repoName, '--private', '--source=.', '--remote', remoteName],
             targetDir,
-        );
-        return;
+        )
+        return
     }
 
-    if (provider === 'gitlab') {
-        log.info(`Creating GitLab repository "${repoName}"`);
+    if (isProviderKeyword(provider, 'gitlab')) {
+        log.info(`Creating GitLab repository "${repoName}"`)
 
-        const gitlabUser = process.env['GITLAB_USER'];
-        if (!gitlabUser) {
-            throw new Error('GITLAB_USER not set');
+        const gitlabUser = process.env['GITLAB_USER']
+        if (gitlabUser === undefined || gitlabUser === '') {
+            throw new Error('GITLAB_USER not set')
         }
 
-        await executeCommand('glab', ['repo', 'create', repoName, '--source=.'], targetDir);
+        await executeCommand('glab', ['repo', 'create', repoName, '--source=.'], targetDir)
         await executeCommand(
             'git',
             ['remote', 'add', remoteName, `git@gitlab.com:${gitlabUser}/${repoName}.git`],
             targetDir,
-        );
-        return;
+        )
+        return
     }
 
-    throw new Error(`Unsupported git provider or remote: "${provider}"`);
+    throw new Error(`Unsupported git provider or remote: "${provider}"`)
 }
 
 /**
@@ -86,26 +101,23 @@ export async function initGit(
     targetDir: string,
     provider?: string,
 ): Promise<void> {
-    const resolvedProvider =
+    const resolvedProvider = (
         provider ??
-        (
-            await askQuestion(
-                'Select a provider or paste a url to connect your existing repo (cli tools needed) [LOCAL/github/gitlab]:',
-                'local',
-            )
-        )
-            .toLowerCase()
-            .trim();
+        (await askQuestion(
+            'Select a provider or paste a url to connect your existing repo (cli tools needed) [LOCAL/github/gitlab]:',
+            'local',
+        ))
+    ).trim()
 
-    log.info('Initializing Git repository');
-    await executeCommand('git', ['init'], targetDir);
+    log.info('Initializing Git repository')
+    await executeCommand('git', ['init'], targetDir)
 
-    if (resolvedProvider && resolvedProvider !== 'local') {
-        await linkRemoteRepo(projectName, targetDir, resolvedProvider);
+    if (resolvedProvider !== '' && !isProviderKeyword(resolvedProvider, 'local')) {
+        await linkRemoteRepo(projectName, targetDir, resolvedProvider)
     } else {
-        log.info('Git repository initialized locally');
+        log.info('Git repository initialized locally')
     }
 
-    await outputFile(join(targetDir, '.gitignore'), GITIGNORE_TEMPLATE);
-    log.success('Git repository initialized');
+    await outputFile(join(targetDir, '.gitignore'), gitignoreTemplate)
+    log.success('Git repository initialized')
 }

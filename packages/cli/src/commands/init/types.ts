@@ -6,9 +6,9 @@
  * `minimaz-cli`'s original behavior exactly (verified while porting).
  */
 export interface InitCommandOptions {
-    template: string;
-    npm?: boolean;
-    git?: boolean;
-    gitprovider?: string;
-    gitremote?: string;
+    template: string
+    npm?: boolean
+    git?: boolean
+    gitprovider?: string
+    gitremote?: string
 }

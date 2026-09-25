@@ -1,5 +1,5 @@
-import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import {
     copy,
     dirname,
@@ -9,13 +9,13 @@ import {
     pathExists,
     readJsonFile,
     remove,
-} from '@minimaz/core';
-import { log } from '@minimaz/logger';
-import { InvalidTemplateNameError, TemplateNotFoundError } from './errors.js';
-import type { Settings } from './types.js';
+} from '@minimaz/core'
+import { log } from '@minimaz/logger'
+import { InvalidTemplateNameError, TemplateNotFoundError } from './errors.js'
+import type { Settings } from './types.js'
 
 /** Names of the templates bundled with this package and seeded on first `config` run. */
-export const DEFAULT_TEMPLATE_NAMES = ['default', 'simple'] as const;
+export const defaultTemplateNames = ['default', 'simple'] as const
 
 /**
  * Rejects template names that would escape the templates directory when
@@ -26,7 +26,7 @@ export const DEFAULT_TEMPLATE_NAMES = ['default', 'simple'] as const;
  */
 function assertValidTemplateName(name: string): void {
     if (name === '' || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
-        throw new InvalidTemplateNameError(name);
+        throw new InvalidTemplateNameError(name)
     }
 }
 
@@ -36,7 +36,7 @@ function assertValidTemplateName(name: string): void {
  * @returns {string}
  */
 export function getGlobalDir(): string {
-    return join(homedir(), '.minimaz');
+    return join(homedir(), '.minimaz')
 }
 
 /**
@@ -46,7 +46,7 @@ export function getGlobalDir(): string {
  * @returns {string}
  */
 export function getTemplatesDir(globalDir: string): string {
-    return join(globalDir, 'templates');
+    return join(globalDir, 'templates')
 }
 
 /**
@@ -58,14 +58,14 @@ export function getTemplatesDir(globalDir: string): string {
  * @throws {TemplateNotFoundError} If the template doesn't exist
  */
 export async function getTemplatePath(templatesDir: string, name: string): Promise<string> {
-    assertValidTemplateName(name);
-    const dir = join(templatesDir, name);
+    assertValidTemplateName(name)
+    const dir = join(templatesDir, name)
 
     if (!(await pathExists(dir))) {
-        throw new TemplateNotFoundError(name);
+        throw new TemplateNotFoundError(name)
     }
 
-    return dir;
+    return dir
 }
 
 /**
@@ -83,53 +83,53 @@ export async function writeSettings(
     templatesDir: string,
     overwrite = false,
 ): Promise<void> {
-    const settingsPath = join(globalDir, 'settings.json');
+    const settingsPath = join(globalDir, 'settings.json')
     const template: Settings = {
         createdAt: new Date().toISOString(),
         templatesPath: templatesDir,
-    };
+    }
 
     if (!(await pathExists(settingsPath)) || overwrite) {
-        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`);
+        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`)
         log.success(
             overwrite
                 ? `Overwrote settings.json at ${settingsPath}`
                 : `Created settings.json at ${settingsPath}`,
-        );
-        return;
+        )
+        return
     }
 
-    let current: Partial<Settings>;
+    let current: Partial<Settings>
 
     try {
-        current = await readJsonFile<Partial<Settings>>(settingsPath);
+        current = await readJsonFile<Partial<Settings>>(settingsPath)
     } catch {
-        log.warn('Failed to read settings.json, recreating from template');
-        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`);
-        return;
+        log.warn('Failed to read settings.json, recreating from template')
+        await outputFile(settingsPath, `${JSON.stringify(template, null, 2)}\n`)
+        return
     }
 
-    let updated = false;
+    let updated = false
 
     for (const key of Object.keys(template) as (keyof Settings)[]) {
         if (!(key in current)) {
-            current[key] = template[key];
-            log.warn(`Added missing key "${key}" to settings.json`);
-            updated = true;
+            current[key] = template[key]
+            log.warn(`Added missing key "${key}" to settings.json`)
+            updated = true
         }
     }
 
     for (const key of Object.keys(current)) {
         if (!(key in template)) {
-            log.warn(`Unknown key "${key}" found in settings.json`);
+            log.warn(`Unknown key "${key}" found in settings.json`)
         }
     }
 
     if (updated) {
-        await outputFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
-        log.success('Updated settings.json');
+        await outputFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`)
+        log.success('Updated settings.json')
     } else {
-        log.info('settings.json is valid and up-to-date');
+        log.info('settings.json is valid and up-to-date')
     }
 }
 
@@ -148,27 +148,27 @@ export async function seedDefaults(
     templatesDir: string,
     overwrite = false,
 ): Promise<void> {
-    const seedsDir = join(dirname(fileURLToPath(import.meta.url)), 'seeds');
+    const seedsDir = join(dirname(fileURLToPath(import.meta.url)), 'seeds')
 
     if (!(await pathExists(seedsDir))) {
-        throw new Error(`Seed templates not found at "${seedsDir}" — run "npm run build" first`);
+        throw new Error(`Seed templates not found at "${seedsDir}" — run "npm run build" first`)
     }
 
-    for (const name of DEFAULT_TEMPLATE_NAMES) {
-        const src = join(seedsDir, name);
-        const dest = join(templatesDir, name);
-        const exists = await pathExists(dest);
+    for (const name of defaultTemplateNames) {
+        const src = join(seedsDir, name)
+        const dest = join(templatesDir, name)
+        const exists = await pathExists(dest)
 
         if (exists && !overwrite) {
-            log.info(`Template "${name}" already exists, skipping`);
-            continue;
+            log.info(`Template "${name}" already exists, skipping`)
+            continue
         }
 
-        await copy(src, dest, overwrite);
-        log.success(exists ? `Template "${name}" overwritten` : `Template "${name}" seeded`);
+        await copy(src, dest, overwrite)
+        log.success(exists ? `Template "${name}" overwritten` : `Template "${name}" seeded`)
     }
 
-    await writeSettings(globalDir, templatesDir, overwrite);
+    await writeSettings(globalDir, templatesDir, overwrite)
 }
 
 /**
@@ -178,7 +178,7 @@ export async function seedDefaults(
  * @returns {Promise<string[]>}
  */
 export async function listTemplates(templatesDir: string): Promise<string[]> {
-    return getDirElements(templatesDir);
+    return getDirElements(templatesDir)
 }
 
 /**
@@ -196,15 +196,15 @@ export async function saveTemplate(
     name: string,
     overwrite: boolean,
 ): Promise<void> {
-    assertValidTemplateName(name);
-    const dest = join(templatesDir, name);
+    assertValidTemplateName(name)
+    const dest = join(templatesDir, name)
 
     if ((await pathExists(dest)) && !overwrite) {
-        throw new Error(`Template "${name}" already exists`);
+        throw new Error(`Template "${name}" already exists`)
     }
 
-    await copy(sourceDir, dest, overwrite);
-    log.success(`Template saved to ${dest}`);
+    await copy(sourceDir, dest, overwrite)
+    log.success(`Template saved to ${dest}`)
 }
 
 /**
@@ -215,15 +215,15 @@ export async function saveTemplate(
  * @throws {TemplateNotFoundError} If the template doesn't exist
  */
 export async function deleteTemplate(templatesDir: string, name: string): Promise<void> {
-    assertValidTemplateName(name);
-    const target = join(templatesDir, name);
+    assertValidTemplateName(name)
+    const target = join(templatesDir, name)
 
     if (!(await pathExists(target))) {
-        throw new TemplateNotFoundError(name);
+        throw new TemplateNotFoundError(name)
     }
 
-    await remove(target);
-    log.success(`Template "${name}" deleted`);
+    await remove(target)
+    log.success(`Template "${name}" deleted`)
 }
 
 /**
@@ -239,13 +239,13 @@ export async function updateTemplateFrom(
     name: string,
     sourceDir: string,
 ): Promise<void> {
-    assertValidTemplateName(name);
-    const target = join(templatesDir, name);
+    assertValidTemplateName(name)
+    const target = join(templatesDir, name)
 
     if (!(await pathExists(target))) {
-        throw new TemplateNotFoundError(name);
+        throw new TemplateNotFoundError(name)
     }
 
-    await copy(sourceDir, target, true);
-    log.success(`Template "${name}" updated`);
+    await copy(sourceDir, target, true)
+    log.success(`Template "${name}" updated`)
 }
