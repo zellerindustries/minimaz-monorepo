@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/config",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Loads and validates minimaz.config.json (docs and build-oriented schemas).",
     "type": "module",
     "main": "./dist/index.js",
@@ -39,6 +39,6 @@
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/config#readme",
     "dependencies": {
         "@minimaz/json": "^0.1.0",
-        "@minimaz/logger": "^0.1.0"
+        "@minimaz/logger": "^0.2.0"
     }
 }

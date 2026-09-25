@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/logger",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Minimal, performance-oriented structured logger for Minimaz tools",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "license": "MIT",

@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/sitekit",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "The minimaz/mz CLI binary — a published distribution of @minimaz/cli's commands.",
     "type": "module",
     "bin": {
@@ -41,6 +41,6 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/toolkits/sitekit#readme",
     "dependencies": {
-        "@minimaz/cli": "^0.1.0"
+        "@minimaz/cli": "^0.2.0"
     }
 }
