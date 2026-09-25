@@ -4,8 +4,8 @@
     "description": "The minimaz/mz CLI binary — a published distribution of @minimaz/cli's commands.",
     "type": "module",
     "bin": {
-        "minimaz": "./dist/cli/main.js",
-        "mz": "./dist/cli/main.js"
+        "minimaz": "dist/cli/main.js",
+        "mz": "dist/cli/main.js"
     },
     "files": [
         "dist"
@@ -33,7 +33,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "url": "git+https://github.com/zellerindustries/minimaz-monorepo.git",
         "directory": "toolkits/sitekit"
     },
     "bugs": {
