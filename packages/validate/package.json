@@ -39,6 +39,6 @@
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/validate#readme",
     "dependencies": {
         "@minimaz/logger": "^0.2.0",
-        "typescript": "6.0.3"
+        "typescript": "7.0.2"
     }
 }
