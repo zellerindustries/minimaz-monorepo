@@ -55,10 +55,13 @@ against `dir`, so a request never carries an unresolved `..` past that point.
 Each request is resolved in this order, stopping at the first stage that matches:
 
 1. An exact file or directory `index.html` match under `dir`.
-2. The `cleanUrls` fallback (`<path>.html`), when enabled and the path has no extension.
+2. The `cleanUrls` fallback (`<path>.html`), when enabled and the path has no extension — tried
+   both when nothing at all matched and when the path matched a directory with no `index.html`
+   (e.g. `about.html` next to an `about/` assets folder).
 3. A directory listing, when `directoryListing` is enabled and the matched directory has no
    `index.html`. A request for that directory without a trailing slash gets a `301` to the
    slash-terminated URL first (preserving any query string), so the listing's relative links
-   resolve correctly.
+   resolve correctly. Entry names and the listed path are HTML-escaped, and each entry's link is
+   percent-encoded.
 4. The `singlePageApp` fallback to the root `index.html`, when enabled.
 5. `404` (or `403` for a path that would escape `dir`).

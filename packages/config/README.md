@@ -41,9 +41,11 @@ try {
 - `port` — `number` — default `0` — TCP port to listen on (`0` picks a random free port).
 - `host` — `string` — default `'127.0.0.1'` — interface to bind the server to.
 - `liveReload` — `boolean` — default `true` — inject the SSE-based live-reload client into served HTML.
-- `cleanUrls` — `boolean` — default `false` — serve `/about` for `/about.html` (extension-less URLs).
+- `cleanUrls` — `boolean` — default `false` — fall back to `<path>.html` when an extensionless path has no
+  exact file match.
 - `singlePageApp` — `boolean` — default `false` — fall back to the root `index.html` for unmatched routes.
 - `directoryListing` — `boolean` — default `false` — render a directory index when a folder has no `index.html`.
-- `cacheControl` — `boolean` — default `false` — send `Cache-Control` response headers for served files.
+- `cacheControl` — `boolean` — default `false` — add an `ETag` and `Cache-Control: no-cache` to every response,
+  honoring `If-None-Match` with a `304`.
 
 Depends on [`@minimaz/json`](../json) and [`@minimaz/logger`](../logger).
