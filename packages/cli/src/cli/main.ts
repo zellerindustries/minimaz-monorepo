@@ -69,6 +69,63 @@ export async function runCli(pkgPath: string): Promise<void> {
     const globalDir = getGlobalDir()
     const templatesDir = getTemplatesDir(globalDir)
 
+    const buildHandler: CommandFn = async () => {
+        await build(cwd)
+    }
+    const clearHandler: CommandFn = async () => {
+        await clear(cwd)
+    }
+    const initHandler: CommandFn = async () => {
+        const projectName = typeof subArg === 'string' ? subArg : 'minimaz-project'
+        const templateFlag =
+            typeof args['template'] === 'string'
+                ? args['template']
+                : typeof args['t'] === 'string'
+                  ? args['t']
+                  : 'default'
+        const gitproviderFlag =
+            typeof args['gitprovider'] === 'string' ? args['gitprovider'] : undefined
+        const gitremoteFlag = typeof args['gitremote'] === 'string' ? args['gitremote'] : undefined
+        const npmFlag = parseBooleanFlag(args['npm'] as string | boolean | undefined)
+        const gitFlag = parseBooleanFlag(args['git'] as string | boolean | undefined)
+
+        const options: InitCommandOptions = {
+            template: templateFlag,
+            ...(npmFlag !== undefined ? { npm: npmFlag } : {}),
+            ...(gitFlag !== undefined ? { git: gitFlag } : {}),
+            ...(gitproviderFlag !== undefined ? { gitprovider: gitproviderFlag } : {}),
+            ...(gitremoteFlag !== undefined ? { gitremote: gitremoteFlag } : {}),
+        }
+
+        await init(projectName, options, resolve(cwd, projectName), templatesDir)
+    }
+
+    const templateHandler: CommandFn = async () => {
+        const deleteFlag =
+            typeof args['delete'] === 'string'
+                ? args['delete']
+                : typeof args['d'] === 'string'
+                  ? args['d']
+                  : undefined
+        const updateFlag =
+            typeof args['update'] === 'string'
+                ? args['update']
+                : typeof args['u'] === 'string'
+                  ? args['u']
+                  : args['update'] === true || args['u'] === true
+                    ? true
+                    : undefined
+
+        const options: TemplateCommandOptions = {
+            list: args['list'] === true || args['l'] === true,
+            ...(deleteFlag !== undefined ? { delete: deleteFlag } : {}),
+            ...(updateFlag !== undefined ? { update: updateFlag } : {}),
+        }
+
+        const sourcePath = resolve(cwd, typeof subArg === 'string' ? subArg : '')
+        await template(globalDir, templatesDir, options, sourcePath)
+    }
+
     const commands: Record<string, CommandFn> = {
         h: () => {
             help()
@@ -76,74 +133,22 @@ export async function runCli(pkgPath: string): Promise<void> {
         version: async () => version(pkgPath),
         v: async () => version(pkgPath),
         validate: async () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
-        build: async () => {
-            await build(cwd)
-        },
-        clear: async () => {
-            await clear(cwd)
-        },
+        build: buildHandler,
+        b: buildHandler,
+        clear: clearHandler,
+        c: clearHandler,
         serve: async () => {
             await serve(cwd)
         },
-
-        init: async () => {
-            const projectName = typeof subArg === 'string' ? subArg : 'minimaz-project'
-            const templateFlag =
-                typeof args['template'] === 'string'
-                    ? args['template']
-                    : typeof args['t'] === 'string'
-                      ? args['t']
-                      : 'default'
-            const gitproviderFlag =
-                typeof args['gitprovider'] === 'string' ? args['gitprovider'] : undefined
-            const gitremoteFlag =
-                typeof args['gitremote'] === 'string' ? args['gitremote'] : undefined
-            const npmFlag = parseBooleanFlag(args['npm'] as string | boolean | undefined)
-            const gitFlag = parseBooleanFlag(args['git'] as string | boolean | undefined)
-
-            const options: InitCommandOptions = {
-                template: templateFlag,
-                ...(npmFlag !== undefined ? { npm: npmFlag } : {}),
-                ...(gitFlag !== undefined ? { git: gitFlag } : {}),
-                ...(gitproviderFlag !== undefined ? { gitprovider: gitproviderFlag } : {}),
-                ...(gitremoteFlag !== undefined ? { gitremote: gitremoteFlag } : {}),
-            }
-
-            await init(projectName, options, resolve(cwd, projectName), templatesDir)
-        },
-
+        init: initHandler,
+        i: initHandler,
         config: async () => {
             const overwrite =
                 parseBooleanFlag(args['overwrite'] as string | boolean | undefined) ?? false
             await config(globalDir, templatesDir, overwrite)
         },
-
-        template: async () => {
-            const deleteFlag =
-                typeof args['delete'] === 'string'
-                    ? args['delete']
-                    : typeof args['d'] === 'string'
-                      ? args['d']
-                      : undefined
-            const updateFlag =
-                typeof args['update'] === 'string'
-                    ? args['update']
-                    : typeof args['u'] === 'string'
-                      ? args['u']
-                      : args['update'] === true || args['u'] === true
-                        ? true
-                        : undefined
-
-            const options: TemplateCommandOptions = {
-                list: args['list'] === true || args['l'] === true,
-                ...(deleteFlag !== undefined ? { delete: deleteFlag } : {}),
-                ...(updateFlag !== undefined ? { update: updateFlag } : {}),
-            }
-
-            const sourcePath = resolve(cwd, typeof subArg === 'string' ? subArg : '')
-            await template(globalDir, templatesDir, options, sourcePath)
-        },
-
+        template: templateHandler,
+        t: templateHandler,
         docs: async () => {
             const action = resolveDocsCommand(subArg)
             if (action === 'init') {
@@ -154,7 +159,7 @@ export async function runCli(pkgPath: string): Promise<void> {
         },
     }
 
-    const handler = commands[cmd]
+    const handler = Object.hasOwn(commands, cmd) ? commands[cmd] : undefined
 
     try {
         if (handler) {

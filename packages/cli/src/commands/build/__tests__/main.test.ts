@@ -1,8 +1,10 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathExists } from '@minimaz/core'
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { getBuildOldDirName, getBuildTempDirName } from '../core.js'
 import { build } from '../main.js'
 
 describe('build', () => {
@@ -19,6 +21,10 @@ describe('build', () => {
     async function writeConfig(config: Record<string, unknown>): Promise<void> {
         await writeFile(path.join(cwd, 'minimaz.config.json'), JSON.stringify(config), 'utf8')
     }
+
+    it('hints at "minimaz init" (not "docs init") when the config file is missing', async () => {
+        await expect(build(cwd)).rejects.toThrow('Run "minimaz init" first.')
+    })
 
     it('builds a simple tree of HTML/CSS/JS files', async () => {
         await writeConfig({
@@ -37,6 +43,28 @@ describe('build', () => {
 
         expect(await pathExists(path.join(cwd, 'dist', 'index.html'))).toBe(true)
         expect(await pathExists(path.join(cwd, 'dist', 'style.css'))).toBe(true)
+    })
+
+    it('reports CSS bundling failures (circular, missing, supports()) as KnownErrors', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', css: { bundling: true, minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        const cases = [
+            ['@import "./b.css";', '@import "./a.css";', /circular @import/],
+            ['@import "./missing.css";', 'b {}', /file not found/],
+            ['@import "./b.css" supports(display: grid);', 'b {}', /supports\(\) and layer/],
+        ] as const
+        for (const [a, b, message] of cases) {
+            await writeFile(path.join(cwd, 'src', 'a.css'), a, 'utf8')
+            await writeFile(path.join(cwd, 'src', 'b.css'), b, 'utf8')
+
+            const result = build(cwd)
+
+            await expect(result).rejects.toBeInstanceOf(KnownError)
+            await expect(result).rejects.toThrow(message)
+        }
     })
 
     it('throws when output.js.bundling is true', async () => {
@@ -208,5 +236,124 @@ describe('build', () => {
         await expect(build(cwd)).rejects.toThrow(/missing or empty/)
 
         expect(await pathExists(path.join(cwd, 'dist', 'previous-build.html'))).toBe(true)
+    })
+
+    async function writeBrokenCssProject(): Promise<void> {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', css: { bundling: true, minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'main.css'), '@import "./missing.css";', 'utf8')
+    }
+
+    it('keeps the previous output intact and leaves no temp dir when the build fails', async () => {
+        await writeBrokenCssProject()
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow()
+
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('replaces the previous output entirely on success and leaves no temp dir', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'stale.txt'), 'stale', 'utf8')
+
+        await build(cwd)
+
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('ignores a stale temp dir left behind by a crashed previous build', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, getBuildTempDirName('dist')), { recursive: true })
+        await writeFile(path.join(cwd, getBuildTempDirName('dist'), 'junk.txt'), 'x', 'utf8')
+
+        await build(cwd)
+
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('clears a stale previous-output backup left behind by a crashed swap', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await mkdir(path.join(cwd, getBuildOldDirName('dist')), { recursive: true })
+        await writeFile(path.join(cwd, getBuildOldDirName('dist'), 'junk.txt'), 'x', 'utf8')
+
+        await build(cwd)
+
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('restores a crashed swap backup as output.dir when output.dir is missing', async () => {
+        await writeBrokenCssProject()
+        await mkdir(path.join(cwd, getBuildOldDirName('dist')), { recursive: true })
+        await writeFile(
+            path.join(cwd, getBuildOldDirName('dist'), 'old.txt'),
+            'last good build',
+            'utf8',
+        )
+
+        await expect(build(cwd)).rejects.toThrow()
+
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('refuses a previous-output backup dir that overlaps input.dir, leaving the source intact', async () => {
+        const oldName = getBuildOldDirName('dist')
+        await writeConfig({ input: { dir: oldName }, output: { dir: 'dist' } })
+        await mkdir(path.join(cwd, oldName), { recursive: true })
+        await writeFile(path.join(cwd, oldName, 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/backup directory that overlaps input directory/)
+        expect(await pathExists(path.join(cwd, oldName, 'a.html'))).toBe(true)
+    })
+
+    it('refuses a build temp dir that overlaps input.dir, leaving the source intact', async () => {
+        const tempName = getBuildTempDirName('dist')
+        await writeConfig({ input: { dir: tempName }, output: { dir: 'dist' } })
+        await mkdir(path.join(cwd, tempName), { recursive: true })
+        await writeFile(path.join(cwd, tempName, 'a.html'), '<html></html>', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/temp directory that overlaps input directory/)
+        expect(await pathExists(path.join(cwd, tempName, 'a.html'))).toBe(true)
+    })
+
+    it('refuses a build temp dir that overlaps a local external, leaving it intact', async () => {
+        const tempName = getBuildTempDirName('dist')
+        await writeConfig({
+            input: { dir: 'src', externals: { [`${tempName}/vendor`]: 'vendor' } },
+            output: { dir: 'dist' },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, tempName, 'vendor'), { recursive: true })
+        await writeFile(path.join(cwd, tempName, 'vendor', 'lib.js'), 'export {}', 'utf8')
+
+        await expect(build(cwd)).rejects.toThrow(/temp directory that overlaps external/)
+        expect(await pathExists(path.join(cwd, tempName, 'vendor', 'lib.js'))).toBe(true)
     })
 })

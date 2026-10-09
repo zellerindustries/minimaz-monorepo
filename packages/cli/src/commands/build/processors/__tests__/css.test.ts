@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { File } from '../../types.js'
 import { processCss } from '../css.js'
@@ -74,6 +75,28 @@ describe('processCss', () => {
         )
 
         expect(result).toBe('body{color:red}')
+    })
+
+    it('rejects with a KnownError (original error as cause) for a missing @import', async () => {
+        const entryPath = path.join(dir, 'main.css')
+        const entryRaw = '@import "./missing.css";'
+        await writeFile(entryPath, entryRaw, 'utf8')
+        const file: File = {
+            src: entryPath,
+            dest: path.join(dir, 'out.css'),
+            content: entryRaw,
+            ext: '.css',
+        }
+
+        const error: unknown = await processCss(
+            file,
+            makeConfig({ bundling: true, minify: false }),
+            new Map(),
+        ).catch((caught: unknown) => caught)
+
+        expect(error).toBeInstanceOf(KnownError)
+        expect((error as KnownError).message).toContain('file not found')
+        expect((error as KnownError).cause).toBeInstanceOf(Error)
     })
 
     it('inlines @import when bundling is enabled', async () => {

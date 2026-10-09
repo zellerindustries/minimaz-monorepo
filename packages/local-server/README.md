@@ -31,8 +31,9 @@ await handle.close()
     - `options.port` — port to bind. Defaults to `0` (an OS-assigned ephemeral port).
     - `options.host` — host to bind. Defaults to `"127.0.0.1"`.
     - `options.liveReload` — inject a live-reload script into HTML responses and watch `dir` for
-      changes, pushing a `reload` event over Server-Sent Events to connected clients. Defaults to
-      `true`.
+      changes, pushing a `reload` event over Server-Sent Events to connected clients. If `dir` is
+      deleted or replaced (e.g. a rebuild renamed into place), the watcher re-arms on the path
+      with capped backoff and sends one `reload` once it does. Defaults to `true`.
     - `options.cleanUrls` — falls back to `<path>.html` when an extensionless path has no exact
       file match. Defaults to `false`.
     - `options.singlePageApp` — serves the root `index.html` for any request nothing else
@@ -54,7 +55,9 @@ against `dir`, so a request never carries an unresolved `..` past that point.
 
 Each request is resolved in this order, stopping at the first stage that matches:
 
-1. An exact file or directory `index.html` match under `dir`.
+1. An exact file or directory `index.html` match under `dir`. A directory with an `index.html`
+   requested without a trailing slash (`/docs`) gets a `301` to `/docs/` (preserving any query
+   string), so the page's relative links resolve against the right directory.
 2. The `cleanUrls` fallback (`<path>.html`), when enabled and the path has no extension — tried
    both when nothing at all matched and when the path matched a directory with no `index.html`
    (e.g. `about.html` next to an `about/` assets folder).

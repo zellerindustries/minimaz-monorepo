@@ -148,4 +148,103 @@ describe('resolveModuleGraph', () => {
         expect(output).toContain("from './b.js'")
         expect(output).toContain("const label = './b'")
     })
+
+    describe('dotted module names', () => {
+        it('resolves ./utils.config to utils.config.js and rewrites the specifier', async () => {
+            await writeFile(path.join(dir, 'utils.config.js'), 'export const c = 1\n', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import { c } from './utils.config'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(2)
+            expect(result.modules.has(path.join(dir, 'utils.config.js'))).toBe(true)
+            expect(result.modules.get(entry)).toContain("from './utils.config.js'")
+        })
+
+        it('resolves dotted names to .ts and .tsx sources', async () => {
+            await writeFile(path.join(dir, 'a.config.ts'), 'export const a: number = 1\n', 'utf8')
+            await writeFile(path.join(dir, 'b.config.tsx'), 'export const b: number = 2\n', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import './a.config'\nimport './b.config'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(3)
+            expect(result.modules.get(entry)).toContain("import './a.config.js'")
+            expect(result.modules.get(entry)).toContain("import './b.config.js'")
+        })
+
+        it('resolves ./foo.min to foo.min.js', async () => {
+            await writeFile(path.join(dir, 'foo.min.js'), 'export const f = 1\n', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import './foo.min'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(2)
+            expect(result.modules.get(entry)).toContain("import './foo.min.js'")
+        })
+
+        it('resolves a dotted directory name to its index file', async () => {
+            await mkdir(path.join(dir, 'v1.2'))
+            await writeFile(path.join(dir, 'v1.2', 'index.js'), 'export const v = 1\n', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import './v1.2'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(2)
+            expect(result.modules.get(entry)).toContain("import './v1.2/index.js'")
+        })
+
+        it('leaves real assets untouched', async () => {
+            await writeFile(path.join(dir, 'data.json'), '{}', 'utf8')
+            await writeFile(path.join(dir, 'style.css'), 'a{}', 'utf8')
+            await writeFile(path.join(dir, 'img.png'), 'x', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(
+                entry,
+                "import './data.json'\nimport './style.css'\nimport './img.png'\n",
+                'utf8',
+            )
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(1)
+            expect(result.modules.get(entry)).toContain("import './data.json'")
+            expect(result.modules.get(entry)).toContain("import './img.png'")
+        })
+
+        it('keeps an explicit .js specifier working', async () => {
+            await writeFile(path.join(dir, 'a.js'), 'export const a = 1\n', 'utf8')
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import './a.js'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.size).toBe(2)
+            expect(result.modules.get(entry)).toContain("import './a.js'")
+        })
+
+        it('emits a dotfile module as ./.env.js and keeps ../ forms intact', async () => {
+            await mkdir(path.join(dir, 'sub'))
+            await writeFile(path.join(dir, '.env.js'), 'export const e = 1\n', 'utf8')
+            await writeFile(path.join(dir, 'up.js'), 'export const u = 1\n', 'utf8')
+            await writeFile(
+                path.join(dir, 'sub', 'inner.js'),
+                "import '../up'\nimport '../.env'\n",
+                'utf8',
+            )
+            const entry = path.join(dir, 'entry.js')
+            await writeFile(entry, "import './.env'\nimport './sub/inner'\n", 'utf8')
+
+            const result = await resolveModuleGraph(entry)
+
+            expect(result.modules.get(entry)).toContain("import './.env.js'")
+            const inner = result.modules.get(path.join(dir, 'sub', 'inner.js'))
+            expect(inner).toContain("import '../up.js'")
+            expect(inner).toContain("import '../.env.js'")
+        })
+    })
 })

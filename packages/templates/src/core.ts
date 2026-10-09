@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
     copy,
@@ -16,6 +17,39 @@ import type { Settings } from './types.js'
 
 /** Names of the templates bundled with this package and seeded on first `config` run. */
 export const defaultTemplateNames = ['default', 'simple'] as const
+
+/**
+ * Best-effort guess at the global npm `node_modules/@minimaz/sitekit`
+ * directory (the package that publishes the `minimaz`/`mz` bin), for the
+ * write-only `npmGlobalPath` settings field (kept for `minimaz-cli` schema
+ * parity; nothing reads it back). Reads `npm_config_prefix` (set by npm on any
+ * child process it spawns) rather than shelling out to `npm config get prefix` —
+ * this function runs on every `config`/`postinstall`, and spawning npm from
+ * there risks the same nested-npm-config-inheritance issues fixed in
+ * `executeCommand`.
+ *
+ * @returns {string | undefined} An absolute guessed path, or `undefined` when no absolute prefix can be derived
+ */
+function guessNpmGlobalPath(): string | undefined {
+    const isWindows = process.platform === 'win32'
+    const prefix = process.env['npm_config_prefix']
+    const appData = process.env['APPDATA']
+    let base: string
+
+    if (prefix !== undefined && prefix !== '') {
+        base = isWindows ? prefix : join(prefix, 'lib')
+    } else if (isWindows) {
+        if (appData === undefined || appData === '') {
+            return undefined
+        }
+        base = join(appData, 'npm')
+    } else {
+        base = '/usr/local/lib'
+    }
+
+    const result = join(base, 'node_modules', '@minimaz', 'sitekit')
+    return isAbsolute(result) ? result : undefined
+}
 
 /**
  * Rejects template names that would escape the templates directory when
@@ -84,9 +118,11 @@ export async function writeSettings(
     overwrite = false,
 ): Promise<void> {
     const settingsPath = join(globalDir, 'settings.json')
+    const npmGlobalPath = guessNpmGlobalPath()
     const template: Settings = {
         createdAt: new Date().toISOString(),
         templatesPath: templatesDir,
+        ...(npmGlobalPath === undefined ? {} : { npmGlobalPath }),
     }
 
     if (!(await pathExists(settingsPath)) || overwrite) {
@@ -112,6 +148,10 @@ export async function writeSettings(
     let updated = false
 
     for (const key of Object.keys(template) as (keyof Settings)[]) {
+        if (key === 'npmGlobalPath') {
+            continue
+        }
+
         if (!(key in current)) {
             current[key] = template[key]
             log.warn(`Added missing key "${key}" to settings.json`)
@@ -120,7 +160,7 @@ export async function writeSettings(
     }
 
     for (const key of Object.keys(current)) {
-        if (!(key in template)) {
+        if (!(key in template) && key !== 'npmGlobalPath') {
             log.warn(`Unknown key "${key}" found in settings.json`)
         }
     }

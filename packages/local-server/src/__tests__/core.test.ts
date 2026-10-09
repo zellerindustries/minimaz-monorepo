@@ -192,6 +192,48 @@ describe('cleanUrls / singlePageApp / directoryListing', () => {
         expect(response.headers.get('location')).toBe(`/${encodeURIComponent(dirName)}/`)
     })
 
+    it('redirects a directory with an index.html requested without a trailing slash', async () => {
+        await mkdir(join(dir, 'docs'))
+        await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const response = await fetch(`${handle.url}/docs?page=2`, { redirect: 'manual' })
+
+        expect(response.status).toBe(301)
+        expect(response.headers.get('location')).toBe('/docs/?page=2')
+    })
+
+    it.each([
+        ['/%2Fevil.com%2F..', 301, '/'],
+        ['/%2F%2Fevil.com%2F..', 301, '/'],
+        ['/%2fevil.com%2f..', 301, '/'],
+        ['/%2Fevil.com%2F..%2Fdocs', 301, '/docs/'],
+        ['/%2e%2e%2f', 403, null],
+        ['//evil.com', 200, null],
+        ['/docs//', 200, null],
+        ['/docs', 301, '/docs/'],
+    ] as const)('never redirects off-origin for %s', async (path, status, location) => {
+        await mkdir(join(dir, 'docs'))
+        await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+        handle = await startLocalServer({ dir, liveReload: false, directoryListing: true })
+
+        const response = await fetch(`${handle.url}${path}`, { redirect: 'manual' })
+
+        expect(response.status).toBe(status)
+        expect(response.headers.get('location')).toBe(location)
+    })
+
+    it('serves a directory index.html directly when the trailing slash is present', async () => {
+        await mkdir(join(dir, 'docs'))
+        await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        const response = await fetch(`${handle.url}/docs/`, { redirect: 'manual' })
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('docs')
+    })
+
     it('falls back to root index.html for an unresolved path when singlePageApp is enabled', async () => {
         handle = await startLocalServer({ dir, liveReload: false, singlePageApp: true })
 

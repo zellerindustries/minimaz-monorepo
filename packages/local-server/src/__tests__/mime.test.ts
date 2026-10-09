@@ -10,6 +10,16 @@ describe('resolveMimeType', () => {
         expect(resolveMimeType('/site/logo.svg')).toBe('image/svg+xml')
     })
 
+    it('resolves standard types for common web asset extensions', () => {
+        expect(resolveMimeType('/site/sitemap.xml')).toBe('application/xml; charset=utf-8')
+        expect(resolveMimeType('/site/guide.pdf')).toBe('application/pdf')
+        expect(resolveMimeType('/site/module.wasm')).toBe('application/wasm')
+        expect(resolveMimeType('/site/site.webmanifest')).toBe('application/manifest+json')
+        expect(resolveMimeType('/site/photo.avif')).toBe('image/avif')
+        expect(resolveMimeType('/site/clip.mp4')).toBe('video/mp4')
+        expect(resolveMimeType('/site/app.js.map')).toBe('application/json; charset=utf-8')
+    })
+
     it('is case-insensitive on the extension', () => {
         expect(resolveMimeType('/site/INDEX.HTML')).toBe('text/html; charset=utf-8')
     })

@@ -1,6 +1,6 @@
 import { extname } from 'node:path'
 import { getFileContent, pathExists } from '@minimaz/core'
-import { log } from '@minimaz/logger'
+import { KnownError, log } from '@minimaz/logger'
 import { validateCss, validateHtml, validateJs, validateJson, validateTs } from '@minimaz/validate'
 
 /**
@@ -13,11 +13,11 @@ import { validateCss, validateHtml, validateJs, validateJson, validateTs } from 
  */
 export async function validate(path: string): Promise<void> {
     if (path === '') {
-        throw new Error('validate: --path is required')
+        throw new KnownError('validate: --path is required')
     }
 
     if (!(await pathExists(path))) {
-        throw new Error(`validate: file not found: ${path}`)
+        throw new KnownError(`validate: file not found: ${path}`)
     }
 
     const content = await getFileContent(path)
@@ -48,7 +48,7 @@ export async function validate(path: string): Promise<void> {
             validateJson(content)
             break
         default:
-            throw new Error(`validate: unsupported file extension "${ext}"`)
+            throw new KnownError(`validate: unsupported file extension "${ext}"`)
     }
 
     log.success(`Valid: ${path}`)

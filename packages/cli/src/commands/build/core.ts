@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, rename } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { MinimazConfig } from '@minimaz/config'
 import {
     applyReplacements,
@@ -11,12 +12,11 @@ import {
     pathExists,
     remove,
 } from '@minimaz/core'
-import { bundleCss } from '@minimaz/css'
-import { log } from '@minimaz/logger'
-import { processCss } from './processors/css.js'
+import { KnownError, log } from '@minimaz/logger'
+import { bundleCssForBuild, processCss } from './processors/css.js'
 import { processHtml } from './processors/html.js'
 import { processJs, processTs } from './processors/javascript.js'
-import type { CssBundleCache, File } from './types.js'
+import type { CssBundleCache, File, RenameDir, ReplaceOutDirOptions } from './types.js'
 
 /**
  * True for an `input.externals` key that names a remote URL rather than a local path. Matches only an explicit
@@ -30,6 +30,164 @@ export function isRemoteExternal(source: string): boolean {
 }
 
 const processableExtensions = new Set(['.css', '.js', '.ts', '.tsx', '.html'])
+
+/**
+ * Path of the scratch directory a build writes into before it replaces
+ * `output.dir`: a sibling of `output.dir` (same parent, so same filesystem
+ * and `rename` is atomic-ish), named after it.
+ *
+ * @param {string} outDirPath - The output directory path (absolute or relative)
+ * @returns {string} The sibling temp directory path, in the same form as `outDirPath`
+ */
+export function getBuildTempDirName(outDirPath: string): string {
+    return `${outDirPath}.minimaz-tmp`
+}
+
+/**
+ * Path the previous output is moved aside to while a finished build is
+ * swapped in: a sibling of `output.dir`, named after it.
+ *
+ * @param {string} outDirPath - The output directory path (absolute or relative)
+ * @returns {string} The sibling backup directory path, in the same form as `outDirPath`
+ */
+export function getBuildOldDirName(outDirPath: string): string {
+    return `${outDirPath}.minimaz-old`
+}
+
+const transientRenameCodes = new Set(['EPERM', 'EACCES', 'EBUSY'])
+const renameAttempts = 5
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
+}
+
+function isTransientRenameError(error: unknown): boolean {
+    if (!(error instanceof Error) || !('code' in error)) {
+        return false
+    }
+    return typeof error.code === 'string' && transientRenameCodes.has(error.code)
+}
+
+// Windows often fails a rename of just-written files with a short-lived
+// EPERM/EACCES/EBUSY while Defender or the indexer still holds a handle.
+async function renameWithRetry(
+    renameDir: RenameDir,
+    from: string,
+    to: string,
+    retryDelayMs: number,
+): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await renameDir(from, to)
+            return
+        } catch (error: unknown) {
+            if (attempt >= renameAttempts || !isTransientRenameError(error)) {
+                throw error
+            }
+            log.debug(`build: rename ${from} -> ${to} failed (${getErrorMessage(error)}), retrying`)
+            await sleep(retryDelayMs * attempt)
+        }
+    }
+}
+
+/**
+ * Replaces `outDirPath` with the finished build in `tempDirPath` without
+ * ever leaving `outDirPath` missing on failure: the previous output is
+ * renamed aside to `getBuildOldDirName(outDirPath)`, the temp directory is
+ * renamed into place, then the backup is removed. If moving the new build
+ * in fails, the backup is renamed back. Each rename is retried a few times
+ * on a transient EPERM/EACCES/EBUSY. (A plain `rename` over an existing
+ * directory fails on Windows, hence the move-aside.)
+ *
+ * @param {string} tempDirPath - Absolute path to the completed build
+ * @param {string} outDirPath - Absolute path to the configured output directory
+ * @param {ReplaceOutDirOptions} [options] - Injectable rename and retry backoff
+ * @throws {KnownError} When the swap fails; the message names
+ *   `tempDirPath` (which still holds the completed build) and says where
+ *   the previous output is
+ */
+export async function replaceOutDir(
+    tempDirPath: string,
+    outDirPath: string,
+    options: ReplaceOutDirOptions = {},
+): Promise<void> {
+    const renameDir = options.renameDir ?? rename
+    const retryDelayMs = options.retryDelayMs ?? 100
+    const oldDirPath = getBuildOldDirName(outDirPath)
+    const hadOutput = await pathExists(outDirPath)
+
+    if (hadOutput) {
+        try {
+            await remove(oldDirPath)
+            await renameWithRetry(renameDir, outDirPath, oldDirPath, retryDelayMs)
+        } catch (error: unknown) {
+            throw new KnownError(
+                `build: could not move the previous output ${outDirPath} aside (${getErrorMessage(error)}); it is unchanged. The completed build is in ${tempDirPath}`,
+                { cause: error },
+            )
+        }
+    }
+
+    try {
+        await renameWithRetry(renameDir, tempDirPath, outDirPath, retryDelayMs)
+    } catch (error: unknown) {
+        const message = getErrorMessage(error)
+
+        if (!hadOutput) {
+            throw new KnownError(
+                `build: could not move the completed build into ${outDirPath} (${message}). The completed build is in ${tempDirPath}`,
+                { cause: error },
+            )
+        }
+
+        try {
+            await renameWithRetry(renameDir, oldDirPath, outDirPath, retryDelayMs)
+        } catch (restoreError: unknown) {
+            throw new KnownError(
+                `build: could not move the completed build into ${outDirPath} (${message}) nor restore the previous output (${getErrorMessage(restoreError)}). The previous output is in ${oldDirPath}; the completed build is in ${tempDirPath}`,
+                { cause: error },
+            )
+        }
+
+        throw new KnownError(
+            `build: could not move the completed build into ${outDirPath} (${message}); the previous output was restored. The completed build is in ${tempDirPath}`,
+            { cause: error },
+        )
+    }
+
+    if (hadOutput) {
+        try {
+            await remove(oldDirPath)
+        } catch (error: unknown) {
+            log.warn(
+                `build: could not remove previous output ${oldDirPath}: ${getErrorMessage(error)}`,
+            )
+        }
+    }
+}
+
+/**
+ * Deals with a previous-output backup left by a swap that crashed midway:
+ * if `outDirPath` is missing, the backup is the last good output and is
+ * moved back into place; otherwise it's stale and removed.
+ *
+ * @param {string} outDirPath - Absolute path to the configured output directory
+ */
+export async function recoverOldOutDir(outDirPath: string): Promise<void> {
+    const oldDirPath = getBuildOldDirName(outDirPath)
+
+    if (!(await pathExists(oldDirPath))) {
+        return
+    }
+
+    if (await pathExists(outDirPath)) {
+        await remove(oldDirPath)
+        return
+    }
+
+    log.warn(`build: restoring previous output from interrupted build: ${oldDirPath}`)
+    await rename(oldDirPath, outDirPath)
+}
 
 /**
  * Removes and recreates the build output directory, so every build starts
@@ -80,7 +238,7 @@ export async function runDiscovery(
         const ext = extname(fullPath).toLowerCase()
         if (ext === '.css' && config.output.css.bundling) {
             const entry = resolve(fullPath)
-            const bundleResult = await bundleCss(fullPath)
+            const bundleResult = await bundleCssForBuild(fullPath)
             cssBundleCache.set(entry, bundleResult)
 
             for (const inputPath of bundleResult.inputs) {

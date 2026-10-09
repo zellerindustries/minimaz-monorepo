@@ -1,5 +1,5 @@
 import { readdir, stat } from 'node:fs/promises'
-import { extname, resolve, sep } from 'node:path'
+import { extname, relative, resolve, sep } from 'node:path'
 
 /**
  * The outcome of resolving a request path against a served directory.
@@ -7,6 +7,7 @@ import { extname, resolve, sep } from 'node:path'
 export type RequestResolution =
     | { kind: 'file'; filePath: string }
     | { kind: 'listing'; entries: DirectoryEntry[]; redirectTo?: string }
+    | { kind: 'redirect'; location: string }
     | { kind: 'forbidden' }
     | { kind: 'notFound' }
 
@@ -102,6 +103,14 @@ export async function resolveRequest(
             return { kind: 'forbidden' }
         }
         if (index.kind === 'file') {
+            // Without the trailing slash the browser resolves the index page's
+            // relative links against the parent directory instead.
+            if (!pathname.endsWith('/')) {
+                return {
+                    kind: 'redirect',
+                    location: buildRedirectLocation(resolvedDir, exact.dirPath),
+                }
+            }
             return { kind: 'file', filePath: index.filePath }
         }
         directoryCandidate = exact.dirPath
@@ -128,7 +137,11 @@ export async function resolveRequest(
     if (options.directoryListing && directoryCandidate !== undefined) {
         const entries = await listDirectory(directoryCandidate)
         if (pathname !== '' && !pathname.endsWith('/')) {
-            return { kind: 'listing', entries, redirectTo: buildRedirectLocation(pathname) }
+            return {
+                kind: 'listing',
+                entries,
+                redirectTo: buildRedirectLocation(resolvedDir, directoryCandidate),
+            }
         }
         return { kind: 'listing', entries }
     }
@@ -145,21 +158,23 @@ export async function resolveRequest(
 }
 
 /**
- * Builds a same-origin redirect target for a directory listing that was
- * requested without a trailing slash, percent-encoding each path segment
- * so the header value is always valid Latin-1 bytes (a raw non-ASCII
- * pathname would either throw or be mis-encoded if written straight into
- * an HTTP header).
+ * Builds a same-origin redirect target for a directory (index page or
+ * listing) that was requested without a trailing slash. It is derived from
+ * the resolved directory, never the raw pathname: a decoded `%2F` can leave
+ * empty leading segments (`//evil.com/..` resolves inside `dir`), which a
+ * browser would follow as a protocol-relative, off-origin URL. Each segment
+ * is percent-encoded so the header value is always valid Latin-1 bytes.
  *
- * @param {string} pathname - The decoded request pathname, missing its trailing slash
- * @returns {string} `pathname` with each segment percent-encoded, plus a trailing slash
+ * @param {string} resolvedDir - The absolute, resolved served directory
+ * @param {string} dirPath - The absolute, resolved directory being redirected to (inside `resolvedDir`)
+ * @returns {string} A `/`-rooted, slash-terminated, percent-encoded pathname
  */
-function buildRedirectLocation(pathname: string): string {
-    const encoded = pathname
-        .split('/')
+function buildRedirectLocation(resolvedDir: string, dirPath: string): string {
+    const segments = relative(resolvedDir, dirPath)
+        .split(sep)
+        .filter((segment) => segment !== '')
         .map((segment) => encodeURIComponent(segment))
-        .join('/')
-    return `${encoded}/`
+    return segments.length === 0 ? '/' : `/${segments.join('/')}/`
 }
 
 /**

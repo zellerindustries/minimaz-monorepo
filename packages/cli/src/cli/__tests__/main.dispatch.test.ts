@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { log } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { build, clear, config, help, init, template, validate } from '../../commands/index.js'
 import { runCli } from '../main.js'
@@ -28,6 +29,7 @@ describe('runCli dispatch', () => {
     const originalVerbose = process.env['VERBOSE']
     const originalWorkdir = process.env['CLI_WORKDIR']
     const originalLifecycleEvent = process.env['npm_lifecycle_event']
+    const originalDebug = process.env['DEBUG']
 
     beforeEach(() => {
         delete process.env['npm_lifecycle_event']
@@ -54,6 +56,11 @@ describe('runCli dispatch', () => {
         } else {
             process.env['npm_lifecycle_event'] = originalLifecycleEvent
         }
+        if (originalDebug === undefined) {
+            delete process.env['DEBUG']
+        } else {
+            process.env['DEBUG'] = originalDebug
+        }
     })
 
     async function run(...args: string[]): Promise<void> {
@@ -67,6 +74,38 @@ describe('runCli dispatch', () => {
 
         expect(build).toHaveBeenCalledWith(process.cwd())
         expect(clear).toHaveBeenCalledWith(process.cwd())
+    })
+
+    it('dispatches single-letter aliases to the same handlers', async () => {
+        await run('b')
+        await run('c')
+        await run('i')
+        await run('t')
+
+        expect(build).toHaveBeenCalledWith(process.cwd())
+        expect(clear).toHaveBeenCalledWith(process.cwd())
+        expect(init).toHaveBeenCalledWith(
+            'minimaz-project',
+            { template: 'default' },
+            resolve(process.cwd(), 'minimaz-project'),
+            'TEMPLATES',
+        )
+        expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', { list: false }, process.cwd())
+    })
+
+    it('logs the bug-report and re-run hints for an unexpected error when verbose is off', async () => {
+        delete process.env['DEBUG']
+        const errorSpy = vi.spyOn(log, 'error').mockImplementation(() => undefined)
+        vi.mocked(build).mockRejectedValueOnce(new Error('boom'))
+
+        await run('build')
+
+        expect(errorSpy).toHaveBeenCalledWith([
+            'boom',
+            'This looks like a bug — please report it.',
+            'Re-run with --verbose (or DEBUG=true) for a stack trace.',
+        ])
+        expect(process.exitCode).toBe(1)
     })
 
     it('passes --path to validate, or an empty string without it', async () => {
@@ -134,6 +173,45 @@ describe('runCli dispatch', () => {
         expect(process.exitCode).toBe(1)
         expect(help).toHaveBeenCalledWith()
         expect(String(errorSpy.mock.calls[0]?.[0])).toContain('Unknown command "nope"')
+    })
+
+    it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(
+        'treats inherited Object property "%s" as an unknown command',
+        async (name) => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+            await run(name)
+
+            expect(process.exitCode).toBe(1)
+            expect(String(errorSpy.mock.calls[0]?.[0])).toContain(`Unknown command "${name}"`)
+        },
+    )
+
+    it('routes the "t" alias with -l like the full template command', async () => {
+        await run('t', '-l')
+
+        expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', { list: true }, process.cwd())
+    })
+
+    it('never treats a bare -t flag as a command', async () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+        await run('-t', 'x')
+
+        expect(template).not.toHaveBeenCalled()
+        expect(process.exitCode).toBe(1)
+        expect(String(errorSpy.mock.calls[0]?.[0])).toContain('Unknown command')
+    })
+
+    it('uses -t as the init template flag after the command', async () => {
+        await run('init', '-t', 'blog')
+
+        expect(init).toHaveBeenCalledWith(
+            'minimaz-project',
+            { template: 'blog' },
+            resolve(process.cwd(), 'minimaz-project'),
+            'TEMPLATES',
+        )
     })
 
     describe('npm postinstall', () => {

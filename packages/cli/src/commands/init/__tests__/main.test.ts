@@ -1,7 +1,10 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { loadConfig } from '@minimaz/config'
 import { pathExists } from '@minimaz/core'
+import { KnownError } from '@minimaz/logger'
+import { seedDefaults } from '@minimaz/templates'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { init } from '../main.js'
 
@@ -48,14 +51,14 @@ describe('init', () => {
     it('throws when the target directory already exists', async () => {
         await mkdir(targetDir, { recursive: true })
 
-        await expect(
-            init(
-                'my-project',
-                { template: 'simple', npm: false, git: false },
-                targetDir,
-                templatesDir,
-            ),
-        ).rejects.toThrow('already exists')
+        const result = init(
+            'my-project',
+            { template: 'simple', npm: false, git: false },
+            targetDir,
+            templatesDir,
+        )
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow('already exists')
     })
 
     it('does not overwrite an existing minimaz.config.json', async () => {
@@ -79,7 +82,7 @@ describe('init', () => {
         expect(JSON.parse(config)).toEqual(templateCustomConfig)
     })
 
-    it('removes targetDir and preserves the original error when git init fails', async () => {
+    it('leaves the scaffolded targetDir in place when git init fails', async () => {
         await expect(
             init(
                 'my-project',
@@ -94,6 +97,54 @@ describe('init', () => {
             ),
         ).rejects.toThrow('Unsupported git provider')
 
-        expect(await pathExists(targetDir)).toBe(false)
+        // Matches minimaz-cli: a failed npm/git step doesn't wipe the
+        // already-copied template (and any already-completed npm install),
+        // leaving it for the user to fix manually instead of silently
+        // deleting their work.
+        expect(await pathExists(targetDir)).toBe(true)
+    })
+
+    it('names the left-behind directory and chains the original error when a step fails', async () => {
+        const error = await init(
+            'my-project',
+            { template: 'simple', npm: false, git: true, gitprovider: 'not-a-real-provider' },
+            targetDir,
+            templatesDir,
+        ).catch((caught: unknown) => caught)
+
+        expect(error).toBeInstanceOf(Error)
+        const failure = error as Error
+        expect(failure.message).toContain(targetDir)
+        expect(failure.message).toContain('left')
+        expect(failure.cause).toBeInstanceOf(Error)
+    })
+})
+
+describe('init with the seeded default template', () => {
+    let root: string
+
+    beforeEach(async () => {
+        root = await mkdtemp(path.join(tmpdir(), 'site-builder-init-seed-'))
+    })
+
+    afterEach(async () => {
+        await rm(root, { recursive: true, force: true })
+    })
+
+    it('produces a config that passes the build bundling guard', async () => {
+        const templatesDir = path.join(root, 'templates')
+        const targetDir = path.join(root, 'my-project')
+        await seedDefaults(root, templatesDir)
+
+        await init(
+            'my-project',
+            { template: 'default', npm: false, git: false },
+            targetDir,
+            templatesDir,
+        )
+
+        const config = await loadConfig(targetDir)
+        // build() throws a KnownError when output.js.bundling is true.
+        expect(config.output.js.bundling).toBe(false)
     })
 })

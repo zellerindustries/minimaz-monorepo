@@ -51,6 +51,15 @@ export function minifyJs(code: string): string {
     }
 
     let result = ''
+    // Offsets in `result` of newlines inside a string or template literal body;
+    // the trim/collapse pass must leave those untouched.
+    const literalNewlines = new Set<number>()
+    const appendLiteral = (text: string): void => {
+        for (let k = text.indexOf('\n'); k !== -1; k = text.indexOf('\n', k + 1)) {
+            literalNewlines.add(result.length + k)
+        }
+        result += text
+    }
     let i = 0
     const len = code.length
 
@@ -62,9 +71,9 @@ export function minifyJs(code: string): string {
         const char = code.charAt(i)
 
         if (inString !== null) {
-            result += char
+            appendLiteral(char)
             if (char === '\\' && i + 1 < len) {
-                result += code.charAt(i + 1)
+                appendLiteral(code.charAt(i + 1))
                 i += 2
                 continue
             }
@@ -78,7 +87,7 @@ export function minifyJs(code: string): string {
 
         if (templateDepths.length > 0 && templateDepths[templateDepths.length - 1] === 0) {
             if (char === '\\' && i + 1 < len) {
-                result += char + code.charAt(i + 1)
+                appendLiteral(char + code.charAt(i + 1))
                 i += 2
                 continue
             }
@@ -96,7 +105,7 @@ export function minifyJs(code: string): string {
                 regexAllowed = true
                 continue
             }
-            result += char
+            appendLiteral(char)
             i++
             continue
         }
@@ -267,7 +276,15 @@ export function minifyJs(code: string): string {
         i++
     }
 
-    const lines = result.split('\n').map((line) => line.trim())
+    const lines: string[] = []
+    let lineStart = 0
+    for (let k = result.indexOf('\n'); k !== -1; k = result.indexOf('\n', k + 1)) {
+        if (!literalNewlines.has(k)) {
+            lines.push(result.slice(lineStart, k).trim())
+            lineStart = k + 1
+        }
+    }
+    lines.push(result.slice(lineStart).trim())
     const collapsed: string[] = []
     let previousBlank = false
     for (const line of lines) {

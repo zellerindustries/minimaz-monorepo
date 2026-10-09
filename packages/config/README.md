@@ -26,14 +26,24 @@ try {
 
 ## API
 
-- `loadConfig(cwd)` — reads `minimaz.config.json` from `cwd`, defaulting missing/invalid fields. Understands
-  **both** the docs-builder schema (`docs.input.dir`, `docs.output.bundle`, `docs.output.formats`) and the
-  build-oriented schema (`input`/`output`, `mapping`, `externals`, `exclude`, CSS/JS/HTML processing options),
-  plus the `serve` section below.
+- `loadConfig(cwd, { initCommand? })` — reads `minimaz.config.json` from `cwd`, type-checks every known field,
+  and defaults missing ones. Understands **both** the docs-builder schema (`docs.input.dir`,
+  `docs.output.bundle`, `docs.output.formats`) and the build-oriented schema (`input`/`output`, `mapping`,
+  `externals`, `exclude`, CSS/JS/HTML processing options), plus the `serve` section below. Unknown keys are
+  logged as warnings and ignored. `initCommand` (e.g. `'minimaz init'`) is appended to a `ConfigNotFoundError`
+  as a "Run ... first." hint.
 - `configFileName` — `'minimaz.config.json'`.
 - `defaultConfig`, `defaultBuildConfig`, `defaultServeConfig` — the default docs/build/serve config shapes.
 - `ConfigNotFoundError` — thrown when no config file exists at the given path.
-- `bundleSeparator`, `bundleName`, `outputDirs`, `outputExtensions` — constants used by the docs bundler.
+- `ConfigReadError` — thrown when the config file exists but can't be read (e.g. `EISDIR`, `EACCES`); the
+  message names the real cause.
+- `ConfigValidationError` — thrown when any field has the wrong type; `errors` lists every bad field.
+- `resolveDocsOutputDirs(outputDir)` — docs output directories derived from the build `output.dir`: a sibling
+  `<output.dir>-docs/html` and `<output.dir>-docs/pdf`, never inside `output.dir` (which `build`/`clear` wipe).
+- `outputDirs` — `resolveDocsOutputDirs` for the default `output.dir`: `dist-docs/html` and `dist-docs/pdf`.
+- `bundleSeparator`, `bundleName`, `outputExtensions` — constants used by the docs bundler.
+  `bundleSeparator` is a Markdown thematic break (`'\n\n---\n\n'`), so bundled files are divided by a
+  horizontal rule.
 - Types: `MinimazConfig`, `DocsConfig`, `BuildConfig`, `ServeConfig`, `OutputFormat`, and related sub-types.
 
 ### `serve` fields

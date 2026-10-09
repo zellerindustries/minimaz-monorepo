@@ -46,7 +46,7 @@ describe('runCli', () => {
         // this assertion with no log output is the regression guard.
     })
 
-    it('logs the stack trace and a bug-report hint for an unexpected error, regardless of DEBUG', async () => {
+    it('reports a missing --path as a user error, without the bug-report hint', async () => {
         delete process.env['DEBUG']
         const errorSpy = vi.spyOn(log, 'error').mockImplementation(() => undefined)
         const pkgPath = path.join(dir, 'package.json')
@@ -55,10 +55,10 @@ describe('runCli', () => {
         process.argv = ['node', 'main.js', 'validate']
         await runCli(pkgPath)
 
-        expect(errorSpy).toHaveBeenCalledWith([
-            expect.stringContaining('validate: --path is required'),
-            'This looks like a bug — please report it.',
-        ])
+        expect(errorSpy).toHaveBeenCalledWith('validate: --path is required')
+        for (const call of errorSpy.mock.calls) {
+            expect(JSON.stringify(call)).not.toContain('This looks like a bug')
+        }
         expect(process.exitCode).toBe(1)
 
         errorSpy.mockRestore()

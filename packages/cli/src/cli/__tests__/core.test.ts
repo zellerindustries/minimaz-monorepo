@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { executeCommand, initEnv, parseArgs, parseBooleanFlag } from '../core.js'
+import {
+    envWithoutNpmConfig,
+    executeCommand,
+    initEnv,
+    parseArgs,
+    parseBooleanFlag,
+} from '../core.js'
 
 describe('parseArgs', () => {
     it('separates positionals from --flag=value, --flag value and bare flags', () => {
@@ -97,5 +103,34 @@ describe('executeCommand', () => {
         await expect(
             executeCommand('minimaz-definitely-not-a-command', [], process.cwd()),
         ).rejects.toThrow()
+    })
+})
+
+describe('envWithoutNpmConfig', () => {
+    const keys = [
+        'npm_config_registry',
+        'npm_config_allow_scripts',
+        'npm_config_allow-scripts',
+        'NPM_CONFIG_ALLOW_SCRIPTS',
+    ]
+
+    afterEach(() => {
+        for (const key of keys) {
+            Reflect.deleteProperty(process.env, key)
+        }
+    })
+
+    it('keeps unrelated npm_config_* vars and drops only allow-scripts spellings', () => {
+        process.env['npm_config_registry'] = 'https://r.example'
+        process.env['npm_config_allow_scripts'] = 'x'
+        process.env['npm_config_allow-scripts'] = 'x'
+        process.env['NPM_CONFIG_ALLOW_SCRIPTS'] = 'x'
+
+        const env = envWithoutNpmConfig()
+
+        expect(env['npm_config_registry']).toBe('https://r.example')
+        expect(env['npm_config_allow_scripts']).toBeUndefined()
+        expect(env['npm_config_allow-scripts']).toBeUndefined()
+        expect(env['NPM_CONFIG_ALLOW_SCRIPTS']).toBeUndefined()
     })
 })

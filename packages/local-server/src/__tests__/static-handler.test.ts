@@ -44,6 +44,59 @@ describe('resolveRequest', () => {
         expect(result).toEqual({ kind: 'file', filePath: join(dir, 'index.html') })
     })
 
+    it('redirects a directory with an index.html requested without a trailing slash', async () => {
+        await mkdir(join(dir, 'docs'))
+        await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+
+        const result = await resolveRequest(dir, '/docs', allOff)
+
+        expect(result).toEqual({ kind: 'redirect', location: '/docs/' })
+    })
+
+    it('percent-encodes each segment of a directory-index redirect target', async () => {
+        await mkdir(join(dir, 'a dir'))
+        await writeFile(join(dir, 'a dir', 'index.html'), '<html></html>')
+
+        const result = await resolveRequest(dir, '/a dir', allOff)
+
+        expect(result).toEqual({ kind: 'redirect', location: '/a%20dir/' })
+    })
+
+    it.each([
+        ['//evil.com/..', '/'],
+        ['///evil.com/..', '/'],
+        ['//evil.com/../docs', '/docs/'],
+        ['/docs/x/..', '/docs/'],
+    ])(
+        'builds a same-origin redirect from the resolved path for %s',
+        async (pathname, location) => {
+            await mkdir(join(dir, 'docs'))
+            await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+
+            const result = await resolveRequest(dir, pathname, allOff)
+
+            expect(result).toEqual({ kind: 'redirect', location })
+        },
+    )
+
+    it('builds a same-origin listing redirect from the resolved path', async () => {
+        const result = await resolveRequest(dir, '//evil.com/../empty-dir', {
+            ...allOff,
+            directoryListing: true,
+        })
+
+        expect(result).toEqual({ kind: 'listing', entries: [], redirectTo: '/empty-dir/' })
+    })
+
+    it('resolves a directory index.html directly when the trailing slash is present', async () => {
+        await mkdir(join(dir, 'docs'))
+        await writeFile(join(dir, 'docs', 'index.html'), '<html>docs</html>')
+
+        const result = await resolveRequest(dir, '/docs/', allOff)
+
+        expect(result).toEqual({ kind: 'file', filePath: join(dir, 'docs', 'index.html') })
+    })
+
     it('returns notFound for a missing file with every option off', async () => {
         const result = await resolveRequest(dir, '/missing.txt', allOff)
         expect(result).toEqual({ kind: 'notFound' })
