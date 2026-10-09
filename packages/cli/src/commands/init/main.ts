@@ -1,5 +1,5 @@
-import { copy, join, outputFile, pathExists, remove } from '@minimaz/core'
-import { log } from '@minimaz/logger'
+import { copy, join, outputFile, pathExists } from '@minimaz/core'
+import { KnownError, log } from '@minimaz/logger'
 import { getTemplatePath } from '@minimaz/templates'
 import { askQuestion } from '../../cli/index.js'
 import { initGit, initNpm } from './core.js'
@@ -29,7 +29,8 @@ const minimazConfigTemplate = {
  * @param {InitCommandOptions} options - Parsed CLI flags
  * @param {string} targetDir - Already-resolved directory to create the project in
  * @param {string} templatesDir - Already-resolved global templates directory
- * @throws {Error} If `targetDir` already exists
+ * @throws {KnownError} If `targetDir` already exists
+ * @throws {KnownError} If the npm/git step fails; the project is left in `targetDir`
  */
 export async function init(
     projectName: string,
@@ -38,7 +39,7 @@ export async function init(
     templatesDir: string,
 ): Promise<void> {
     if (await pathExists(targetDir)) {
-        throw new Error(`Target directory "${targetDir}" already exists`)
+        throw new KnownError(`Target directory "${targetDir}" already exists`)
     }
 
     const templateDir = await getTemplatePath(templatesDir, options.template)
@@ -66,11 +67,13 @@ export async function init(
         if (useGit) {
             await initGit(projectName, targetDir, options.gitprovider)
         }
-    } catch (error) {
-        // Roll back the partially-scaffolded directory so a failed npm/git step
-        // doesn't leave a half-created project behind for the user to clean up.
-        await remove(targetDir)
-        throw error
+    } catch (error: unknown) {
+        const reason = error instanceof Error ? error.message : String(error)
+        throw new KnownError(
+            `${reason}
+Project left in ${targetDir}; fix the problem and run the failed step manually (npm i / git init)`,
+            { cause: error },
+        )
     }
 
     log.success(`Project "${projectName}" created using template "${options.template}"`)

@@ -8,6 +8,7 @@ import {
     seedDefaults,
     updateTemplateFrom,
 } from '@minimaz/templates'
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { askQuestion } from '../../../cli/index.js'
 import { template } from '../main.js'
@@ -156,9 +157,9 @@ describe('template command', () => {
         it('cancels when the source is missing and the user declines the fallback', async () => {
             answer('n')
 
-            await expect(
-                template(globalDir, templatesDir, {}, join(root, 'missing')),
-            ).rejects.toThrow('Operation cancelled')
+            const result = template(globalDir, templatesDir, {}, join(root, 'missing'))
+            await expect(result).rejects.toBeInstanceOf(KnownError)
+            await expect(result).rejects.toThrow('Operation cancelled')
             expect(saveTemplate).not.toHaveBeenCalled()
         })
 

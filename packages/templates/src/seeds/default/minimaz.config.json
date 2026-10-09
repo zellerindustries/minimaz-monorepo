@@ -24,7 +24,7 @@
             "minify": true
         },
         "js": {
-            "bundling": true,
+            "bundling": false,
             "minify": true
         },
         "html": {

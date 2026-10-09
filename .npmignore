@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Source & tests (packages publish only dist/, via each package's "files" field)
+src/
+__tests__/
+*.tsbuildinfo
+
+# Build/tooling config
+tsconfig*.json
+vitest.config.ts
+eslint.config.mjs
+.prettierrc.json
+.husky/
+.changeset/
+scripts/
+
+# Debug and logs
+logs
+*.log
+
+# Testing & coverage
+coverage/
+.nyc_output/
+
+# Env & secrets
+.env
+.env.*
+
+# IDEs, editors, OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Internal working docs
+.claude/
+docs/

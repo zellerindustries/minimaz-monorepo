@@ -24,6 +24,9 @@ export function createPkgTemplate(name: string): Record<string, unknown> {
 
 export const gitignoreTemplate = `node_modules
 dist
+dist-docs
+*.minimaz-tmp
+*.minimaz-old
 .env
 .vscode
 .DS_Store

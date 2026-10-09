@@ -56,4 +56,20 @@ describe('renderHtml', () => {
         expect(out).toContain('<title>My Doc</title>')
         expect(out).toContain('<p>hi</p>')
     })
+
+    it.each([
+        ['javascript', '[click](<javascript:alert(1)>)'],
+        ['mixed-case javascript', '[click](JavaScript:alert)'],
+        ['tab-obfuscated javascript', '[click](<java\tscript:alert(1)>)'],
+        ['vbscript', '[click](vbscript:msgbox)'],
+        ['data', '[click](data:text/html;base64,PHNjcmlwdD4=)'],
+    ])('renders a %s: link as plain text, with no href', (_name, markdown) => {
+        expect(toHtml(markdown)).toBe('<p>click</p>')
+    })
+
+    it('keeps ordinary link schemes and relative URLs clickable', () => {
+        expect(toHtml('[a](mailto:x@example.com) [b](./page.html) [c](#top)')).toBe(
+            '<p><a href="mailto:x@example.com">a</a> <a href="./page.html">b</a> <a href="#top">c</a></p>',
+        )
+    })
 })

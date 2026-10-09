@@ -17,7 +17,7 @@ import { isRemoteExternal } from '../build/core.js'
  */
 export async function clear(cwdArg: string): Promise<void> {
     const cwd = resolve(cwdArg)
-    const config = await loadConfig(cwd)
+    const config = await loadConfig(cwd, { initCommand: 'minimaz init' })
     const inputDir = resolve(cwd, config.input.dir)
     const outputDir = resolve(cwd, config.output.dir)
 

@@ -1,6 +1,7 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { KnownError, log } from '@minimaz/logger'
 import {
     CssValidationError,
     HtmlValidationError,
@@ -30,13 +31,23 @@ describe('validate command', () => {
     }
 
     it('requires a path', async () => {
-        await expect(validate('')).rejects.toThrow('validate: --path is required')
+        const result = validate('')
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow('validate: --path is required')
+    })
+
+    it('rejects a directory named like a valid file and does not log Valid', async () => {
+        const successSpy = vi.spyOn(log, 'success')
+        await mkdir(join(dir, 'x.css'))
+
+        await expect(validate(join(dir, 'x.css'))).rejects.toThrow(/Failed to read file/)
+        expect(successSpy).not.toHaveBeenCalled()
     })
 
     it('rejects a missing file', async () => {
-        await expect(validate(join(dir, 'missing.css'))).rejects.toThrow(
-            /^validate: file not found: /,
-        )
+        const result = validate(join(dir, 'missing.css'))
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/^validate: file not found: /)
     })
 
     it('logs success for a valid file', async () => {
@@ -69,8 +80,8 @@ describe('validate command', () => {
     })
 
     it('rejects an unsupported extension', async () => {
-        await expect(validate(await file('notes.txt', 'x'))).rejects.toThrow(
-            'validate: unsupported file extension ".txt"',
-        )
+        const result = validate(await file('notes.txt', 'x'))
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow('validate: unsupported file extension ".txt"')
     })
 })

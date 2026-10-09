@@ -20,8 +20,13 @@ function toPosix(path: string): string {
     return path.split('\\').join('/')
 }
 
+/**
+ * Matches `@import "x"`, `@import 'x'` and `@import url(x)` (quoted or not),
+ * with an optional trailing condition list (media query, `supports()`, `layer`).
+ * Groups: 1/2 = url() quote/specifier, 3/4 = string quote/specifier, 5 = conditions.
+ */
 function importPattern(): RegExp {
-    return /@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?\s*;/g
+    return /@import\s+(?:url\(\s*(["']?)([^"')]+?)\1\s*\)|(["'])([^"']+)\3)\s*([^;{}]*);/g
 }
 
 function rewriteUrls(code: string, fileDir: string, entryDir: string): string {
@@ -67,31 +72,43 @@ async function inlineImports(
     const fileDir = dirname(resolvedPath)
     const nextStack = [...stack, resolvedPath]
 
-    const inlinedByMatch = new Map<string, string>()
+    let output = ''
+    let cursor = 0
 
+    // Only this file's own text is url-rewritten; inlined text was already
+    // rewritten (against entryDir) by the recursive call that read it.
     for (const match of raw.matchAll(importPattern())) {
         const fullMatch = match[0]
-        const spec = match[1]
+        const spec = match[2] ?? match[4]
+        const conditions = (match[5] ?? '').trim()
+
+        output += rewriteUrls(raw.slice(cursor, match.index), fileDir, entryDir)
+        cursor = match.index + fullMatch.length
+
         if (spec === undefined || !isRelativeSpecifier(spec)) {
+            // Not inlined, but a url() spec still resolves against this file's
+            // directory, so it must be rewritten like any other url().
+            output += rewriteUrls(fullMatch, fileDir, entryDir)
             continue
         }
-        const importedPath = resolve(fileDir, spec)
+
+        if (/\bsupports\s*\(|\blayer\b/i.test(conditions)) {
+            throw new Error(
+                `bundleCss: unsupported @import form in ${resolvedPath}: "${fullMatch}" (supports() and layer are not supported)`,
+            )
+        }
+
         const inlined = await inlineImports(
-            importedPath,
+            resolve(fileDir, spec),
             entryDir,
             visited,
             nextStack,
             resolvedPath,
         )
-        inlinedByMatch.set(fullMatch, inlined)
+        output += conditions === '' ? inlined : `@media ${conditions} {\n${inlined}\n}`
     }
 
-    const inlined = raw.replace(
-        importPattern(),
-        (fullMatch: string) => inlinedByMatch.get(fullMatch) ?? fullMatch,
-    )
-
-    return rewriteUrls(inlined, fileDir, entryDir)
+    return output + rewriteUrls(raw.slice(cursor), fileDir, entryDir)
 }
 
 /**

@@ -16,6 +16,10 @@ describe('clear', () => {
         await rm(cwd, { recursive: true, force: true })
     })
 
+    it('hints at "minimaz init" (not "docs init") when the config file is missing', async () => {
+        await expect(clear(cwd)).rejects.toThrow('Run "minimaz init" first.')
+    })
+
     it('removes the configured output directory', async () => {
         await writeFile(
             path.join(cwd, 'minimaz.config.json'),

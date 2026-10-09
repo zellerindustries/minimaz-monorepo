@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { configFileName, defaultConfig } from '@minimaz/config'
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { docsInit, resolveDocsCommand } from '../main.js'
 
@@ -16,6 +17,7 @@ describe('resolveDocsCommand', () => {
 
     it('throws for an unrecognized subcommand', () => {
         expect(() => resolveDocsCommand('publish')).toThrow('Usage: minimaz docs <init|build>')
+        expect(() => resolveDocsCommand('publish')).toThrow(KnownError)
     })
 
     it('throws when no subcommand is given', () => {

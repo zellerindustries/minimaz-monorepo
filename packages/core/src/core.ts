@@ -2,7 +2,7 @@ import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:f
 
 import { dirname, isAbsolute, relative, sep } from 'node:path'
 
-import { log } from '@minimaz/logger'
+import { KnownError, log } from '@minimaz/logger'
 
 /* =========================================================
     VALIDATION / INSPECTION
@@ -226,19 +226,22 @@ export function pathsOverlap(a: string, b: string): boolean {
 /**
  * Reads the content of a file as a UTF-8 string.
  *
- * Returns an empty string if the file cannot be read,
- * ensuring the CLI continues execution.
+ * Rejects with a `KnownError` (original error as `cause`) when the path
+ * cannot be read — missing, a directory, permission denied — rather than
+ * returning an empty string, which callers could not tell apart from a
+ * genuinely empty file. A caller that wants "missing means empty" must check
+ * `pathExists` first.
  *
  * @param {string} path - Path to the file
  * @returns {Promise<string>}
+ * @throws {KnownError} When the file cannot be read
  */
 export async function getFileContent(path: string): Promise<string> {
     try {
         return await readFile(path, 'utf8')
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error)
-        log.error(`Failed to read file at "${path}": ${message}`)
-        return ''
+        throw new KnownError(`Failed to read file at "${path}": ${message}`, { cause: error })
     }
 }
 

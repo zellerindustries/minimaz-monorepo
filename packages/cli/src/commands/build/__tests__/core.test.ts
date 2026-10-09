@@ -1,11 +1,21 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { pathExists } from '@minimaz/core'
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { processExternals, processFile, reCreateOutDir, runDiscovery, walkFolder } from '../core.js'
+import {
+    getBuildOldDirName,
+    getBuildTempDirName,
+    processExternals,
+    processFile,
+    reCreateOutDir,
+    replaceOutDir,
+    runDiscovery,
+    walkFolder,
+} from '../core.js'
 import type { File } from '../types.js'
 
 function makeConfig(
@@ -49,6 +59,115 @@ describe('reCreateOutDir', () => {
         await reCreateOutDir(outDir)
 
         expect(await pathExists(outDir)).toBe(true)
+    })
+})
+
+describe('replaceOutDir', () => {
+    let dir: string
+
+    beforeEach(async () => {
+        dir = await mkdtemp(path.join(tmpdir(), 'build-replace-'))
+    })
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true })
+    })
+
+    it('replaces an existing output directory with the temp directory', async () => {
+        const outDir = path.join(dir, 'dist')
+        const tempDir = getBuildTempDirName(outDir)
+        await mkdir(outDir, { recursive: true })
+        await writeFile(path.join(outDir, 'old.txt'), 'old', 'utf8')
+        await mkdir(tempDir, { recursive: true })
+        await writeFile(path.join(tempDir, 'new.txt'), 'new', 'utf8')
+
+        await replaceOutDir(tempDir, outDir)
+
+        expect(await readFile(path.join(outDir, 'new.txt'), 'utf8')).toBe('new')
+        expect(await pathExists(path.join(outDir, 'old.txt'))).toBe(false)
+        expect(await pathExists(tempDir)).toBe(false)
+    })
+
+    it('throws a KnownError naming the temp directory when the swap fails', async () => {
+        const outDir = path.join(dir, 'dist')
+        const tempDir = getBuildTempDirName(outDir)
+
+        const result = replaceOutDir(tempDir, outDir, { retryDelayMs: 0 })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(tempDir)
+    })
+
+    function errnoError(code: string): NodeJS.ErrnoException {
+        const error: NodeJS.ErrnoException = new Error(`${code}: simulated`)
+        error.code = code
+        return error
+    }
+
+    async function writeOldAndTemp(): Promise<{ outDir: string; tempDir: string }> {
+        const outDir = path.join(dir, 'dist')
+        const tempDir = getBuildTempDirName(outDir)
+        await mkdir(outDir, { recursive: true })
+        await writeFile(path.join(outDir, 'old.txt'), 'old', 'utf8')
+        await mkdir(tempDir, { recursive: true })
+        await writeFile(path.join(tempDir, 'new.txt'), 'new', 'utf8')
+        return { outDir, tempDir }
+    }
+
+    it('retries a rename that fails transiently with EPERM', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        let failures = 0
+        const renameDir = async (from: string, to: string): Promise<void> => {
+            if (from === tempDir && failures === 0) {
+                failures += 1
+                throw errnoError('EPERM')
+            }
+            await rename(from, to)
+        }
+
+        await replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        expect(failures).toBe(1)
+        expect(await readFile(path.join(outDir, 'new.txt'), 'utf8')).toBe('new')
+        expect(await pathExists(path.join(outDir, 'old.txt'))).toBe(false)
+        expect(await pathExists(tempDir)).toBe(false)
+        expect(await pathExists(getBuildOldDirName(outDir))).toBe(false)
+    })
+
+    it('restores the previous output when moving the new build in fails permanently', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        const renameDir = async (from: string, to: string): Promise<void> => {
+            if (from === tempDir) {
+                throw errnoError('EPERM')
+            }
+            await rename(from, to)
+        }
+
+        const result = replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(tempDir)
+        expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
+        expect(await readFile(path.join(tempDir, 'new.txt'), 'utf8')).toBe('new')
+        expect(await pathExists(getBuildOldDirName(outDir))).toBe(false)
+    })
+
+    it('does not retry a non-transient rename error', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        let calls = 0
+        const renameDir = async (from: string, to: string): Promise<void> => {
+            if (from === tempDir) {
+                calls += 1
+                throw errnoError('EXDEV')
+            }
+            await rename(from, to)
+        }
+
+        await expect(
+            replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 }),
+        ).rejects.toBeInstanceOf(KnownError)
+        expect(calls).toBe(1)
+        expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
     })
 })
 

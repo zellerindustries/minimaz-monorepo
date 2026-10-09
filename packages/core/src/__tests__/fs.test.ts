@@ -1,7 +1,8 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { KnownError } from '@minimaz/logger'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
     copy,
     ensureDir,
@@ -105,10 +106,16 @@ describe('getFileContent', () => {
         expect(await getFileContent(join(root, 'a.txt'))).toBe('content')
     })
 
-    it('returns an empty string and logs an error for an unreadable file', async () => {
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    it('rejects with a KnownError for a missing file', async () => {
+        const promise = getFileContent(join(root, 'missing.txt'))
 
-        expect(await getFileContent(join(root, 'missing.txt'))).toBe('')
-        expect(String(errorSpy.mock.calls[0]?.[0])).toContain('Failed to read file at')
+        await expect(promise).rejects.toBeInstanceOf(KnownError)
+        await expect(promise).rejects.toThrow(/Failed to read file at/)
+    })
+
+    it('rejects for a directory path and chains the cause', async () => {
+        await mkdir(join(root, 'x.css'))
+
+        await expect(getFileContent(join(root, 'x.css'))).rejects.toHaveProperty('cause')
     })
 })

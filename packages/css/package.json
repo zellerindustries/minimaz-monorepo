@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/css",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Dependency-free CSS minifier and @import bundler.",
     "type": "module",
     "main": "./dist/index.js",
@@ -30,7 +30,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "url": "git+https://github.com/zellerindustries/minimaz-monorepo.git",
         "directory": "packages/css"
     },
     "bugs": {
@@ -38,6 +38,6 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/css#readme",
     "dependencies": {
-        "@minimaz/core": "^0.1.0"
+        "@minimaz/core": "^0.2.0"
     }
 }

@@ -1,5 +1,5 @@
 import { basename, join, pathExists } from '@minimaz/core'
-import { log } from '@minimaz/logger'
+import { KnownError, log } from '@minimaz/logger'
 import {
     deleteTemplate,
     listTemplates,
@@ -98,7 +98,7 @@ export async function template(
             .startsWith('y')
 
         if (!useCwd) {
-            throw new Error('Operation cancelled')
+            throw new KnownError('Operation cancelled')
         }
 
         source = process.env['CLI_WORKDIR'] ?? process.cwd()

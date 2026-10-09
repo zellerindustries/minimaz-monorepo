@@ -11,6 +11,17 @@ function escapeHtml(text: string): string {
     return text.replace(/[&<>"]/g, (char) => htmlEscapes[char] ?? char)
 }
 
+// Browsers strip ASCII tab/newline anywhere in a URL and leading C0
+// controls/spaces before resolving its scheme, so "java\tscript:" still runs —
+// normalize the same way before checking.
+const unsafeLinkSchemeRe = /^(?:javascript|vbscript|data):/
+// eslint-disable-next-line no-control-regex -- matching C0 controls is the point
+const urlIgnoredCharsRe = /[\u0000- ]/g
+
+function isUnsafeLinkUrl(url: string): boolean {
+    return unsafeLinkSchemeRe.test(url.replace(urlIgnoredCharsRe, '').toLowerCase())
+}
+
 function renderInlineNode(node: Inline): string {
     switch (node.type) {
         case 'text':
@@ -22,6 +33,9 @@ function renderInlineNode(node: Inline): string {
         case 'inlineCode':
             return `<code>${escapeHtml(node.value)}</code>`
         case 'link': {
+            if (isUnsafeLinkUrl(node.url)) {
+                return renderInline(node.children)
+            }
             const title = node.title !== undefined ? ` title="${escapeHtml(node.title)}"` : ''
             return `<a href="${escapeHtml(node.url)}"${title}>${renderInline(node.children)}</a>`
         }

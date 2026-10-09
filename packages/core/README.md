@@ -26,7 +26,8 @@ await outputFile('dist/index.html', '<html></html>')
 - `readJsonFile<T>(file)` — reads and `JSON.parse`s a file.
 - `getDirElements(dir)` — lists a directory's entries.
 - `isDirectory(path)` — whether a path is a directory.
-- `getFileContent(path)` — reads a file as UTF-8 text.
+- `getFileContent(path)` — reads a file as UTF-8 text; rejects with a `KnownError` (original error as `cause`) if
+  it can't be read.
 - `copy(src, dest, overwrite?)` — copies a file or directory.
 - `remove(path)` — removes a file or directory.
 - `ensureDir(path)` — creates a directory (and parents) if missing.

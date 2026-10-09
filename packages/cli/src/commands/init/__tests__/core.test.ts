@@ -23,6 +23,10 @@ describe('initGit', () => {
 
         const gitignore = await readFile(path.join(targetDir, '.gitignore'), 'utf8')
         expect(gitignore).toContain('node_modules')
+        expect(gitignore.split('\n')).toContain('dist')
+        expect(gitignore.split('\n')).toContain('dist-docs')
+        expect(gitignore.split('\n')).toContain('*.minimaz-tmp')
+        expect(gitignore.split('\n')).toContain('*.minimaz-old')
     })
 
     it('throws on an unsupported provider', async () => {

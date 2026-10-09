@@ -52,6 +52,40 @@ describe('help', () => {
         expect(lines).toContain('[app] \tOptions:')
     })
 
+    it.each([
+        ['i', 'minimaz init'],
+        ['t', 'minimaz template'],
+        ['b', 'minimaz build'],
+    ])('resolves the alias "%s" to its command entry', (alias, usagePrefix) => {
+        const lines = captureLines(() => {
+            help(alias)
+        })
+
+        expect(lines[0]).toContain(usagePrefix)
+        expect(lines).toContain(`[app] \tAlias: ${alias}`)
+    })
+
+    it('prints no usage line with a " | " alias separator', () => {
+        const lines = captureLines(() => {
+            help()
+        })
+
+        for (const cmd of Object.values(commandsHelp)) {
+            expect(cmd.usage).not.toContain(' | ')
+        }
+        expect(
+            lines.some((line) => line.startsWith('[app] minimaz ') && line.includes(' | ')),
+        ).toBe(false)
+    })
+
+    it('does not resolve inherited Object properties as commands', () => {
+        expect(
+            captureLines(() => {
+                help('constructor')
+            }),
+        ).toEqual(['[app] No help found for: constructor\n'])
+    })
+
     it('says so for an unknown command', () => {
         expect(
             captureLines(() => {

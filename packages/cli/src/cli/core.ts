@@ -103,6 +103,26 @@ export async function askQuestion(query: string, defaultAnswer = ''): Promise<st
 }
 
 /**
+ * Strips only the `allow-scripts` npm config variable (any case, `-` or `_`)
+ * so a nested `npm` invocation doesn't inherit the invoking npm process's
+ * global allowlist, which npm rejects as an inherited, project-scoped setting
+ * with `EALLOWSCRIPTS` when the nested install has a different
+ * `package.json`. Other `npm_config_*` vars (registry, proxy, auth, ...)
+ * are kept so the nested install still honors them.
+ *
+ * @returns {NodeJS.ProcessEnv} `process.env` without the allow-scripts keys
+ */
+export function envWithoutNpmConfig(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = {}
+    for (const [key, value] of Object.entries(process.env)) {
+        if (key.toLowerCase().replaceAll('-', '_') !== 'npm_config_allow_scripts') {
+            env[key] = value
+        }
+    }
+    return env
+}
+
+/**
  * Executes a shell command in a cross-platform safe way, inheriting stdio.
  *
  * @param {string} command - Command name (e.g. "npm")
@@ -115,6 +135,7 @@ export async function executeCommand(command: string, args: string[], cwd: strin
         const child: ChildProcess = spawn(command, args, {
             cwd,
             stdio: 'inherit',
+            env: command === 'npm' ? envWithoutNpmConfig() : process.env,
         })
 
         child.on('error', reject)

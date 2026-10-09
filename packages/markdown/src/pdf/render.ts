@@ -18,20 +18,39 @@ and no external dependencies. Everything is drawn in Courier (a fixed-pitch
 base-14 font every PDF viewer already has) so line-wrapping math is exact
 without embedding font metrics. Known limitations, by design:
   - ASCII-only text; non-ASCII characters are replaced with "?" so the
-    whole output stays byte-safe as a plain JS string.
+    whole output stays byte-safe as a plain JS string. Tabs become four
+    spaces (no tab-stop alignment).
+  - A word or code line longer than a whole line is hard-split at the
+    right margin rather than overflowing it.
   - Links/images render as inline text with the URL in parentheses —
     there are no clickable annotations or embedded images.
   - List item continuation lines are not hanging-indented under the
     marker (they wrap back to the item's left margin).
 */
 
+const tabSpaces = '    '
+
 function sanitizeText(text: string): string {
     let out = ''
     for (const ch of text) {
         const code = ch.codePointAt(0) ?? 0
-        out += code >= 0x20 && code <= 0x7e ? ch : '?'
+        if (ch === '\t') {
+            out += tabSpaces
+        } else {
+            out += code >= 0x20 && code <= 0x7e ? ch : '?'
+        }
     }
     return out
+}
+
+// Splits text into consecutive pieces of at most `maxChars` characters
+// (always at least one piece, so an empty line stays an empty line).
+function chunkText(text: string, maxChars: number): string[] {
+    const chunks: string[] = []
+    for (let start = 0; start < text.length; start += maxChars) {
+        chunks.push(text.slice(start, start + maxChars))
+    }
+    return chunks.length > 0 ? chunks : ['']
 }
 
 function combine(base: Style, add: 'bold' | 'italic'): Style {
@@ -107,7 +126,9 @@ function tokensToWords(tokens: Token[]): (Word | 'break')[] {
 // Standard greedy word-wrap: keep adding words to the current line while
 // they fit (tracking length as "words so far" + one space per gap), and
 // start a new line once the next word wouldn't fit. An explicit 'break'
-// forces a new line regardless of remaining width.
+// forces a new line regardless of remaining width. A word longer than a
+// whole line is hard-split into maxChars-sized pieces, each wrapped like
+// an ordinary word, so it never runs past the right margin.
 function wrapWords(words: (Word | 'break')[], maxChars: number): Word[][] {
     const lines: Word[][] = []
     let current: Word[] = []
@@ -119,16 +140,18 @@ function wrapWords(words: (Word | 'break')[], maxChars: number): Word[][] {
             currentLen = 0
             continue
         }
-        if (current.length > 0 && currentLen + 1 + word.text.length > maxChars) {
-            lines.push(current)
-            current = []
-            currentLen = 0
+        for (const piece of chunkText(word.text, maxChars)) {
+            if (current.length > 0 && currentLen + 1 + piece.length > maxChars) {
+                lines.push(current)
+                current = []
+                currentLen = 0
+            }
+            if (current.length > 0) {
+                currentLen += 1
+            }
+            current.push({ text: piece, style: word.style })
+            currentLen += piece.length
         }
-        if (current.length > 0) {
-            currentLen += 1
-        }
-        current.push(word)
-        currentLen += word.text.length
     }
     if (current.length > 0 || lines.length === 0) {
         lines.push(current)
@@ -191,8 +214,11 @@ function renderBlock(engine: LayoutEngine, block: Block, indent: number): void {
             break
         case 'code': {
             const lines = block.content.length > 0 ? block.content.split('\n') : []
+            const maxChars = engine.maxCharsFor(codeSize, indent + 12)
             for (const line of lines) {
-                engine.addRawLine(sanitizeText(line), codeSize, indent + 12, 'regular')
+                for (const piece of chunkText(sanitizeText(line), maxChars)) {
+                    engine.addRawLine(piece, codeSize, indent + 12, 'regular')
+                }
             }
             engine.addGap(codeSize * 0.6)
             break

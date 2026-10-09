@@ -14,7 +14,7 @@ const resolvableExtensions = ['.ts', '.tsx', '.js']
  * the same text, same tradeoff as this repo's other hand-rolled JS
  * tooling (`@minimaz/js`'s minifier).
  */
-const importSpecifierRe = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
+const importSpecifierRe = /\b(?:from\s*|import\s*)(['"])(\.{1,2}(?:\/[^'"]*)?)\1/g
 
 /**
  * Matches a dynamic `import('./relative')` call with a relative string
@@ -23,7 +23,7 @@ const importSpecifierRe = /\b(?:from\s*|import\s*)(['"])(\.[^'"]*)\1/g
  * so an unsupported dynamic import fails loudly instead of shipping an
  * unrewritten, unresolvable specifier to the browser.
  */
-const dynamicImportRe = /\bimport\s*\(\s*(['"])(\.[^'"]*)\1\s*\)/
+const dynamicImportRe = /\bimport\s*\(\s*(['"])(\.{1,2}(?:\/[^'"]*)?)\1\s*\)/
 
 async function fileExists(filePath: string): Promise<boolean> {
     try {
@@ -47,19 +47,24 @@ async function loadAndTranspile(filePath: string): Promise<string> {
 
 function toRelativeSpecifier(fromDir: string, resolvedPath: string): string {
     const rel = relative(fromDir, resolvedPath).split('\\').join('/')
-    return rel.startsWith('.') ? rel : `./${rel}`
+    return rel.startsWith('../') ? rel : `./${rel}`
 }
 
 /**
  * Resolves a relative import specifier to an absolute file path, trying
- * `.ts`, `.tsx`, `.js` against the specifier itself, then the same three
- * extensions against `<specifier>/index` for directory imports.
+ * `.ts`, `.tsx`, `.js` appended to the specifier (after stripping a trailing
+ * code extension, so `./a.js` still finds `a.ts`), then the same three
+ * extensions against `<specifier>/index` for directory imports. Appending
+ * rather than replacing the extension keeps dotted names such as
+ * `./utils.config` or `./foo.min` resolvable.
  *
- * @throws {Error} When no candidate file exists.
+ * @returns The resolved file, or the list of candidates tried when none exists.
  */
-async function resolveSpecifier(fromFile: string, specifier: string): Promise<string> {
-    const baseDir = dirname(fromFile)
-    const rawTarget = join(baseDir, specifier)
+async function findCandidate(
+    fromFile: string,
+    specifier: string,
+): Promise<{ found: string } | { tried: string[] }> {
+    const rawTarget = join(dirname(fromFile), specifier)
     const ext = extname(specifier)
     const stripped = resolvableExtensions.includes(ext)
         ? rawTarget.slice(0, -ext.length)
@@ -72,12 +77,41 @@ async function resolveSpecifier(fromFile: string, specifier: string): Promise<st
 
     for (const candidate of candidates) {
         if (await fileExists(candidate)) {
-            return candidate
+            return { found: candidate }
         }
     }
 
+    return { tried: candidates }
+}
+
+/**
+ * Resolves a relative import specifier to an absolute code file. A specifier
+ * whose extension is not a code extension (`./data.json`, `./utils.config`) is
+ * an asset only when an exact file of that name exists or no code file
+ * resolves; otherwise it is code.
+ *
+ * @returns The resolved path, or `null` when the specifier is an asset.
+ * @throws {Error} When a code-looking specifier cannot be resolved.
+ */
+async function resolveSpecifier(fromFile: string, specifier: string): Promise<string | null> {
+    const ext = extname(specifier)
+    const isCodeExt = resolvableExtensions.includes(ext)
+
+    if (ext !== '' && !isCodeExt && (await fileExists(join(dirname(fromFile), specifier)))) {
+        return null
+    }
+
+    const result = await findCandidate(fromFile, specifier)
+    if ('found' in result) {
+        return result.found
+    }
+
+    if (ext !== '' && !isCodeExt) {
+        return null
+    }
+
     throw new Error(
-        `Cannot resolve "${specifier}" imported from "${fromFile}" — tried:\n${candidates
+        `Cannot resolve "${specifier}" imported from "${fromFile}" — tried:\n${result.tried
             .map((c) => `  - ${c}`)
             .join('\n')}`,
     )
@@ -120,12 +154,10 @@ async function processFile(
             continue
         }
 
-        const specifierExt = extname(specifier)
-        if (specifierExt !== '' && !resolvableExtensions.includes(specifierExt)) {
+        const resolvedPath = await resolveSpecifier(filePath, specifier)
+        if (resolvedPath === null) {
             continue
         }
-
-        const resolvedPath = await resolveSpecifier(filePath, specifier)
         await processFile(resolvedPath, visited, modules)
 
         const newSpecifier = toRelativeSpecifier(fromDir, resolvedPath).replace(/\.tsx?$/, '.js')

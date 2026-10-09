@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/bundler",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Zero-dependency relative-import module graph resolver for Minimaz's build command.",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "license": "MIT",
@@ -31,7 +31,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/zellerindustries/minimaz-monorepo.git",
+        "url": "git+https://github.com/zellerindustries/minimaz-monorepo.git",
         "directory": "packages/bundler"
     },
     "bugs": {
