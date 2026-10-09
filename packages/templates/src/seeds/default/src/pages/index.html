@@ -12,7 +12,7 @@
         <!-- SEO -->
         <meta
             name="description"
-            content="Minimaz CLI is a minimal, low-dependency static site builder and project initializer. Compile TypeScript, bundle and minify HTML, CSS, and JS with a fast and simple CLI."
+            content="Minimaz CLI is a minimal, low-dependency static site builder and project initializer. Compile TypeScript, bundle CSS, and minify HTML, CSS, and JS with a fast and simple CLI."
         />
         <meta
             name="keywords"
@@ -26,7 +26,7 @@
         />
         <meta
             property="og:description"
-            content="Initialize projects from templates, compile TypeScript, bundle and minify assets, and build clean static sites with a lightweight CLI."
+            content="Initialize projects from templates, compile TypeScript, bundle CSS, minify assets, and build clean static sites with a lightweight CLI."
         />
         <meta
             property="og:url"
@@ -67,7 +67,7 @@
                     site builder and project initializer focused on speed,
                     simplicity, and clean output. It supports HTML, CSS,
                     JavaScript, and TypeScript (<code>.ts → .js</code>), with
-                    optional bundling and minification.
+                    optional CSS bundling and minification.
                 </p>
                 <p>
                     Designed for small static sites, utility tools, prototypes,
@@ -91,7 +91,7 @@
                     <div class="grid-item">
                         Minify HTML, CSS, JS, and compiled TS
                     </div>
-                    <div class="grid-item">Optional CSS and JS bundling</div>
+                    <div class="grid-item">Optional CSS bundling</div>
                     <div class="grid-item">
                         Include external styles/scripts (relative, absolute,
                         node_modules)
@@ -195,7 +195,7 @@ minimaz init my-site</code></pre>
             "minify": true
         },
         "js": {
-            "bundling": true,
+            "bundling": false,
             "minify": true
         },
         "html": {
@@ -214,8 +214,9 @@ minimaz init my-site</code></pre>
                         replacements for the build
                     </li>
                     <li>
-                        <strong>bundling</strong> → Scans imports/requires to
-                        merge code into single files
+                        <strong>bundling</strong> → Inlines CSS
+                        <code>@import</code> rules into a single file (JS
+                        bundling is not supported yet)
                     </li>
                 </ul>
             </section>
