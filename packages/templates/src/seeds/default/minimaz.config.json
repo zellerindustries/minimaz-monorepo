@@ -3,32 +3,26 @@
         "dir": "./src",
         "mapping": {
             "pages": "",
-            "public": "",
-            "styles": ""
+            "scripts": "",
+            "public": ""
         },
-        "externals": {
-            "node_modules/bootstrap-icons/font/fonts": "public/fonts"
-        },
+        "externals": {},
         "exclude": []
     },
     "output": {
         "dir": "./dist",
-        "replace": {
-            "../public/": "/public/",
-            "<link rel=\"stylesheet\" href=\"styles/bootstrap-icons.css\">": "",
-            "../public/fonts/bootstrap-icons.woff2": "/public/fonts/bootstrap-icons.woff2",
-            "../public/bootstrap-icons/font/fonts/bootstrap-icons.woff": "/public/fonts/bootstrap-icons.woff"
-        },
-        "css": {
-            "bundling": true,
-            "minify": true
-        },
-        "js": {
-            "bundling": false,
-            "minify": true
-        },
-        "html": {
-            "minify": true
-        }
+        "replace": {},
+        "css": { "bundling": true, "minify": true },
+        "js": { "bundling": false, "minify": true },
+        "html": { "minify": true }
+    },
+    "serve": {
+        "port": 3000,
+        "host": "127.0.0.1",
+        "liveReload": true,
+        "cleanUrls": true,
+        "singlePageApp": false,
+        "directoryListing": false,
+        "cacheControl": false
     }
 }

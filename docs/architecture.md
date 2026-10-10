@@ -90,9 +90,9 @@ init`/`minimaz docs build`.
 - **build schema** — `input`/`output` (`mapping`, `externals`, `exclude`, CSS/JS/HTML processing options) — ported
   from `minimaz-cli`, consumed by the `build` and `clear` commands.
 
-Both sections are always present in `loadConfig`'s result regardless of which one the file actually provided.
-`minimaz init` (build-only template) and `minimaz docs init` (docs-only template) each write only their own half
-of the file and refuse to run if it already exists, so running both leaves one section unpopulated by either —
+`minimaz init` writes the chosen template's own config (a build config for the default template, docs-only for the
+`docs` template) and `minimaz docs init` writes a docs-only one; each refuses to run if the file already exists, so
+running both leaves one section unpopulated by either —
 harmless today since `loadConfig` fills in defaults, but see `.claude/status.md`'s "Known cleanup opportunities"
 before assuming the two are unified.
 

@@ -1,0 +1,15 @@
+{
+    "input": {
+        "dir": "./src",
+        "mapping": {},
+        "externals": {},
+        "exclude": []
+    },
+    "output": {
+        "dir": "./dist",
+        "replace": {},
+        "css": { "bundling": true, "minify": true },
+        "js": { "bundling": false, "minify": true },
+        "html": { "minify": true }
+    }
+}

@@ -67,7 +67,7 @@ describe('seedDefaults', () => {
         await rm(globalDir, { recursive: true, force: true })
     })
 
-    it('seeds both default templates and settings.json on first run', async () => {
+    it('seeds every bundled template and settings.json on first run', async () => {
         await seedDefaults(globalDir, templatesDir)
 
         const defaultMarker = await readFile(
@@ -81,6 +81,11 @@ describe('seedDefaults', () => {
             'utf8',
         )
         expect(simpleMarker.length).toBeGreaterThan(0)
+
+        const docsConfig = JSON.parse(
+            await readFile(path.join(templatesDir, 'docs', 'minimaz.config.json'), 'utf8'),
+        ) as { docs: { input: { dir: string } } }
+        expect(docsConfig.docs.input.dir).toBe('docs')
 
         const settings = JSON.parse(
             await readFile(path.join(globalDir, 'settings.json'), 'utf8'),
