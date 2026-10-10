@@ -4,21 +4,25 @@
         "mapping": {
             "pages": "",
             "scripts": "",
+            "styles": "",
             "public": ""
         },
-        "externals": {},
-        "exclude": []
+        "exclude": [],
+        "externals": {}
     },
     "output": {
         "dir": "./dist",
-        "replace": {},
+        "replace": {
+            "_DOMAIN_": "example.com",
+            "_SITE_NAME_": "Acme Studio"
+        },
         "css": { "bundling": true, "minify": true },
         "js": { "bundling": false, "minify": true },
         "html": { "minify": true }
     },
     "serve": {
         "port": 3000,
-        "host": "127.0.0.1",
+        "host": "localhost",
         "liveReload": true,
         "cleanUrls": true,
         "singlePageApp": false,

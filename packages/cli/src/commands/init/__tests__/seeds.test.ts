@@ -54,87 +54,117 @@ describe('bundled seed templates', () => {
     })
 
     describe('default', () => {
+        /** Every `.html` path under `dir`, relative to it, with forward slashes. */
+        async function htmlFiles(dir: string, rel = ''): Promise<string[]> {
+            const found: string[] = []
+            for (const entry of await readdir(path.join(dir, rel), { withFileTypes: true })) {
+                const next = rel === '' ? entry.name : `${rel}/${entry.name}`
+                if (entry.isDirectory()) {
+                    found.push(...(await htmlFiles(dir, next)))
+                } else if (entry.name.endsWith('.html')) {
+                    found.push(next)
+                }
+            }
+            return found
+        }
+
+        /** Root-absolute `href`/`src` values in `html` (no externals, anchors or mailto). */
+        function internalRefs(html: string): string[] {
+            const refs: string[] = []
+            for (const match of html.matchAll(/(?:href|src)="(\/[^"#?]*)/g)) {
+                if (match[1] !== undefined && !match[1].startsWith('//')) {
+                    refs.push(match[1])
+                }
+            }
+            return refs
+        }
+
+        /** True when `ref` maps to an emitted file, directly or via clean URLs. */
+        async function resolves(dist: string, ref: string): Promise<boolean> {
+            const rel = ref.replace(/^\//, '')
+            const candidates =
+                rel === '' ? ['index.html'] : [rel, `${rel}.html`, `${rel}/index.html`]
+            for (const candidate of candidates) {
+                const full = path.join(dist, candidate)
+                if ((await pathExists(full)) && (await readdir(full).catch(() => null)) === null) {
+                    return true
+                }
+            }
+            return false
+        }
+
         it('ships a serve section and keeps js bundling off', async () => {
             const dir = await scaffold('default')
             expect(await pathExists(path.join(dir, '.gitignore'))).toBe(false)
             const config = await loadConfig(dir)
-            expect(config.input.externals).toEqual({})
-            expect(config.serve.cleanUrls).toBe(true)
-            expect(config.serve.liveReload).toBe(true)
             expect(config.output.js.bundling).toBe(false)
+            expect(config.output.css.bundling).toBe(true)
+            expect(config.serve.cleanUrls).toBe(true)
+            expect(config.output.replace).toMatchObject({
+                _DOMAIN_: 'example.com',
+                _SITE_NAME_: 'Acme Studio',
+            })
         })
 
-        it('builds a flat site with bundled css and transpiled script', async () => {
+        it('builds the landing page, one bundled stylesheet and the static SEO files', async () => {
             const dir = await scaffold('default')
             await build(dir)
             const dist = path.join(dir, 'dist')
 
             for (const file of [
                 'index.html',
-                'about.html',
                 'style.css',
-                'main.js',
                 'favicon.ico',
-                'icon.svg',
+                'logo.svg',
+                'og-cover.svg',
+                'robots.txt',
+                'sitemap.xml',
+                'llms.txt',
+                '.well-known/security.txt',
             ]) {
                 expect(await pathExists(path.join(dist, file)), file).toBe(true)
             }
-            expect(await pathExists(path.join(dist, 'styles'))).toBe(false)
-            expect(await pathExists(path.join(dist, 'main.ts'))).toBe(false)
-
             const css = await readFile(path.join(dist, 'style.css'), 'utf8')
             expect(css).not.toContain('@import')
-            expect(css).toContain(':focus-visible')
-
-            const js = await readFile(path.join(dist, 'main.js'), 'utf8')
-            expect(js).not.toMatch(/:\s*(HTMLElement|HTMLButtonElement|boolean)\b/)
-            expect(js).toContain('aria-expanded')
+            for (const partial of ['root', 'base', 'header', 'hero', 'footer', 'form']) {
+                expect(await pathExists(path.join(dist, `${partial}.css`)), partial).toBe(false)
+            }
         })
 
-        it('keeps the nav usable without javascript', async () => {
+        it('replaces both placeholders and resolves every internal reference', async () => {
             const dir = await scaffold('default')
             await build(dir)
-            const html = await readFile(path.join(dir, 'dist', 'index.html'), 'utf8')
-            // The toggle starts hidden and only main.js reveals it; the nav starts visible.
-            expect(html).toMatch(/<button[^>]*class="nav-toggle"[^>]*\shidden>/)
-            expect(html).not.toMatch(/<nav[^>]*\shidden/)
-        })
+            const dist = path.join(dir, 'dist')
 
-        it('links its pages to each other and to the built assets', async () => {
-            const dir = await scaffold('default')
-            await build(dir)
-            for (const page of ['index.html', 'about.html']) {
-                const html = await readFile(path.join(dir, 'dist', page), 'utf8')
-                expect(html).toContain('style.css')
-                expect(html).toContain('main.js')
-                expect(html).toContain('about.html')
-                expect(html).not.toMatch(/(?:href|src)="\//)
+            for (const file of await htmlFiles(dist)) {
+                const html = await readFile(path.join(dist, file), 'utf8')
+                expect(html, file).not.toContain('_DOMAIN_')
+                expect(html, file).not.toContain('_SITE_NAME_')
+                expect(html, file).toContain('https://example.com')
+                for (const ref of internalRefs(html)) {
+                    expect(await resolves(dist, ref), `${file} -> ${ref}`).toBe(true)
+                }
             }
         })
 
-        it('contains no retired branding or icon-font leftovers', async () => {
+        it('contains no stale branding', async () => {
             const dir = await scaffold('default')
-            const stale = ['minimaz-cli', 'zeller-dev', 'bootstrap', 'MrZeller']
-            const walk = async (current: string): Promise<string[]> => {
-                const names = await readdir(current, { withFileTypes: true })
-                const nested = await Promise.all(
-                    names.map((entry) =>
-                        entry.isDirectory()
-                            ? walk(path.join(current, entry.name))
-                            : Promise.resolve([path.join(current, entry.name)]),
-                    ),
-                )
-                return nested.flat()
-            }
-            for (const file of await walk(dir)) {
-                if (/\.(ico|webp|woff2?)$/.test(file)) {
-                    continue
-                }
-                const text = await readFile(file, 'utf8')
-                for (const word of stale) {
-                    expect(text, `${file} mentions ${word}`).not.toContain(word)
+            const hits: string[] = []
+            async function scan(rel: string): Promise<void> {
+                for (const entry of await readdir(path.join(dir, rel), { withFileTypes: true })) {
+                    const next = path.join(rel, entry.name)
+                    if (entry.isDirectory()) {
+                        await scan(next)
+                    } else if (!entry.name.endsWith('.ico')) {
+                        const text = await readFile(path.join(dir, next), 'utf8')
+                        if (/zeller|minimaz|bootstrap-icons/i.test(text)) {
+                            hits.push(next)
+                        }
+                    }
                 }
             }
+            await scan('src')
+            expect(hits).toEqual([])
         })
     })
 

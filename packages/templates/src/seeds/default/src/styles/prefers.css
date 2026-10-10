@@ -1,0 +1,37 @@
+@media (prefers-color-scheme: light) {
+    :root {
+        color-scheme: light;
+        --clr-primary: #1d4ed8;
+        --clr-primary-hover: #1e40af;
+        --clr-bg-main: #ffffff;
+        --clr-bg-alt: #f1f5f9;
+        --clr-surface: #f8fafc;
+        --clr-surface-hover: #e2e8f0;
+        --clr-text-main: #0f172a;
+        --clr-text-muted: #475569;
+        --clr-error: #b91c1c;
+        --clr-success: #166534;
+        --clr-border: rgba(15, 23, 42, 0.18);
+    }
+}
+
+@media (prefers-contrast: more) {
+    :root {
+        --clr-text-muted: var(--clr-text-main);
+        --clr-border: currentcolor;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

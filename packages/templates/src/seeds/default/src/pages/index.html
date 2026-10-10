@@ -2,55 +2,163 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>My site</title>
-        <meta name="description" content="A small, fast static site." />
-        <link rel="icon" href="favicon.ico" />
-        <link rel="stylesheet" href="style.css" />
-        <script src="main.js" defer></script>
-    </head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>_SITE_NAME_ – Web development, consulting and support</title>
+        <meta
+            name="description"
+            content="_SITE_NAME_ builds fast, accessible websites and web apps, and helps teams ship and maintain them."
+        />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <meta name="author" content="_SITE_NAME_" />
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <meta name="theme-color" content="#0f172a" />
+        <link rel="canonical" href="https://_DOMAIN_/" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="sitemap" type="application/xml" href="https://_DOMAIN_/sitemap.xml" />
 
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="_SITE_NAME_" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:title" content="_SITE_NAME_ – Web development, consulting and support" />
+        <meta
+            property="og:description"
+            content="Fast, accessible websites and web apps, plus the consulting and support to keep them healthy."
+        />
+        <meta property="og:url" content="https://_DOMAIN_/" />
+        <meta property="og:image" content="https://_DOMAIN_/og-cover.svg" />
+        <meta property="og:image:alt" content="_SITE_NAME_ logo on a dark background" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="_SITE_NAME_ – Web development, consulting and support" />
+        <meta
+            name="twitter:description"
+            content="Fast, accessible websites and web apps, plus the consulting and support to keep them healthy."
+        />
+        <meta name="twitter:image" content="https://_DOMAIN_/og-cover.svg" />
+
+        <link rel="stylesheet" href="/style.css" />
+
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "_SITE_NAME_",
+                "url": "https://_DOMAIN_/",
+                "logo": "https://_DOMAIN_/logo.svg",
+                "email": "hello@_DOMAIN_"
+            }
+        </script>
+    </head>
     <body>
         <a class="skip-link" href="#main">Skip to content</a>
+
         <header class="site-header">
-            <a class="brand" href="./">My site</a>
-            <button
-                class="nav-toggle"
-                type="button"
-                aria-expanded="false"
-                aria-controls="site-nav"
-                hidden
-            >
-                Menu
-            </button>
-            <nav id="site-nav" class="site-nav" aria-label="Main">
-                <a href="./" aria-current="page">Home</a>
-                <a href="about.html">About</a>
-            </nav>
+            <div class="container header-container">
+                <a class="brand" href="/" aria-label="_SITE_NAME_ – home">
+                    <img src="/logo.svg" alt="" width="32" height="32" />
+                    <span>_SITE_NAME_</span>
+                </a>
+                <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation" />
+                <label for="nav-toggle" class="nav-toggle-label">Menu</label>
+                <nav class="main-nav" aria-label="Main">
+                    <ul class="reset">
+                        <li><a href="/#services">Services</a></li>
+                        <li><a href="/#about">About</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/form" class="btn primary">Get in touch</a></li>
+                    </ul>
+                </nav>
+            </div>
         </header>
 
-        <main id="main" class="container">
-            <h1>Welcome</h1>
-            <p class="lead">This is the starting point for your site. Edit the files in <code>src/</code>.</p>
+        <main id="main">
+            <section class="hero">
+                <div class="container hero-content">
+                    <h1>Websites and web apps that are fast, accessible and easy to maintain.</h1>
+                    <p class="lead">
+                        _SITE_NAME_ is a small studio. We design, build and look after the sites our
+                        clients depend on.
+                    </p>
+                    <div class="btn-row">
+                        <a href="/form" class="btn primary">Start a project</a>
+                        <a href="/services/web-development" class="btn">See what we do</a>
+                    </div>
+                </div>
+            </section>
 
-            <section class="cards" aria-label="Where to start">
-                <article class="card">
-                    <h2>Pages</h2>
-                    <p>HTML files in <code>src/pages/</code> become the pages of the site.</p>
-                </article>
-                <article class="card">
-                    <h2>Styles</h2>
-                    <p><code>src/style.css</code> imports the partials in <code>src/styles/</code> and is bundled into one file.</p>
-                </article>
-                <article class="card">
-                    <h2>Scripts</h2>
-                    <p>TypeScript in <code>src/scripts/</code> is compiled to plain JavaScript.</p>
-                </article>
+            <section class="section" id="services">
+                <div class="container">
+                    <h2>Services</h2>
+                    <div class="card-grid">
+                        <article class="card">
+                            <h3>Web development</h3>
+                            <p>Custom sites and web apps built on solid, standards-based foundations.</p>
+                            <a href="/services/web-development">Learn more</a>
+                        </article>
+                        <article class="card">
+                            <h3>Consulting</h3>
+                            <p>Architecture reviews, performance audits and technical planning.</p>
+                            <a href="/services/consulting">Learn more</a>
+                        </article>
+                        <article class="card">
+                            <h3>Support</h3>
+                            <p>Updates, monitoring and fixes so your site keeps working.</p>
+                            <a href="/services/support">Learn more</a>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section alt" id="about">
+                <div class="container">
+                    <h2>About</h2>
+                    <p class="lead">
+                        We keep things simple: plain HTML, CSS and a little TypeScript, shipped without
+                        heavy dependencies.
+                    </p>
+                    <div class="tile-grid">
+                        <div class="tile"><strong>100</strong>Lighthouse goal</div>
+                        <div class="tile"><strong>0</strong>Runtime dependencies</div>
+                        <div class="tile"><strong>AA</strong>Contrast target</div>
+                        <div class="tile"><strong>24h</strong>Reply time</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="container">
+                    <h2>Ready to talk?</h2>
+                    <p>Tell us about your project and we will reply within one working day.</p>
+                    <a href="/form" class="btn primary">Contact us</a>
+                </div>
             </section>
         </main>
 
         <footer class="site-footer">
-            <p>Built with Minimaz.</p>
+            <div class="container footer-container">
+                <div>
+                    <a class="brand" href="/">_SITE_NAME_</a>
+                    <p>Websites and web apps, built to last.</p>
+                </div>
+                <div>
+                    <h2 class="footer-title">Explore</h2>
+                    <ul class="reset footer-links">
+                        <li><a href="/#services">Services</a></li>
+                        <li><a href="/#about">About</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/form">Contact form</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2 class="footer-title">Legal</h2>
+                    <ul class="reset footer-links">
+                        <li><a href="/legal/privacy">Privacy</a></li>
+                        <li><a href="/legal/terms">Terms</a></li>
+                        <li><a href="/legal/cookie">Cookies</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="container footer-bottom">© 2026 _SITE_NAME_. All rights reserved.</div>
         </footer>
     </body>
 </html>

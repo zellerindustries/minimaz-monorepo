@@ -1,0 +1,66 @@
+.form {
+    display: grid;
+    gap: var(--space-sm);
+    max-width: 40rem;
+}
+
+.field {
+    display: grid;
+    gap: var(--space-xs);
+}
+
+.field label {
+    font-weight: var(--font-weight-bold);
+}
+
+.form input,
+.form select,
+.form textarea {
+    width: 100%;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--clr-surface);
+    color: var(--clr-text-main);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+}
+
+.form textarea {
+    min-height: 9rem;
+    resize: vertical;
+}
+
+.field-error {
+    min-height: 1.2em;
+    margin: 0;
+    color: var(--clr-error);
+    font-size: var(--fs-sm);
+}
+
+.field-check {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-xs);
+}
+
+.field-check input {
+    width: auto;
+    margin-top: 0.3em;
+}
+
+.hp {
+    position: absolute;
+    left: -10000px;
+}
+
+.form-status {
+    margin: 0;
+}
+
+.form-status.error {
+    color: var(--clr-error);
+}
+
+.form-status.success {
+    color: var(--clr-success);
+}
