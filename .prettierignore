@@ -33,5 +33,5 @@ pnpm-lock.yaml
 .claude/
 .superpowers/
 
-# Vendored template content copied verbatim from minimaz-cli.
+# Seed templates (user-facing content, not formatted or linted).
 **/src/seeds/
