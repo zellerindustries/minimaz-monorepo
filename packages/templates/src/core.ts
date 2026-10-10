@@ -16,7 +16,7 @@ import { InvalidTemplateNameError, TemplateNotFoundError } from './errors.js'
 import type { Settings } from './types.js'
 
 /** Names of the templates bundled with this package and seeded on first `config` run. */
-export const defaultTemplateNames = ['default', 'simple'] as const
+export const defaultTemplateNames = ['default', 'simple', 'docs'] as const
 
 /**
  * Best-effort guess at the global npm `node_modules/@minimaz/sitekit`
@@ -174,7 +174,7 @@ export async function writeSettings(
 }
 
 /**
- * Seeds the two bundled default templates into the global templates
+ * Seeds every bundled template (`defaultTemplateNames`) into the global templates
  * directory and ensures `settings.json` exists — what the `config` command
  * calls. Safe to call repeatedly: skips templates that already exist
  * unless `overwrite` is true.

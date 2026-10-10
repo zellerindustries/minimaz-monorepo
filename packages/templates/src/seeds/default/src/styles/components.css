@@ -1,0 +1,57 @@
+.skip-link {
+    position: absolute;
+    inset-inline-start: var(--space-sm);
+    inset-block-start: -4rem;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    transition: inset-block-start var(--transition);
+}
+
+.skip-link:focus-visible {
+    inset-block-start: var(--space-sm);
+}
+
+.nav-toggle {
+    padding: var(--space-xs) var(--space-md);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font: inherit;
+    cursor: pointer;
+}
+
+.lead {
+    color: var(--color-muted);
+    font-size: 1.125rem;
+}
+
+.cards {
+    display: grid;
+    gap: var(--space-md);
+    margin-block-start: var(--space-lg);
+}
+
+.card {
+    padding: var(--space-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+.card h2 {
+    margin-block-start: 0;
+    font-size: 1.125rem;
+}
+
+.card p:last-child {
+    margin-block-end: 0;
+}
+
+@media (min-width: 40rem) {
+    .cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

@@ -1,504 +1,56 @@
 <!doctype html>
 <html lang="en">
-    <!-- ======================================== -->
-    <!-- HEAD                                    -->
-    <!-- ======================================== -->
-
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Minimaz CLI – Minimal Static Site Builder</title>
-
-        <!-- SEO -->
-        <meta
-            name="description"
-            content="Minimaz CLI is a minimal, low-dependency static site builder and project initializer. Compile TypeScript, bundle CSS, and minify HTML, CSS, and JS with a fast and simple CLI."
-        />
-        <meta
-            name="keywords"
-            content="minimaz, minimaz-cli, static site builder, project initializer, nodejs cli, html css js, typescript, minimal build tool"
-        />
-        <meta name="author" content="MrZeller" />
-        <meta name="robots" content="index, follow" />
-        <meta
-            property="og:title"
-            content="Minimaz CLI – Minimal Static Site Builder"
-        />
-        <meta
-            property="og:description"
-            content="Initialize projects from templates, compile TypeScript, bundle CSS, minify assets, and build clean static sites with a lightweight CLI."
-        />
-        <meta
-            property="og:url"
-            content="https://github.com/zeller-dev/minimaz-cli"
-        />
-        <meta property="og:type" content="website" />
-        <meta name="theme-color" content="#0d0d0d" />
-
-        <link rel="icon" type="image/x-icon" href="../public/favicon.ico" />
-        <link rel="shortcut icon" href="../public/favicon.ico" />
-        <link rel="stylesheet" href="../style.css" />
+        <title>My site</title>
+        <meta name="description" content="A small, fast static site." />
+        <link rel="icon" href="favicon.ico" />
+        <link rel="stylesheet" href="style.css" />
+        <script src="main.js" defer></script>
     </head>
 
     <body>
-        <!-- ======================================== -->
-        <!-- HEADER                                  -->
-        <!-- ======================================== -->
-        <header>
-            <img src="../public/assets/logo.webp" alt="Minimaz Logo" />
-            <h1 class="sr-only">
-                Minimaz CLI <i class="bi bi-lightning-fill"></i>
-            </h1>
-            <p id="tagline">Minimal input. Clean output</p>
-            <p class="version">Version: <strong>v0.4.0</strong></p>
+        <a class="skip-link" href="#main">Skip to content</a>
+        <header class="site-header">
+            <a class="brand" href="./">My site</a>
+            <button
+                class="nav-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="site-nav"
+                hidden
+            >
+                Menu
+            </button>
+            <nav id="site-nav" class="site-nav" aria-label="Main">
+                <a href="./" aria-current="page">Home</a>
+                <a href="about.html">About</a>
+            </nav>
         </header>
 
-        <main id="main-content">
-            <!-- ======================================== -->
-            <!-- ABOUT                                   -->
-            <!-- ======================================== -->
-            <section id="about" class="max-width">
-                <h2>
-                    <i class="bi bi-info-circle"></i>
-                    <span>About</span>
-                </h2>
-                <p>
-                    <strong>Minimaz</strong> is a minimal, low-dependency static
-                    site builder and project initializer focused on speed,
-                    simplicity, and clean output. It supports HTML, CSS,
-                    JavaScript, and TypeScript (<code>.ts → .js</code>), with
-                    optional CSS bundling and minification.
-                </p>
-                <p>
-                    Designed for small static sites, utility tools, prototypes,
-                    and teams that want reproducible minimal build systems.
-                </p>
-            </section>
+        <main id="main" class="container">
+            <h1>Welcome</h1>
+            <p class="lead">This is the starting point for your site. Edit the files in <code>src/</code>.</p>
 
-            <section id="features" class="max-width">
-                <h2>
-                    <i class="bi bi-gear-fill"></i>
-                    <span>Features</span>
-                </h2>
-
-                <div class="grid">
-                    <div class="grid-item">
-                        Initialize projects from templates
-                    </div>
-                    <div class="grid-item">
-                        Save, list, delete, and update global templates
-                    </div>
-                    <div class="grid-item">
-                        Minify HTML, CSS, JS, and compiled TS
-                    </div>
-                    <div class="grid-item">Optional CSS bundling</div>
-                    <div class="grid-item">
-                        Include external styles/scripts (relative, absolute,
-                        node_modules)
-                    </div>
-                    <div class="grid-item">
-                        Configurable via <code>minimaz.config.json</code>
-                    </div>
-                    <div class="grid-item">
-                        Path replacement support for asset links
-                    </div>
-                    <div class="grid-item">Optional npm initialization</div>
-                    <div class="grid-item">
-                        Optional Git repository initialization
-                    </div>
-                    <div class="grid-item">
-                        Git provider / remote URL support
-                    </div>
-                    <div class="grid-item">
-                        Interactive prompts with 60s timeout
-                    </div>
-                    <div class="grid-item">
-                        Alias support: <code>minimaz</code> or <code>mz</code>
-                    </div>
-                    <div class="grid-item">Lightweight and fast</div>
-                </div>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- INSTALLATION                            -->
-            <!-- ======================================== -->
-            <section id="installation" class="max-width">
-                <h2>
-                    <i class="bi bi-download"></i>
-                    <span>Installation</span>
-                </h2>
-                <p>
-                    Run directly using <code>npx</code> or as a global module:
-                </p>
-
-                <pre><code>npx minimaz init my-site
-cd my-site
-npx minimaz build</code></pre>
-
-                <p>Global installation:</p>
-                <pre><code>npm install -g minimaz-cli
-minimaz init my-site</code></pre>
-
-                <blockquote>
-                    During <code>npm install</code>, a post-install script runs
-                    to finalize setup automatically.
-                </blockquote>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- PROJECT STRUCTURE                       -->
-            <!-- ======================================== -->
-            <section id="project-structure" class="max-width">
-                <h2>
-                    <i class="bi bi-folder2-open"></i>
-                    <span>Project Structure</span>
-                </h2>
-
-                <pre><code>my-site/
-├── dist/              # Output folder (generated)
-├── public/            # Static assets
-├── src/               # HTML, CSS, JS, TS files
-├── minimaz.config.json
-├── package.json       # Optional (if npm init used)
-├── .gitignore
-└── ...</code></pre>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- CONFIGURATION                           -->
-            <!-- ======================================== -->
-            <section id="configuration" class="max-width">
-                <h2>
-                    <i class="bi bi-sliders"></i>
-                    <span>Configuration</span>
-                </h2>
-
-                <pre><code>{
-    "input": {
-        "dir": "./src",
-        "mapping": {
-            "pages": "",
-            "public": ""
-        },
-        "externals": {
-            "node_modules/bootstrap-icons/font/fonts": "public/fonts"
-        },
-        "exclude": []
-    },
-    "output": {
-        "dir": "./dist",
-        "replace": {
-            "../public/": "/public/"
-        },
-        "css": {
-            "bundling": true,
-            "minify": true
-        },
-        "js": {
-            "bundling": false,
-            "minify": true
-        },
-        "html": {
-            "minify": true
-        }
-    }
-}</code></pre>
-
-                <ul>
-                    <li>
-                        <strong>input.externals</strong> → Include library
-                        assets without copying them into <code>src</code>
-                    </li>
-                    <li>
-                        <strong>output.replace</strong> → Define asset path
-                        replacements for the build
-                    </li>
-                    <li>
-                        <strong>bundling</strong> → Inlines CSS
-                        <code>@import</code> rules into a single file (JS
-                        bundling is not supported yet)
-                    </li>
-                </ul>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- COMMANDS                                -->
-            <!-- ======================================== -->
-            <!-- ======================================== -->
-            <!-- COMMANDS                                 -->
-            <!-- ======================================== -->
-            <section id="commands" class="max-width">
-                <h2>
-                    <i class="bi bi-command"></i>
-                    <span>Commands</span>
-                </h2>
-
-                <div class="command-group">
-                    <h3>Build & Maintenance</h3>
-                    <pre><code># Build and minify the project
-minimaz build (mz b)
-
-# Delete the dist folder
-minimaz clear (mz c)
-
-# Validate HTML, CSS, JS, TS, and JSON files
-minimaz validate --path=/path/to/file</code></pre>
-                </div>
-
-                <div class="command-group">
-                    <h3>Project Initialization</h3>
-                    <pre><code># Initialize a new project
-minimaz init &lt;project-name&gt; [options] (mz i)
-
-Options:
-  -t, --template &lt;name&gt;    # Use specific template (default: 'default')
-  --npm                    # Init npm (creates package.json & runs install)
-  --git                    # Initialize git repository
-  --gitprovider &lt;provider&gt; # 'github', 'gitlab', or existing repo URL
-  --gitremote &lt;url&gt;        # Specify custom remote URL</code></pre>
-                </div>
-
-                <div class="command-group">
-                    <h3>Template Management</h3>
-                    <p class="small-text">
-                        Global templates are stored in
-                        <code>~/.minimaz/templates</code>
-                    </p>
-                    <pre><code># Save current folder as a new template
-minimaz template [folder-path] (mz t)
-
-# List all global templates
-minimaz template --list (-l)
-
-# Delete a template (asks for confirmation)
-minimaz template --delete &lt;name&gt; (-d)
-
-# Update templates from current folder or defaults
-minimaz template --update [name] (-u)</code></pre>
-                </div>
-
-                <div class="command-group">
-                    <h3>System & Help</h3>
-                    <pre><code># Setup or overwrite global settings
-minimaz config (mz config --overwrite)
-
-# Show help for a specific command
-minimaz help &lt;command&gt; (mz h build)
-
-# Show Minimaz CLI version
-minimaz version (mz v)</code></pre>
-                </div>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- FUTURE FEATURES / ROADMAP               -->
-            <!-- ======================================== -->
-            <section id="future-features" class="max-width">
-                <h2>
-                    <i class="bi bi-rocket-takeoff"></i>
-                    <span>Upcoming & Future Features</span>
-                </h2>
-
-                <p>
-                    Planned improvements and roadmap direction. Scope is
-                    intentionally controlled to preserve simplicity.
-                </p>
-
-                <div class="grid">
-                    <!-- ======================================== -->
-                    <!-- PACKAGE DISTRIBUTION                     -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>@minimaz Package Distribution</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>Publish Minimaz as an installable scoped package.</p>
-                        <pre><code>npm install -g @minimaz/cli</code></pre>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- TEMPLATE GIT INTEGRATION                 -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>Template Git Integration</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>
-                            Pull project templates directly from remote Git
-                            repositories.
-                        </p>
-                        <pre><code>minimaz template &lt;repo-url&gt;</code></pre>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- CONVERT COMMAND                          -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>minimaz convert</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>Convert and optimize assets (e.g. JPEG → WebP).</p>
-                        <pre><code>minimaz convert input.jpg --to webp</code></pre>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- ANALYZE COMMAND                          -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>minimaz analyze</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>
-                            Static analysis to detect build errors, broken
-                            links, duplicate IDs, and missing assets.
-                        </p>
-                        <pre><code>minimaz analyze</code></pre>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- OPTIMIZE COMMAND                         -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>minimaz optimize</h3>
-                            <span class="status status-research">Research</span>
-                        </header>
-                        <p>
-                            Extended optimization pipeline (HTML, CSS, JS,
-                            images). Scope under evaluation.
-                        </p>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- BLOCK SYSTEM                             -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>minimaz blocks</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>Inject reusable HTML blocks into files.</p>
-                        <pre><code>&lt;block src="header.html"&gt;&lt;/block&gt;</code></pre>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- TRANSLATE                                -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>minimaz translate</h3>
-                            <span class="status status-idea">Concept</span>
-                        </header>
-                        <p>
-                            Internationalization or content conversion system.
-                            Direction to be defined.
-                        </p>
-                    </article>
-
-                    <!-- ======================================== -->
-                    <!-- EXTENDED CSS SUPPORT                     -->
-                    <!-- ======================================== -->
-                    <article class="grid-item">
-                        <header>
-                            <h3>SCSS / Extended CSS Support</h3>
-                            <span class="status status-planned">Planned</span>
-                        </header>
-                        <p>
-                            Optional support for SCSS and other preprocessors.
-                        </p>
-                    </article>
-                </div>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- GLOBAL TEMPLATES                        -->
-            <!-- ======================================== -->
-            <section id="templates" class="max-width">
-                <h2>
-                    <i class="bi bi-collection-fill"></i>
-                    <span>Global Folder</span>
-                </h2>
-
-                <pre><code>~/.minimaz/templates</code></pre>
-
-                <p>
-                    Use templates to quickly initialize consistent projects
-                    across environments.
-                </p>
-            </section>
-
-            <!-- ======================================== -->
-            <!-- LINKS                                   -->
-            <!-- ======================================== -->
-            <section id="links" class="max-width">
-                <h2>
-                    <i class="bi bi-link-45deg"></i>
-                    <span>Links</span>
-                </h2>
-                <ul>
-                    <li>
-                        <a href="https://github.com/zeller-dev/minimaz-cli">
-                            GitHub Repository
-                        </a>
-                    </li>
-                    <li>
-                        <a href="https://www.npmjs.com/package/minimaz-cli">
-                            npm Package
-                        </a>
-                    </li>
-                </ul>
+            <section class="cards" aria-label="Where to start">
+                <article class="card">
+                    <h2>Pages</h2>
+                    <p>HTML files in <code>src/pages/</code> become the pages of the site.</p>
+                </article>
+                <article class="card">
+                    <h2>Styles</h2>
+                    <p><code>src/style.css</code> imports the partials in <code>src/styles/</code> and is bundled into one file.</p>
+                </article>
+                <article class="card">
+                    <h2>Scripts</h2>
+                    <p>TypeScript in <code>src/scripts/</code> is compiled to plain JavaScript.</p>
+                </article>
             </section>
         </main>
 
-        <!-- ======================================== -->
-        <!-- FOOTER                                   -->
-        <!-- ======================================== -->
         <footer class="site-footer">
-            <div class="footer-grid">
-                <!-- Brand -->
-                <div class="footer-col">
-                    <h3>Minimaz CLI</h3>
-                    <p>
-                        A minimal static site builder focused on speed,
-                        simplicity, and reproducible builds.
-                    </p>
-                </div>
-
-                <!-- Quick Links -->
-                <div class="footer-col">
-                    <h4>Resources</h4>
-                    <ul>
-                        <li>
-                            <a href="https://github.com/zeller-dev/minimaz-cli">
-                                GitHub
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://www.npmjs.com/package/minimaz-cli">
-                                npm Package
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Technical -->
-                <div class="footer-col">
-                    <h4>Technical</h4>
-                    <ul>
-                        <li>License: MIT</li>
-                        <li>Node.js CLI</li>
-                        <li>Zero heavy dependencies</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="footer-bottom">
-                <p>© 2026 MrZeller. Built with simplicity in mind.</p>
-            </div>
+            <p>Built with Minimaz.</p>
         </footer>
     </body>
 </html>
