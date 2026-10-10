@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Contact form – _SITE_NAME_</title>
+        <meta
+            name="description"
+            content="Send _SITE_NAME_ a message about your project."
+        />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <meta name="author" content="_SITE_NAME_" />
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <meta name="theme-color" content="#0f172a" />
+        <link rel="canonical" href="https://_DOMAIN_/form" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="sitemap" type="application/xml" href="https://_DOMAIN_/sitemap.xml" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="_SITE_NAME_" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:title" content="Contact form – _SITE_NAME_" />
+        <meta
+            property="og:description"
+            content="Send _SITE_NAME_ a message about your project."
+        />
+        <meta property="og:url" content="https://_DOMAIN_/form" />
+        <meta property="og:image" content="https://_DOMAIN_/og-cover.svg" />
+        <meta property="og:image:alt" content="_SITE_NAME_ logo on a dark background" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Contact form – _SITE_NAME_" />
+        <meta
+            name="twitter:description"
+            content="Send _SITE_NAME_ a message about your project."
+        />
+        <meta name="twitter:image" content="https://_DOMAIN_/og-cover.svg" />
+
+        <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+        <a class="skip-link" href="#main">Skip to content</a>
+
+        <header class="site-header">
+            <div class="container header-container">
+                <a class="brand" href="/" aria-label="_SITE_NAME_ – home">
+                    <img src="/logo.svg" alt="" width="32" height="32" />
+                    <span>_SITE_NAME_</span>
+                </a>
+                <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation" />
+                <label for="nav-toggle" class="nav-toggle-label">Menu</label>
+                <nav class="main-nav" aria-label="Main">
+                    <ul class="reset">
+                        <li><a href="/#services">Services</a></li>
+                        <li><a href="/#about">About</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/form" aria-current="page" class="btn primary">Get in touch</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <main id="main">
+            <section class="page-hero">
+                <div class="container">
+                    <h1>Tell us about your project</h1>
+                    <p class="lead">We reply within one working day.</p>
+                </div>
+            </section>
+            <section class="section">
+                <div class="container">
+                    <form id="contact-form" class="form" novalidate>
+                        <div class="field">
+                            <label for="name">Name</label>
+                            <input id="name" name="name" type="text" autocomplete="name" required />
+                            <p id="name-error" class="field-error" role="alert"></p>
+                        </div>
+                        <div class="field">
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email" autocomplete="email" required />
+                            <p id="email-error" class="field-error" role="alert"></p>
+                        </div>
+                        <div class="field">
+                            <label for="subject">Subject</label>
+                            <select id="subject" name="subject" required>
+                                <option value="">Choose…</option>
+                                <option value="web-development">Web development</option>
+                                <option value="consulting">Consulting</option>
+                                <option value="support">Support</option>
+                                <option value="other">Something else</option>
+                            </select>
+                            <p id="subject-error" class="field-error" role="alert"></p>
+                        </div>
+                        <div class="field">
+                            <label for="message">Message</label>
+                            <textarea id="message" name="message" required></textarea>
+                            <p id="message-error" class="field-error" role="alert"></p>
+                        </div>
+                        <div class="hp" aria-hidden="true">
+                            <label for="website">Leave this empty</label>
+                            <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+                        </div>
+                        <div class="field-check">
+                            <input id="privacy" name="privacy" type="checkbox" required />
+                            <label for="privacy">I have read the <a href="/legal/privacy">privacy policy</a>.</label>
+                        </div>
+                        <button id="submit-btn" class="btn primary" type="submit">Send message</button>
+                        <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+                    </form>
+                    <noscript>
+                        <p>
+                            This form needs JavaScript. Email us instead at
+                            <a href="mailto:hello@_DOMAIN_">hello@_DOMAIN_</a>.
+                        </p>
+                    </noscript>
+                </div>
+            </section>
+            <script type="module" src="/form.js"></script>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-container">
+                <div>
+                    <a class="brand" href="/">_SITE_NAME_</a>
+                    <p>Websites and web apps, built to last.</p>
+                </div>
+                <div>
+                    <h2 class="footer-title">Explore</h2>
+                    <ul class="reset footer-links">
+                        <li><a href="/#services">Services</a></li>
+                        <li><a href="/#about">About</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/form">Contact form</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2 class="footer-title">Legal</h2>
+                    <ul class="reset footer-links">
+                        <li><a href="/legal/privacy">Privacy</a></li>
+                        <li><a href="/legal/terms">Terms</a></li>
+                        <li><a href="/legal/cookie">Cookies</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="container footer-bottom">© 2026 _SITE_NAME_. All rights reserved.</div>
+        </footer>
+    </body>
+</html>

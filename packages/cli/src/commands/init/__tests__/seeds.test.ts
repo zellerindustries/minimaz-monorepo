@@ -217,6 +217,32 @@ describe('bundled seed templates', () => {
             const home = await readFile(path.join(dist, 'index.html'), 'utf8')
             expect(home).not.toContain('noindex')
         })
+
+        it('emits the form script and every module it imports', async () => {
+            const dir = await scaffold('default')
+            await build(dir)
+            const dist = path.join(dir, 'dist')
+
+            const form = await readFile(path.join(dist, 'form.js'), 'utf8')
+            const imports = [...form.matchAll(/from\s*["']\.\/([^"']+)["']/g)].map(
+                (m) => m[1] ?? '',
+            )
+            expect(imports.length).toBeGreaterThan(0)
+            for (const file of imports) {
+                expect(await pathExists(path.join(dist, file)), file).toBe(true)
+            }
+            const html = await readFile(path.join(dist, 'form.html'), 'utf8')
+            expect(html).toContain('type="module"')
+            expect(html).toContain('src="/form.js"')
+        })
+
+        it('keeps the honeypot and a no-script fallback in the form page', async () => {
+            const dir = await scaffold('default')
+            await build(dir)
+            const html = await readFile(path.join(dir, 'dist', 'form.html'), 'utf8')
+            expect(html).toContain('name="website"')
+            expect(html).toContain('<noscript>')
+        })
     })
 
     describe('docs', () => {
