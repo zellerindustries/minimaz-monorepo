@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/html",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "HTML minifier (via html-minifier-terser); re-exports @minimaz/validate's validateHtml.",
     "type": "module",
     "main": "./dist/index.js",
@@ -39,7 +39,7 @@
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/html#readme",
     "dependencies": {
         "html-minifier-terser": "7.2.0",
-        "@minimaz/validate": "^0.1.1"
+        "@minimaz/validate": "^0.1.2"
     },
     "devDependencies": {
         "@types/html-minifier-terser": "7.0.2"

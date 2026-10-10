@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/local-server",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Lightweight, dependency-free local HTTP server with live reload for serving a built site during development.",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "license": "MIT",
@@ -40,6 +40,6 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/local-server#readme",
     "dependencies": {
-        "@minimaz/logger": "^0.2.0"
+        "@minimaz/logger": "^0.2.1"
     }
 }

@@ -1,5 +1,12 @@
 # @minimaz/sitekit
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [`38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`, `38ce4e2`]:
+    - @minimaz/cli@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
