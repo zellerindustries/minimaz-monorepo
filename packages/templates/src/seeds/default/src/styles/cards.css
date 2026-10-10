@@ -1,0 +1,26 @@
+.card-grid {
+    display: grid;
+    gap: var(--space-md);
+    grid-template-columns: 1fr;
+}
+
+.card {
+    padding: var(--space-md);
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+}
+
+.card h3 {
+    font-size: var(--fs-md);
+}
+
+.card p:last-child {
+    margin-bottom: 0;
+}
+
+@media (min-width: 48rem) {
+    .card-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

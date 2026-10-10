@@ -1,0 +1,20 @@
+.hero {
+    padding-block: var(--space-xl);
+    background: linear-gradient(160deg, var(--clr-bg-main), var(--clr-bg-alt));
+}
+
+.hero-content {
+    max-width: 44rem;
+}
+
+.btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.page-hero {
+    padding-block: var(--space-lg);
+    background: var(--clr-bg-alt);
+}

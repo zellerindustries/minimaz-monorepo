@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Acme Studio">
+    <rect width="1200" height="630" fill="#0f172a" />
+    <rect x="80" y="215" width="200" height="200" rx="44" fill="#1d4ed8" />
+    <path d="M130 370 180 260l50 110h-22l-28-64-28 64z" fill="#ffffff" />
+    <text x="320" y="340" font-family="system-ui, Arial, sans-serif" font-size="96" font-weight="700" fill="#e5e7eb">Acme Studio</text>
+</svg>
