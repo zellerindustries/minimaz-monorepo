@@ -69,11 +69,15 @@
     display: inline-block;
 }
 
-.main-nav a[aria-current='page'] {
+.main-nav a:not(.btn)[aria-current='page'] {
     color: var(--clr-primary);
 }
 
 @media (min-width: 48rem) {
+    .nav-toggle {
+        display: none;
+    }
+
     .nav-toggle-label {
         display: none;
     }

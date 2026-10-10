@@ -20,12 +20,20 @@ function initForm(): void {
         message: sanitize(form.querySelector<HTMLTextAreaElement>('#message')?.value ?? ''),
     })
 
+    // Only fields the user has visited show errors, so one keystroke never lights up the whole form.
+    const touched = new Set<FieldName>()
+
     const showErrors = (errors: Partial<Record<FieldName, string>>): void => {
         for (const field of fieldNames) {
             const slot = form.querySelector<HTMLElement>(`#${field}-error`)
+            const message = touched.has(field) ? (errors[field] ?? '') : ''
             if (slot !== null) {
-                slot.textContent = errors[field] ?? ''
+                slot.textContent = message
             }
+            form.querySelector<HTMLElement>(`#${field}`)?.setAttribute(
+                'aria-invalid',
+                message === '' ? 'false' : 'true',
+            )
         }
     }
 
@@ -37,7 +45,20 @@ function initForm(): void {
     const revalidate = debounce(() => {
         showErrors(validateAll(read()))
     }, 300)
-    form.addEventListener('input', revalidate)
+    form.addEventListener('input', (event) => {
+        const id = (event.target as HTMLElement).id
+        if (fieldNames.includes(id as FieldName)) {
+            touched.add(id as FieldName)
+        }
+        revalidate()
+    })
+    form.addEventListener('focusout', (event) => {
+        const id = (event.target as HTMLElement).id
+        if (fieldNames.includes(id as FieldName)) {
+            touched.add(id as FieldName)
+            showErrors(validateAll(read()))
+        }
+    })
 
     form.addEventListener('submit', (event) => {
         event.preventDefault()
@@ -55,6 +76,9 @@ function initForm(): void {
 
         const data = read()
         const errors = validateAll(data)
+        for (const field of fieldNames) {
+            touched.add(field)
+        }
         showErrors(errors)
         if (Object.keys(errors).length > 0) {
             setStatus('error', 'Please fix the highlighted fields.')

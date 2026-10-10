@@ -243,6 +243,103 @@ describe('bundled seed templates', () => {
             expect(html).toContain('name="website"')
             expect(html).toContain('<noscript>')
         })
+
+        describe('review fixes', () => {
+            /** WCAG contrast ratio between two `#rrggbb` colours. */
+            function contrast(a: string, b: string): number {
+                const lum = (hex: string): number => {
+                    const channels = [1, 3, 5].map((i) => {
+                        const c = parseInt(hex.slice(i, i + 2), 16) / 255
+                        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+                    })
+                    return (
+                        0.2126 * (channels[0] ?? 0) +
+                        0.7152 * (channels[1] ?? 0) +
+                        0.0722 * (channels[2] ?? 0)
+                    )
+                }
+                const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+                return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05)
+            }
+
+            /** `--token: #hex` pairs declared in a stylesheet. */
+            function tokens(css: string): Record<string, string> {
+                const found: Record<string, string> = {}
+                for (const m of css.matchAll(/(--[a-z-]+):\s*(#[0-9a-f]{6})/gi)) {
+                    found[m[1] ?? ''] = m[2] ?? ''
+                }
+                return found
+            }
+
+            it('keeps colour pairs at WCAG AA in dark and light', async () => {
+                const dir = await scaffold('default')
+                const read = (f: string): Promise<string> =>
+                    readFile(path.join(dir, 'src', 'styles', f), 'utf8')
+                const dark = tokens(await read('root.css'))
+                const light = { ...dark, ...tokens(await read('prefers.css')) }
+
+                for (const [name, t] of [
+                    ['dark', dark],
+                    ['light', light],
+                ] as const) {
+                    const get = (k: string): string => t[k] ?? '#000000'
+                    expect(
+                        contrast('#ffffff', get('--clr-primary-cta')),
+                        `${name} cta`,
+                    ).toBeGreaterThanOrEqual(4.5)
+                    expect(
+                        contrast('#ffffff', get('--clr-primary-cta-hover')),
+                        `${name} cta hover`,
+                    ).toBeGreaterThanOrEqual(4.5)
+                    for (const bg of ['--clr-bg-main', '--clr-bg-alt', '--clr-surface']) {
+                        expect(
+                            contrast(get('--clr-primary'), get(bg)),
+                            `${name} link on ${bg}`,
+                        ).toBeGreaterThanOrEqual(4.5)
+                        expect(
+                            contrast(get('--clr-border-input'), get(bg)),
+                            `${name} input border on ${bg}`,
+                        ).toBeGreaterThanOrEqual(3)
+                    }
+                }
+            })
+
+            it('does not recolour the active nav button and hides the toggle on desktop', async () => {
+                const dir = await scaffold('default')
+                const header = await readFile(path.join(dir, 'src', 'styles', 'header.css'), 'utf8')
+                expect(header).toContain("a:not(.btn)[aria-current='page']")
+                expect(header).toMatch(
+                    /@media \(min-width: 48rem\)\s*\{[^@]*\.nav-toggle\s*\{\s*display:\s*none/,
+                )
+            })
+
+            it('reports form errors per touched field and links inputs to their error text', async () => {
+                const dir = await scaffold('default')
+                const script = await readFile(path.join(dir, 'src', 'scripts', 'form.ts'), 'utf8')
+                expect(script).toContain('aria-invalid')
+                expect(script).toContain('touched')
+                const html = await readFile(path.join(dir, 'src', 'pages', 'form.html'), 'utf8')
+                for (const field of ['name', 'email', 'subject', 'message']) {
+                    expect(html, field).toContain(`aria-describedby="${field}-error"`)
+                }
+            })
+
+            it('tells users which static files to edit with the config, without publishing the note', async () => {
+                const dir = await scaffold('default')
+                const readme = await readFile(path.join(dir, 'README.md'), 'utf8')
+                for (const file of [
+                    'robots.txt',
+                    'sitemap.xml',
+                    'llms.txt',
+                    'security.txt',
+                    'og-cover.svg',
+                ]) {
+                    expect(readme, file).toContain(file)
+                }
+                await build(dir)
+                expect(await pathExists(path.join(dir, 'dist', 'README.md'))).toBe(false)
+            })
+        })
     })
 
     describe('docs', () => {

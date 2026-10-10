@@ -72,17 +72,17 @@
                     <form id="contact-form" class="form" novalidate>
                         <div class="field">
                             <label for="name">Name</label>
-                            <input id="name" name="name" type="text" autocomplete="name" required />
+                            <input id="name" name="name" aria-describedby="name-error" type="text" autocomplete="name" required />
                             <p id="name-error" class="field-error" role="alert"></p>
                         </div>
                         <div class="field">
                             <label for="email">Email</label>
-                            <input id="email" name="email" type="email" autocomplete="email" required />
+                            <input id="email" name="email" aria-describedby="email-error" type="email" autocomplete="email" required />
                             <p id="email-error" class="field-error" role="alert"></p>
                         </div>
                         <div class="field">
                             <label for="subject">Subject</label>
-                            <select id="subject" name="subject" required>
+                            <select id="subject" name="subject" aria-describedby="subject-error" required>
                                 <option value="">Choose…</option>
                                 <option value="web-development">Web development</option>
                                 <option value="consulting">Consulting</option>
@@ -93,7 +93,7 @@
                         </div>
                         <div class="field">
                             <label for="message">Message</label>
-                            <textarea id="message" name="message" required></textarea>
+                            <textarea id="message" name="message" aria-describedby="message-error" required></textarea>
                             <p id="message-error" class="field-error" role="alert"></p>
                         </div>
                         <div class="hp" aria-hidden="true">
