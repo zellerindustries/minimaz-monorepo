@@ -166,6 +166,57 @@ describe('bundled seed templates', () => {
             await scan('src')
             expect(hits).toEqual([])
         })
+
+        const pages = [
+            'index.html',
+            'contact.html',
+            'form.html',
+            'services/web-development.html',
+            'services/consulting.html',
+            'services/support.html',
+            'legal/privacy.html',
+            'legal/terms.html',
+            'legal/cookie.html',
+            'error/index.html',
+        ]
+
+        it('emits every page and the page-local legal stylesheet', async () => {
+            const dir = await scaffold('default')
+            await build(dir)
+            const dist = path.join(dir, 'dist')
+
+            for (const page of pages.filter((p) => p !== 'form.html')) {
+                expect(await pathExists(path.join(dist, page)), page).toBe(true)
+            }
+            expect(await pathExists(path.join(dist, 'legal', 'legal.css'))).toBe(true)
+        })
+
+        it('lists exactly the indexable pages in sitemap.xml', async () => {
+            const dir = await scaffold('default')
+            await build(dir)
+            const dist = path.join(dir, 'dist')
+            const sitemap = await readFile(path.join(dist, 'sitemap.xml'), 'utf8')
+
+            const urls = [...sitemap.matchAll(/<loc>https:\/\/example\.com([^<]*)<\/loc>/g)].map(
+                (m) => m[1] ?? '',
+            )
+            for (const url of urls) {
+                expect(await resolves(dist, url), url).toBe(true)
+            }
+            const indexable = pages.filter((p) => p !== 'error/index.html')
+            expect(urls).toHaveLength(indexable.length)
+        })
+
+        it('marks the error page noindex and every other page indexable', async () => {
+            const dir = await scaffold('default')
+            await build(dir)
+            const dist = path.join(dir, 'dist')
+
+            const error = await readFile(path.join(dist, 'error', 'index.html'), 'utf8')
+            expect(error).toContain('noindex')
+            const home = await readFile(path.join(dist, 'index.html'), 'utf8')
+            expect(home).not.toContain('noindex')
+        })
     })
 
     describe('docs', () => {
