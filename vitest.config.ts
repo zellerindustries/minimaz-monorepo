@@ -36,6 +36,16 @@ function readPackageName(dir: string): string {
     return (JSON.parse(raw) as { name: string }).name
 }
 
+// Repo scripts aren't workspace packages, so they get their own project (run via `npm run test:scripts`).
+const scriptsProject = {
+    extends: true as const,
+    root: 'scripts',
+    test: {
+        name: 'scripts',
+        include: ['__tests__/**/*.test.mjs'],
+    },
+}
+
 // Inline project configs so each package inherits root `test` options (clearMocks, restoreMocks,
 // etc.) — a string glob entry does not: only `extends: true` inline configs inherit them.
 const packageProjects = workspaceDirs.flatMap((group) =>
@@ -52,7 +62,7 @@ export default defineConfig({
     test: {
         // 2. Vitest 3.2+ standard for monorepos (replaces vitest.workspace.ts); inline configs
         // (built above) instead of glob strings so root `test` options below reach each package.
-        projects: packageProjects,
+        projects: [...packageProjects, scriptsProject],
 
         passWithNoTests: true,
         // A bare `tsc -b` (npm run validate) emits compiled copies of the tests into dist/.
