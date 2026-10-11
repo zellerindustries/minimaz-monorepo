@@ -159,7 +159,8 @@ function contains(parent, child) {
  * @param {string} options.repo - `owner/name`, used for absolute GitHub URLs.
  * @param {(message: string) => void} [options.warn] - receives non-fatal problems.
  * @returns {Promise<{ pages: { name: string, title: string }[] }>} the pages written, Home first.
- * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root, one of its ancestors, or inside it.
+ * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root, one of its ancestors, or inside it,
+ *   or a non-empty directory without a `.git` entry (an empty or nonexistent one is fine).
  */
 export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undefined }) {
     const root = resolve(repoRoot)
@@ -167,6 +168,17 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
     if (contains(target, root) || contains(root, target)) {
         throw new Error(
             `Refusing to clear "${target}": it overlaps the repository root "${root}" (use a directory outside the repo)`,
+        )
+    }
+    const existing = await readdir(target).catch((error) => {
+        if (error?.code === 'ENOENT') {
+            return []
+        }
+        throw error
+    })
+    if (existing.length > 0 && !existing.includes('.git')) {
+        throw new Error(
+            `Refusing to clear "${target}": it is not empty and has no .git entry (use an empty directory or a clone of the wiki repo)`,
         )
     }
 

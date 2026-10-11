@@ -250,6 +250,29 @@ describe('buildWikiTree', () => {
         },
     )
 
+    it('refuses a non-empty output dir without .git and keeps its files', async () => {
+        const stray = join(root, 'stray')
+        await mkdir(stray)
+        await writeFile(join(stray, 'keep.txt'), 'precious')
+        await expect(buildWikiTree({ repoRoot, outDir: stray, repo: 'o/r' })).rejects.toThrow(
+            /Refusing/,
+        )
+        expect(await readFile(join(stray, 'keep.txt'), 'utf8')).toBe('precious')
+    })
+
+    it('accepts an existing empty output dir', async () => {
+        const empty = join(root, 'empty')
+        await mkdir(empty)
+        await buildWikiTree({ repoRoot, outDir: empty, repo: 'o/r' })
+        expect((await readdir(empty)).sort()).toEqual(['Home.md', '_Sidebar.md', 'architecture.md'])
+    })
+
+    it('accepts a nonexistent output dir', async () => {
+        const fresh = join(root, 'fresh', 'wiki')
+        await buildWikiTree({ repoRoot, outDir: fresh, repo: 'o/r' })
+        expect((await readdir(fresh)).sort()).toEqual(['Home.md', '_Sidebar.md', 'architecture.md'])
+    })
+
     it('reports unresolvable links through warn without failing', async () => {
         await writeFile(
             join(repoRoot, 'docs', 'architecture.md'),
