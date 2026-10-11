@@ -1,4 +1,8 @@
-import { posix } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { statSync } from 'node:fs'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { dirname, join, posix, resolve, sep } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // Builds the GitHub wiki tree from docs/. Run from the workflow: `node scripts/wiki-sync.mjs <outDir>`.
 //
@@ -110,4 +114,125 @@ export function rewriteLinks(markdown, options) {
             })
         })
         .join('\n')
+}
+
+/**
+ * Builds a `kindOf` lookup that stats paths relative to the repository root.
+ * @param {string} repoRoot - absolute repository root.
+ * @returns {(repoPath: string) => 'file' | 'dir' | null} `null` when the path doesn't exist.
+ */
+function makeKindOf(repoRoot) {
+    return (repoPath) => {
+        try {
+            return statSync(join(repoRoot, repoPath)).isDirectory() ? 'dir' : 'file'
+        } catch {
+            return null
+        }
+    }
+}
+
+/**
+ * Builds the wiki tree from docs/ into `outDir`, replacing its previous contents (except `.git`).
+ * @param {object} options
+ * @param {string} options.repoRoot - absolute repository root containing docs/.
+ * @param {string} options.outDir - directory to write the wiki into (normally a clone of the wiki repo).
+ * @param {string} options.repo - `owner/name`, used for absolute GitHub URLs.
+ * @param {(message: string) => void} [options.warn] - receives non-fatal problems.
+ * @returns {Promise<{ pages: { name: string, title: string }[] }>} the pages written, Home first.
+ * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root or one of its ancestors.
+ */
+export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undefined }) {
+    const root = resolve(repoRoot)
+    const target = resolve(outDir)
+    if (root === target || root.startsWith(target + sep)) {
+        throw new Error(`Refusing to clear "${target}": it is the repository root or contains it`)
+    }
+
+    const docsDir = join(root, 'docs')
+    let entries
+    try {
+        entries = await readdir(docsDir, { withFileTypes: true })
+    } catch (error) {
+        throw new Error(`Cannot read ${docsDir}`, { cause: error })
+    }
+    const files = entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+        .map((entry) => entry.name)
+        .sort()
+    if (!files.includes('README.md')) {
+        throw new Error('docs/README.md is required: it becomes the wiki Home page')
+    }
+
+    await mkdir(target, { recursive: true })
+    for (const entry of await readdir(target)) {
+        if (entry !== '.git') {
+            await rm(join(target, entry), { recursive: true, force: true })
+        }
+    }
+
+    const docsPages = new Set(files)
+    const kindOf = makeKindOf(root)
+    const pages = []
+    for (const file of files) {
+        const source = await readFile(join(docsDir, file), 'utf8')
+        const name = pageName(file)
+        const rewritten = rewriteLinks(source, {
+            sourceFile: `docs/${file}`,
+            docsPages,
+            repo,
+            kindOf,
+            warn,
+        })
+        await writeFile(join(target, `${name}.md`), rewritten)
+        pages.push({ name, title: /^#\s+(.+)$/m.exec(source)?.[1].trim() ?? name })
+    }
+
+    pages.sort((a, b) => {
+        if (a.name === 'Home' || b.name === 'Home') {
+            return a.name === 'Home' ? -1 : 1
+        }
+        return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1
+    })
+    const sidebar = pages.map((page) => `- [${page.title}](${page.name})`).join('\n')
+    await writeFile(join(target, '_Sidebar.md'), `${sidebar}\n`)
+
+    return { pages }
+}
+
+/**
+ * Resolves `owner/name` from the Actions environment, falling back to the `origin` remote.
+ * @param {string} repoRoot - repository root used as the git working directory.
+ * @returns {string} `owner/name`.
+ */
+function resolveRepo(repoRoot) {
+    const fromEnv = process.env.GITHUB_REPOSITORY
+    if (fromEnv) {
+        return fromEnv
+    }
+    return parseRepo(
+        execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: repoRoot, encoding: 'utf8' }),
+    )
+}
+
+async function main() {
+    const outArg = process.argv[2]
+    if (!outArg) {
+        throw new Error('Usage: node scripts/wiki-sync.mjs <outDir>')
+    }
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+    const outDir = resolve(outArg)
+    const { pages } = await buildWikiTree({
+        repoRoot,
+        outDir,
+        repo: resolveRepo(repoRoot),
+        warn: (message) => console.warn(`warning: ${message}`),
+    })
+    console.log(`Wrote ${pages.length} wiki pages to ${outDir}`)
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+    main().catch((error) => {
+        console.error(error instanceof Error ? error.message : String(error))
+        process.exitCode = 1
+    })
 }
