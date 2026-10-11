@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/bundler",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Zero-dependency relative-import module graph resolver for Minimaz's build command.",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "license": "MIT",

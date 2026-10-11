@@ -1,0 +1,6 @@
+{
+    "docs": {
+        "input": { "dir": "docs" },
+        "output": { "bundle": false, "formats": ["html"] }
+    }
+}

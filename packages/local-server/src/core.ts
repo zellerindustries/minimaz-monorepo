@@ -76,6 +76,20 @@ function applyCacheHeaders(req: IncomingMessage, res: ServerResponse, etag: stri
 }
 
 /**
+ * Writes a `301` to `location`, carrying over `req`'s query string.
+ *
+ * @param {IncomingMessage} req - The incoming request
+ * @param {ServerResponse} res - The response to write to
+ * @param {string} location - The already percent-encoded redirect pathname
+ * @returns {void}
+ */
+function writeRedirect(req: IncomingMessage, res: ServerResponse, location: string): void {
+    const search = new URL(req.url ?? '/', 'http://localhost').search
+    res.writeHead(301, { location: `${location}${search}` })
+    res.end()
+}
+
+/**
  * Handles a single HTTP request: routes the live-reload SSE endpoint, then
  * falls back to request resolution and serving (a file, a directory
  * listing, or a 403/404).
@@ -139,11 +153,14 @@ async function handleRequest(
         return
     }
 
+    if (resolution.kind === 'redirect') {
+        writeRedirect(req, res, resolution.location)
+        return
+    }
+
     if (resolution.kind === 'listing') {
         if (resolution.redirectTo !== undefined) {
-            const search = new URL(req.url ?? '/', 'http://localhost').search
-            res.writeHead(301, { location: `${resolution.redirectTo}${search}` })
-            res.end()
+            writeRedirect(req, res, resolution.redirectTo)
             return
         }
 

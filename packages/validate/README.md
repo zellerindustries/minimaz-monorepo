@@ -28,8 +28,8 @@ none of them return a false-success result or swallow errors internally.
 - `validateCss(code)` / `CssValidationError`
 - `validateHtml(code)` / `HtmlValidationError` — zero-dep tag-balance structural check. The contents of
   `<script>`, `<style>`, `<textarea>` and `<title>` are treated as text, so a `<` inside them is never read as a
-  tag.
-- `validateJs(code)` / `JsValidationError`
+  tag. HTML5 optional end tags (`li`, `p`, `td`, `option`, …) are closed implicitly, not reported as unclosed.
+- `validateJs(code)` / `JsValidationError` — parses as JavaScript only, so TypeScript-only syntax is rejected.
 - `validateTs(code, options?: { jsx?: boolean })` / `TsValidationError` — via `typescript`'s parser diagnostics.
 - `validateJson(code)` / `JsonValidationError` — via `JSON.parse`.
 

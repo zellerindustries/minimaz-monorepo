@@ -26,7 +26,7 @@ export default defineConfig(
             '**/.vitest/**',
             '**/.tmp/**',
             '**/tmp/**',
-            '**/src/seeds/**', // Vendored templates
+            '**/src/seeds/**', // seed templates (user-facing content, not formatted or linted)
         ],
     },
 

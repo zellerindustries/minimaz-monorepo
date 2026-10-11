@@ -1,7 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { log } from '@minimaz/logger'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
     deleteTemplate,
     getGlobalDir,
@@ -66,7 +67,7 @@ describe('seedDefaults', () => {
         await rm(globalDir, { recursive: true, force: true })
     })
 
-    it('seeds both default templates and settings.json on first run', async () => {
+    it('seeds every bundled template and settings.json on first run', async () => {
         await seedDefaults(globalDir, templatesDir)
 
         const defaultMarker = await readFile(
@@ -81,10 +82,26 @@ describe('seedDefaults', () => {
         )
         expect(simpleMarker.length).toBeGreaterThan(0)
 
+        const docsConfig = JSON.parse(
+            await readFile(path.join(templatesDir, 'docs', 'minimaz.config.json'), 'utf8'),
+        ) as { docs: { input: { dir: string } } }
+        expect(docsConfig.docs.input.dir).toBe('docs')
+
         const settings = JSON.parse(
             await readFile(path.join(globalDir, 'settings.json'), 'utf8'),
         ) as Settings
         expect(settings.templatesPath).toBe(templatesDir)
+    })
+
+    it('seeds a default template config that leaves unsupported js bundling disabled', async () => {
+        await seedDefaults(globalDir, templatesDir)
+
+        const config = JSON.parse(
+            await readFile(path.join(templatesDir, 'default', 'minimaz.config.json'), 'utf8'),
+        ) as { output: { js?: { bundling?: boolean } } }
+        // build throws a KnownError for output.js.bundling: true, and init keeps
+        // a template's own config, so the seed must not enable it.
+        expect(config.output.js?.bundling ?? false).toBe(false)
     })
 
     it('does not overwrite an existing template when overwrite is false', async () => {
@@ -143,6 +160,63 @@ describe('writeSettings', () => {
         const settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Settings
         expect(settings.createdAt).toBe('2020-01-01T00:00:00.000Z')
         expect(settings.templatesPath).toBe(path.join(globalDir, 'templates'))
+    })
+
+    describe('npmGlobalPath', () => {
+        const realPlatform = process.platform
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', { value: realPlatform })
+            vi.unstubAllEnvs()
+            vi.restoreAllMocks()
+        })
+
+        async function readWritten(): Promise<Settings> {
+            return JSON.parse(
+                await readFile(path.join(globalDir, 'settings.json'), 'utf8'),
+            ) as Settings
+        }
+
+        it('omits the key on win32 when neither npm_config_prefix nor APPDATA is set', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' })
+            vi.stubEnv('npm_config_prefix', '')
+            vi.stubEnv('APPDATA', '')
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            expect('npmGlobalPath' in settings).toBe(false)
+        })
+
+        it('points at node_modules/@minimaz/sitekit', async () => {
+            vi.stubEnv('npm_config_prefix', path.resolve('/fake/prefix'))
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            const written = settings.npmGlobalPath ?? ''
+            expect(written.replaceAll('\\', '/').endsWith('node_modules/@minimaz/sitekit')).toBe(
+                true,
+            )
+            expect(path.isAbsolute(written)).toBe(true)
+        })
+
+        it('does not warn about a missing npmGlobalPath in an existing settings file', async () => {
+            const settingsPath = path.join(globalDir, 'settings.json')
+            await writeFile(
+                settingsPath,
+                JSON.stringify({
+                    createdAt: '2020-01-01T00:00:00.000Z',
+                    templatesPath: path.join(globalDir, 'templates'),
+                }),
+            )
+            const warn = vi.spyOn(log, 'warn')
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const messages = warn.mock.calls.map((call) => String(call[0]))
+            expect(messages.some((m) => m.includes('npmGlobalPath'))).toBe(false)
+        })
     })
 
     it('overwrites entirely when overwrite is true', async () => {

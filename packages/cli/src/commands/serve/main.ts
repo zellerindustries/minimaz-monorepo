@@ -30,7 +30,7 @@ export interface ServeCommandOptions {
 export async function serve(cwdArg: string, options: ServeCommandOptions = {}): Promise<void> {
     const keepAlive = options.keepAlive ?? true
     const cwd = resolve(cwdArg)
-    const config = await loadConfig(cwd)
+    const config = await loadConfig(cwd, { initCommand: 'minimaz init' })
     const outDirPath = resolve(cwd, config.output.dir)
 
     if (!(await pathExists(outDirPath))) {

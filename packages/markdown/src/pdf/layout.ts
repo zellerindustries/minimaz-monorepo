@@ -137,10 +137,14 @@ export class LayoutEngine {
     /**
      * Flushes the in-progress page's ops into `pages`. Must be called once after the last
      * add* call, since pages are otherwise only pushed lazily when a new one starts.
+     * An empty in-progress page is dropped (a trailing gap can overflow into a fresh
+     * page with nothing on it), unless it would be the document's only page.
      *
      * @returns {void}
      */
     finish(): void {
-        this.pages.push({ ops: this.currentOps })
+        if (this.currentOps.length > 0 || this.pages.length === 0) {
+            this.pages.push({ ops: this.currentOps })
+        }
     }
 }

@@ -39,6 +39,7 @@ Each line is tagged with the logger's context (`[build]`). With `VERBOSE=true` i
 - `KnownError` — marker base class for anticipated failures (bad input, a missing file, a failed validation), as
   opposed to bugs. Extend it for a package's own error types.
 - `handleCliError(error)` — top-level handler for CLI entry points. Logs a `KnownError` as a plain message; logs
-  anything else with its stack trace and a bug-report hint. Also logs each entry of an `errors: string[]` detail
+  anything else with a bug-report hint, plus its stack trace only in verbose mode (the CLI's `--verbose`) or with
+  `DEBUG=true` (otherwise a hint on how to get it). Also logs each entry of an `errors: string[]` detail
   array when the error carries one, and sets `process.exitCode = 1`.
 - `LogType` — the log-level union type.

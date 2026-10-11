@@ -39,7 +39,7 @@ const names = await listTemplates(templatesDir)
   defaults.
 - `writeSettings(...)` — creates/patches `~/.minimaz/settings.json`, adding missing keys and warning on unknown
   ones without auto-removing anything.
-- `seedDefaults(...)` — copies the bundled `default`/`simple` templates into `~/.minimaz/templates`.
+- `seedDefaults(...)` — copies the bundled `default` (a multi-page starter site), `simple` (a blank page) and `docs` (Markdown) templates into `~/.minimaz/templates`.
 - `TemplateNotFoundError`, `InvalidTemplateNameError`.
 
 Depends on [`@minimaz/core`](../core) and [`@minimaz/logger`](../logger).

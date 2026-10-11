@@ -2,11 +2,13 @@ import type { CommandHelp } from './types.js'
 
 export const commandsHelp: Record<string, CommandHelp> = {
     help: {
-        usage: 'minimaz help | h',
+        usage: 'minimaz help [command]',
+        aliases: ['h'],
         description: 'Show this help message',
     },
     version: {
-        usage: 'minimaz version | v',
+        usage: 'minimaz version',
+        aliases: ['v'],
         description: 'Show Minimaz version',
     },
     validate: {
@@ -18,6 +20,7 @@ export const commandsHelp: Record<string, CommandHelp> = {
     },
     init: {
         usage: 'minimaz init [name] [--template=<name>] [--npm] [--git] [--gitprovider=<provider>]',
+        aliases: ['i'],
         description: 'Scaffold a new project from a template',
         options: {
             '--template <name>': 'Template to scaffold from (default: "default")',
@@ -36,6 +39,7 @@ export const commandsHelp: Record<string, CommandHelp> = {
     },
     template: {
         usage: 'minimaz template [path] [--list] [--delete=<name>] [--update[=<name>]]',
+        aliases: ['t'],
         description: 'Manage global templates: save, list, delete, or update',
         options: {
             '--list': 'List available global templates',
@@ -50,10 +54,12 @@ export const commandsHelp: Record<string, CommandHelp> = {
     },
     build: {
         usage: 'minimaz build',
+        aliases: ['b'],
         description: 'Build the project into the configured output directory',
     },
     clear: {
         usage: 'minimaz clear',
+        aliases: ['c'],
         description: 'Remove the configured build output directory',
     },
     serve: {

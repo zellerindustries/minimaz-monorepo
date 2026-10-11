@@ -26,6 +26,10 @@ describe('serve', () => {
         await rm(cwd, { recursive: true, force: true })
     })
 
+    it('hints at "minimaz init" (not "docs init") when the config file is missing', async () => {
+        await expect(serve(cwd)).rejects.toThrow('Run "minimaz init" first.')
+    })
+
     it('throws a KnownError pointing at "minimaz build" when output.dir does not exist', async () => {
         await writeFile(
             path.join(cwd, configFileName),

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { configFileName, defaultConfig } from '@minimaz/config'
-import { log } from '@minimaz/logger'
+import { KnownError, log } from '@minimaz/logger'
 import { buildDocs } from './core.js'
 
 export { buildDocs }
@@ -28,11 +28,11 @@ export async function docsInit(cwd: string): Promise<void> {
  *
  * @param {unknown} subArg - `args._[1]` from `parseArgs`
  * @returns {'init' | 'build'}
- * @throws {Error} If `subArg` isn't "init" or "build"
+ * @throws {KnownError} If `subArg` isn't "init" or "build"
  */
 export function resolveDocsCommand(subArg: unknown): 'init' | 'build' {
     if (subArg === 'init' || subArg === 'build') {
         return subArg
     }
-    throw new Error('Usage: minimaz docs <init|build>')
+    throw new KnownError('Usage: minimaz docs <init|build>')
 }

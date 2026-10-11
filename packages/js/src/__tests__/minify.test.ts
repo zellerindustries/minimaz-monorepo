@@ -54,6 +54,31 @@ describe('minifyJs', () => {
         expect(minifyJs('const n = 0x1F + 1e-3 + 10n')).toBe('const n = 0x1F + 1e-3 + 10n')
     })
 
+    it('keeps a multi-line template literal byte-identical (indents, blank lines)', () => {
+        const src = 'const s = `\n  <ul>\n\n\n    <li>x</li>\n  </ul>  \n`;'
+        expect(minifyJs(src)).toBe(src)
+    })
+
+    it('keeps a nested template literal inside ${} byte-identical', () => {
+        const src = 'const s = `a ${ `nested\n  literal\n\n\n  end` } b\n   c`'
+        expect(minifyJs(src)).toBe(src)
+    })
+
+    it('keeps a backslash-continued string byte-identical', () => {
+        const src = "const s = 'one \\\n    two \\\n\n\n   three'"
+        expect(minifyJs(src)).toBe(src)
+    })
+
+    it('still trims and collapses code around literals', () => {
+        const out = minifyJs('  const a = 1\n\n\n\n    const s = `x\n  y`\n\n\n  foo()  \n')
+        expect(out).toBe('const a = 1\n\nconst s = `x\n  y`\n\nfoo()')
+    })
+
+    it('is not confused by backticks/quotes in comments and regex literals', () => {
+        const src = "// `\n/* ' */\nconst r = /`'\"/g\nconst s = `a\n   b`"
+        expect(minifyJs(src)).toBe('const r = /`\'"/g\nconst s = `a\n   b`')
+    })
+
     it('rejects a non-string input', () => {
         expect(() => minifyJs(null as unknown as string)).toThrow('minifyJs: code must be a string')
     })

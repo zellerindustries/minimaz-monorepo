@@ -1,3 +1,4 @@
+import { isVerbose } from './core.js'
 import { log } from './main.js'
 
 /**
@@ -11,7 +12,9 @@ export class KnownError extends Error {}
 /**
  * Top-level CLI error handler. Classifies `error` as known (anticipated)
  * or unexpected, logs it accordingly through this package's `log`, and sets
- * `process.exitCode = 1`.
+ * `process.exitCode = 1`. An unexpected error's stack trace is shown only in
+ * verbose mode (the CLI's `--verbose`) or with `DEBUG=true`; otherwise a hint
+ * on how to get it is logged instead.
  *
  * @param {unknown} error - The value caught at a CLI entry point's
  *   top-level try/catch
@@ -26,9 +29,12 @@ export function handleCliError(error: unknown): void {
     }
 
     const bugHint = 'This looks like a bug — please report it.'
+    const showStack = isVerbose() || process.env['DEBUG'] === 'true'
+    const stackHint = 'Re-run with --verbose (or DEBUG=true) for a stack trace.'
 
     if (error instanceof Error) {
-        log.error([error.stack ?? error.message, bugHint])
+        const message = showStack ? (error.stack ?? error.message) : error.message
+        log.error(showStack ? [message, bugHint] : [message, bugHint, stackHint])
         logErrorDetails(error)
     } else {
         log.error([String(error), bugHint])

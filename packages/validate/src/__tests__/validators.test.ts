@@ -88,6 +88,20 @@ describe('validateJs', () => {
         expect(error).toBeInstanceOf(JsValidationError)
         expect((error as JsValidationError).errors).toContain('Variable declaration expected.')
     })
+
+    it('rejects TypeScript-only syntax', () => {
+        expect(() => {
+            validateJs('const x: number = 1')
+        }).toThrow(JsValidationError)
+    })
+
+    it('accepts modern JavaScript', () => {
+        expect(() => {
+            validateJs(
+                'import a from "b"\nawait a()\nclass C { x = 1; #y = 2 }\nconst z = a?.b ?? 1\nexport { C, z }',
+            )
+        }).not.toThrow()
+    })
 })
 
 describe('validateTs', () => {

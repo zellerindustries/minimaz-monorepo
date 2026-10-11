@@ -1,0 +1,8 @@
+.legal {
+    max-width: 44rem;
+}
+
+.legal h2 {
+    margin-top: var(--space-md);
+    font-size: var(--fs-md);
+}

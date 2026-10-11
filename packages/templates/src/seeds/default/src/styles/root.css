@@ -1,0 +1,52 @@
+/* Design tokens. Change the palette here; every component reads these. */
+:root {
+    color-scheme: dark;
+
+    --ratio: 1.618;
+
+    /* Colours: ~60% background, ~30% surface, ~10% accent */
+    --clr-primary: #60a5fa;
+    --clr-primary-hover: #93c5fd;
+    --clr-primary-cta: #1d4ed8; /* behind white text */
+    --clr-primary-cta-hover: #1e40af;
+    --clr-bg-main: #0f172a;
+    --clr-bg-alt: #1e293b;
+    --clr-surface: #111827;
+    --clr-surface-hover: #1f2937;
+    --clr-text-main: #e5e7eb;
+    --clr-text-muted: #aab4c3;
+    --clr-text-inverse: #ffffff;
+    --clr-error: #f87171;
+    --clr-success: #4ade80;
+    --clr-border: rgba(255, 255, 255, 0.14);
+    --clr-border-input: #94a3b8; /* form controls need 3:1 against their background */
+
+    --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: var(--font-body);
+    --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    --font-weight-regular: 400;
+    --font-weight-bold: 700;
+
+    /* Type scale (fluid, golden ratio) */
+    --fs-base: clamp(0.95rem, 0.9rem + 0.4vw, 1.1rem);
+    --fs-sm: max(0.875rem, calc(var(--fs-base) / var(--ratio)));
+    --fs-md: var(--fs-base);
+    --fs-lg: calc(var(--fs-base) * var(--ratio));
+    --fs-xl: calc(var(--fs-base) * var(--ratio) * var(--ratio));
+
+    /* Spacing scale (fluid, golden ratio) */
+    --space-base: clamp(0.75rem, 0.6rem + 0.5vw, 1rem);
+    --space-xs: calc(var(--space-base) / var(--ratio));
+    --space-sm: var(--space-base);
+    --space-md: calc(var(--space-base) * var(--ratio));
+    --space-lg: calc(var(--space-base) * var(--ratio) * var(--ratio));
+    --space-xl: calc(var(--space-base) * var(--ratio) * var(--ratio) * var(--ratio));
+
+    --radius-sm: 8px;
+    --radius-md: 20px;
+
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --t-fast: 0.2s var(--ease);
+
+    --content-max-width: 72rem;
+}

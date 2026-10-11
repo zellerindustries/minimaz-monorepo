@@ -25,10 +25,14 @@ export function validateJs(code: string): void {
         throw new JsValidationError(['code must be a string'])
     }
 
+    // A .js fileName makes the parser treat the input as JavaScript, so TS-only
+    // syntax (type annotations, interfaces) is reported; the default .ts name accepts it.
     const result = ts.transpileModule(code, {
+        fileName: 'input.js',
         compilerOptions: {
             target: ts.ScriptTarget.ES2022,
             module: ts.ModuleKind.ESNext,
+            allowJs: true,
         },
         reportDiagnostics: true,
     })

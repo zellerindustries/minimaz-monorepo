@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/templates",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Manages the global ~/.minimaz directory: settings and template storage.",
     "type": "module",
     "main": "./dist/index.js",
@@ -38,7 +38,7 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/templates#readme",
     "dependencies": {
-        "@minimaz/core": "^0.2.0",
-        "@minimaz/logger": "^0.2.0"
+        "@minimaz/core": "^0.3.0",
+        "@minimaz/logger": "^0.2.1"
     }
 }

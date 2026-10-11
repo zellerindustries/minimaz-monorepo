@@ -25,3 +25,19 @@ export interface CssBundleResult {
  * and reading the same `@import` graph from disk twice per entry.
  */
 export type CssBundleCache = Map<string, CssBundleResult>
+
+/**
+ * Renames a directory, `fs.promises.rename`-shaped. Injectable so tests can
+ * simulate Windows' transient EPERM/EACCES/EBUSY rename failures.
+ */
+export type RenameDir = (from: string, to: string) => Promise<void>
+
+/**
+ * Options for `replaceOutDir`.
+ */
+export interface ReplaceOutDirOptions {
+    /** Rename implementation (default: `fs.promises.rename`) */
+    renameDir?: RenameDir
+    /** Base backoff between retries of a transiently failing rename, in ms (default: 100) */
+    retryDelayMs?: number
+}
