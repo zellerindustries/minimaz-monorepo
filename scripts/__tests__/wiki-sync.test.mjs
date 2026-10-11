@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, parse } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildWikiTree, pageName, parseRepo, rewriteLinks } from '../wiki-sync.mjs'
 
@@ -215,6 +215,40 @@ describe('buildWikiTree', () => {
             '# Architecture\n',
         )
     })
+
+    it('refuses an output dir inside the repo and keeps tracked files', async () => {
+        await mkdir(join(repoRoot, 'scripts'), { recursive: true })
+        await expect(
+            buildWikiTree({ repoRoot, outDir: join(repoRoot, 'docs'), repo: 'o/r' }),
+        ).rejects.toThrow(/Refusing/)
+        await expect(
+            buildWikiTree({ repoRoot, outDir: join(repoRoot, 'scripts'), repo: 'o/r' }),
+        ).rejects.toThrow(/Refusing/)
+        expect(await readFile(join(repoRoot, 'docs', 'architecture.md'), 'utf8')).toBe(
+            '# Architecture\n',
+        )
+    })
+
+    it('refuses the filesystem root and keeps tracked files', async () => {
+        await expect(
+            buildWikiTree({ repoRoot, outDir: parse(repoRoot).root, repo: 'o/r' }),
+        ).rejects.toThrow(/Refusing/)
+        expect(await readFile(join(repoRoot, 'docs', 'architecture.md'), 'utf8')).toBe(
+            '# Architecture\n',
+        )
+    })
+
+    it.runIf(process.platform === 'win32' || process.platform === 'darwin')(
+        'refuses the repo root when its case differs',
+        async () => {
+            await expect(
+                buildWikiTree({ repoRoot, outDir: repoRoot.toUpperCase(), repo: 'o/r' }),
+            ).rejects.toThrow(/Refusing/)
+            expect(await readFile(join(repoRoot, 'docs', 'architecture.md'), 'utf8')).toBe(
+                '# Architecture\n',
+            )
+        },
+    )
 
     it('reports unresolvable links through warn without failing', async () => {
         await writeFile(

@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { statSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join, posix, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // Builds the GitHub wiki tree from docs/. Run from the workflow: `node scripts/wiki-sync.mjs <outDir>`.
@@ -132,6 +132,26 @@ function makeKindOf(repoRoot) {
 }
 
 /**
+ * Lower-cases a path on case-insensitive filesystems, so `C:\DEV` and `c:\dev` compare as the same path.
+ * @param {string} path - absolute path.
+ * @returns {string} the path, lower-cased where the platform's filesystem ignores case.
+ */
+function normalizeCase(path) {
+    return process.platform === 'win32' || process.platform === 'darwin' ? path.toLowerCase() : path
+}
+
+/**
+ * Tells whether `child` is `parent` itself or lies inside it.
+ * @param {string} parent - absolute path.
+ * @param {string} child - absolute path.
+ * @returns {boolean} true when `child` is `parent` or one of its descendants.
+ */
+function contains(parent, child) {
+    const rel = relative(normalizeCase(parent), normalizeCase(child))
+    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+}
+
+/**
  * Builds the wiki tree from docs/ into `outDir`, replacing its previous contents (except `.git`).
  * @param {object} options
  * @param {string} options.repoRoot - absolute repository root containing docs/.
@@ -139,13 +159,15 @@ function makeKindOf(repoRoot) {
  * @param {string} options.repo - `owner/name`, used for absolute GitHub URLs.
  * @param {(message: string) => void} [options.warn] - receives non-fatal problems.
  * @returns {Promise<{ pages: { name: string, title: string }[] }>} the pages written, Home first.
- * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root or one of its ancestors.
+ * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root, one of its ancestors, or inside it.
  */
 export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undefined }) {
     const root = resolve(repoRoot)
     const target = resolve(outDir)
-    if (root === target || root.startsWith(target + sep)) {
-        throw new Error(`Refusing to clear "${target}": it is the repository root or contains it`)
+    if (contains(target, root) || contains(root, target)) {
+        throw new Error(
+            `Refusing to clear "${target}": it overlaps the repository root "${root}" (use a directory outside the repo)`,
+        )
     }
 
     const docsDir = join(root, 'docs')
@@ -191,7 +213,12 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
         if (a.name === 'Home' || b.name === 'Home') {
             return a.name === 'Home' ? -1 : 1
         }
-        return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1
+        const left = a.name.toLowerCase()
+        const right = b.name.toLowerCase()
+        if (left === right) {
+            return 0
+        }
+        return left < right ? -1 : 1
     })
     const sidebar = pages.map((page) => `- [${page.title}](${page.name})`).join('\n')
     await writeFile(join(target, '_Sidebar.md'), `${sidebar}\n`)
