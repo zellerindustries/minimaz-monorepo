@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { statSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { realpathSync, statSync } from 'node:fs'
+import { lstat, mkdir, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // Builds the GitHub wiki tree from docs/. Run from the workflow: `node scripts/wiki-sync.mjs <outDir>`.
 //
@@ -36,34 +36,91 @@ export function parseRepo(remoteUrl) {
 
 const branch = 'main'
 const externalPattern = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i
-const fencePattern = /^\s*(?:```|~~~)/
+const fencePattern = /^ {0,3}(`{3,}|~{3,})(.*)$/
+// Reference-style definition at line start: `[label]: target "title"`. Footnotes (`[^1]: ...`) are not matched.
+const definitionPattern = /^(\s{0,3}\[[^\]^][^\]]*\]:\s*)(<[^>]*>|\S+)(.*)$/
 // Alternative 1 consumes a whole inline code span so link-looking text inside it is skipped. Alternative 2 is an
-// inline link whose text may itself contain code spans, e.g. [`core`](../packages/core).
-const tokenPattern = /`[^`]*`|(!?)\[((?:`[^`]*`|[^\]`])*)\]\(([^)\s]+)((?:\s+"[^"]*")?)\)/g
+// inline link or image whose text may itself contain code spans or an embedded image, e.g.
+// [`core`](../packages/core) or [![logo](logo.png)](index.md). The target may be wrapped in angle brackets.
+const tokenPattern =
+    /`[^`]*`|(!?)\[((?:`[^`]*`|!\[[^[\]]*\]\([^()\s]*\)|[^\]`]){0,1000})\]\((<[^>]*>|[^)\s]+)((?:\s+"[^"]*")?)\)/g
 
 /**
- * Resolves one link target for the wiki.
- * @param {string} target - the raw target inside `(...)`.
- * @param {RewriteOptions} options - see {@link rewriteLinks}.
- * @returns {{ target: string } | { drop: true }} the new target, or a request to drop the link.
+ * Creates a stateful fenced-code-block tracker. A fence opens with 3+ backticks or tildes and closes only on a
+ * line of the same character, at least as long as the opener, with no info string.
+ * @returns {(line: string) => boolean} true when the given line is a fence marker or inside a fenced block.
  */
-function rewriteTarget(target, options) {
+function createFenceTracker() {
+    let open = null
+    return (line) => {
+        const match = fencePattern.exec(line)
+        if (open === null) {
+            // A backtick fence's info string cannot contain a backtick (that is an inline code span).
+            if (match && !(match[1][0] === '`' && match[2].includes('`'))) {
+                open = { char: match[1][0], length: match[1].length }
+                return true
+            }
+            return false
+        }
+        if (
+            match &&
+            match[1][0] === open.char &&
+            match[1].length >= open.length &&
+            match[2].trim() === ''
+        ) {
+            open = null
+        }
+        return true
+    }
+}
+
+/**
+ * Percent-decodes the path part of a link target, keeping it as written when it is malformed.
+ * @param {string} path - the target without query and fragment.
+ * @returns {string} the decoded path.
+ */
+function decodePath(path) {
+    try {
+        return decodeURIComponent(path)
+    } catch {
+        return path
+    }
+}
+
+/**
+ * Resolves one link or image target for the wiki.
+ * @param {string} target - the raw target inside `(...)`, angle brackets already removed.
+ * @param {object} options - see {@link rewriteLinks}.
+ * @param {boolean} isImage - true for `![alt](target)`: resolves to a raw file URL, never to a wiki page.
+ * @returns {{ target: string } | { drop: true }} the new target, or a request to drop the link or image.
+ */
+function rewriteTarget(target, options, isImage) {
     const { sourceFile, docsPages, repo, kindOf, warn } = options
     if (target.startsWith('#') || externalPattern.test(target)) {
         return { target }
     }
     const hashIndex = target.indexOf('#')
-    const linkPath = hashIndex === -1 ? target : target.slice(0, hashIndex)
     const fragment = hashIndex === -1 ? '' : target.slice(hashIndex)
+    const withQuery = hashIndex === -1 ? target : target.slice(0, hashIndex)
+    const queryIndex = withQuery.indexOf('?')
+    const linkPath = decodePath(queryIndex === -1 ? withQuery : withQuery.slice(0, queryIndex))
+    // A root-relative target ('/packages/core') starts from the repo root, not from the source file.
+    const rooted = linkPath.startsWith('/')
+    // '.' stands for the repo root itself and keeps its single character.
     const resolved = posix
-        .normalize(posix.join(posix.dirname(sourceFile), linkPath))
-        .replace(/\/$/, '')
+        .normalize(
+            posix.join(
+                rooted ? '' : posix.dirname(sourceFile),
+                rooted ? linkPath.slice(1) : linkPath,
+            ),
+        )
+        .replace(/(?<=.)\/$/, '')
 
-    if (resolved.startsWith('..')) {
+    if (resolved === '..' || resolved.startsWith('../')) {
         warn(`${sourceFile}: link "${target}" points outside the repository`)
         return { target }
     }
-    const docsMatch = /^docs\/([^/]+\.md)$/.exec(resolved)
+    const docsMatch = isImage ? null : /^docs\/([^/]+\.md)$/.exec(resolved)
     if (docsMatch && docsPages.has(docsMatch[1])) {
         return { target: `${pageName(docsMatch[1])}${fragment}` }
     }
@@ -71,19 +128,65 @@ function rewriteTarget(target, options) {
     if (resolved === '.claude' || resolved.startsWith('.claude/')) {
         return { drop: true }
     }
-    const kind = kindOf(resolved)
+    const kind = resolved === '.' ? 'dir' : kindOf(resolved)
     if (kind === null) {
         warn(`${sourceFile}: link "${target}" points at a path that does not exist`)
         return { target }
     }
-    return {
-        target: `https://github.com/${repo}/${kind === 'dir' ? 'tree' : 'blob'}/${branch}/${resolved}${fragment}`,
-    }
+    const mode = isImage ? 'raw' : kind === 'dir' ? 'tree' : 'blob'
+    const path = resolved === '.' ? '' : `/${encodeURI(resolved)}`
+    return { target: `https://github.com/${repo}/${mode}/${branch}${path}${fragment}` }
 }
 
 /**
- * Rewrites the inline links of one docs file for use in the wiki. Fenced code blocks, inline code spans and
- * images are left as they are.
+ * Formats a rewritten target for `(...)`, wrapping it in angle brackets when it contains whitespace.
+ * @param {string} target - the new target.
+ * @returns {string} the target as it should appear in the markdown.
+ */
+function formatTarget(target) {
+    return /\s/.test(target) ? `<${target}>` : target
+}
+
+/**
+ * Strips the angle brackets from a raw link target.
+ * @param {string} rawTarget - the target as written, e.g. `<x y.md>`.
+ * @returns {string} the bare target.
+ */
+function unwrapTarget(rawTarget) {
+    return rawTarget.startsWith('<') ? rawTarget.slice(1, -1) : rawTarget
+}
+
+/**
+ * Rewrites the links and images found in one line outside any fenced block.
+ * @param {string} line - the line.
+ * @param {object} options - see {@link rewriteLinks}.
+ * @returns {string} the rewritten line.
+ */
+function rewriteLine(line, options) {
+    // Cheap exit that also keeps lines like '!['.repeat(n) from rescanning to the end of the line.
+    if (!line.includes('](')) {
+        return line
+    }
+    return line.replace(tokenPattern, (match, bang, text, rawTarget, title) => {
+        if (text === undefined) {
+            return match
+        }
+        const isImage = bang === '!'
+        const target = unwrapTarget(rawTarget)
+        const result = rewriteTarget(target, options, isImage)
+        // A link's text may hold an image, which is rewritten on its own.
+        const inner = isImage ? text : rewriteLine(text, options)
+        if ('drop' in result) {
+            return inner
+        }
+        const shown = result.target === target ? rawTarget : formatTarget(result.target)
+        return `${bang}[${inner}](${shown}${title})`
+    })
+}
+
+/**
+ * Rewrites the links, images and reference-style definitions of one docs file for use in the wiki. Fenced code
+ * blocks and inline code spans are left as they are.
  * @param {string} markdown - the file's contents.
  * @param {object} options
  * @param {string} options.sourceFile - repo-relative path of the file, e.g. `docs/getting-started.md`.
@@ -94,26 +197,52 @@ function rewriteTarget(target, options) {
  * @returns {string} the rewritten markdown.
  */
 export function rewriteLinks(markdown, options) {
-    let inFence = false
-    return markdown
-        .split('\n')
-        .map((line) => {
-            if (fencePattern.test(line)) {
-                inFence = !inFence
-                return line
-            }
-            if (inFence) {
-                return line
-            }
-            return line.replace(tokenPattern, (match, bang, text, target, title) => {
-                if (text === undefined || bang) {
-                    return match
-                }
-                const result = rewriteTarget(target, options)
-                return 'drop' in result ? text : `[${text}](${result.target}${title})`
-            })
-        })
-        .join('\n')
+    const inFence = createFenceTracker()
+    const lines = []
+    for (const rawLine of markdown.split('\n')) {
+        // Keep CRLF endings: patterns see the line without its \r, which is put back on output.
+        const eol = rawLine.endsWith('\r') ? '\r' : ''
+        const line = eol === '' ? rawLine : rawLine.slice(0, -1)
+        if (inFence(line)) {
+            lines.push(rawLine)
+            continue
+        }
+        const definition = definitionPattern.exec(line)
+        if (definition === null) {
+            lines.push(rewriteLine(line, options) + eol)
+            continue
+        }
+        const target = unwrapTarget(definition[2])
+        const result = rewriteTarget(target, options, false)
+        if ('drop' in result) {
+            continue
+        }
+        lines.push(
+            result.target === target
+                ? rawLine
+                : `${definition[1]}${formatTarget(result.target)}${definition[3]}${eol}`,
+        )
+    }
+    return lines.join('\n')
+}
+
+/**
+ * Finds the first `# ` heading outside fenced code, scanning line by line.
+ * @param {string} markdown - the file's contents.
+ * @returns {string | null} the heading text, or null when there is none.
+ */
+function firstHeading(markdown) {
+    const inFence = createFenceTracker()
+    for (const line of markdown.split(/\r?\n/)) {
+        if (inFence(line)) {
+            continue
+        }
+        const match = /^#[ \t]+(\S.*)$/.exec(line)
+        if (match) {
+            return match[1].trim()
+        }
+    }
+    return null
 }
 
 /**
@@ -152,6 +281,72 @@ function contains(parent, child) {
 }
 
 /**
+ * Resolves symlinks in a path that may not exist yet: the nearest existing ancestor is resolved with
+ * `fs.realpath` and the missing remainder is appended.
+ * @param {string} path - any path.
+ * @returns {Promise<string>} the absolute real path.
+ * @throws {Error} when the path cannot be resolved, or is (below) a dangling symlink.
+ */
+async function realPathLoose(path) {
+    const absolute = resolve(path)
+    try {
+        return await realpath(absolute)
+    } catch (error) {
+        if (error?.code !== 'ENOENT') {
+            throw new Error(`Cannot resolve path ${absolute}`, { cause: error })
+        }
+    }
+    if (
+        await lstat(absolute).then(
+            () => true,
+            () => false,
+        )
+    ) {
+        throw new Error(`Refusing to use "${absolute}": it is a dangling symlink`)
+    }
+    const parent = dirname(absolute)
+    if (parent === absolute) {
+        throw new Error(`Cannot resolve path ${absolute}`)
+    }
+    return join(await realPathLoose(parent), basename(absolute))
+}
+
+/**
+ * Lists a directory, treating a missing one as empty.
+ * @param {string} dir - absolute directory.
+ * @returns {Promise<string[]>} the entry names.
+ * @throws {Error} `Cannot read output directory <dir>` (with the cause) for any other failure.
+ */
+async function readOutputDir(dir) {
+    try {
+        return await readdir(dir)
+    } catch (error) {
+        if (error?.code === 'ENOENT') {
+            return []
+        }
+        throw new Error(`Cannot read output directory ${dir}`, { cause: error })
+    }
+}
+
+/**
+ * Tells whether a directory is a clone of a GitHub wiki: it has a `.git` directory (not a worktree-style file)
+ * whose config lists a remote url ending in `.wiki.git`. Reads the config directly instead of spawning git.
+ * @param {string} dir - absolute directory.
+ * @returns {Promise<boolean>} true for a wiki clone.
+ */
+async function isWikiClone(dir) {
+    try {
+        if (!(await lstat(join(dir, '.git'))).isDirectory()) {
+            return false
+        }
+        const config = await readFile(join(dir, '.git', 'config'), 'utf8')
+        return /^\s*url\s*=\s*\S*\.wiki\.git\s*$/m.test(config)
+    } catch {
+        return false
+    }
+}
+
+/**
  * Builds the wiki tree from docs/ into `outDir`, replacing its previous contents (except `.git`).
  * @param {object} options
  * @param {string} options.repoRoot - absolute repository root containing docs/.
@@ -159,26 +354,23 @@ function contains(parent, child) {
  * @param {string} options.repo - `owner/name`, used for absolute GitHub URLs.
  * @param {(message: string) => void} [options.warn] - receives non-fatal problems.
  * @returns {Promise<{ pages: { name: string, title: string }[] }>} the pages written, Home first.
- * @throws {Error} when docs/README.md is missing, or `outDir` is the repo root, one of its ancestors, or inside it,
- *   or a non-empty directory without a `.git` entry (an empty or nonexistent one is fine).
+ * @throws {Error} when docs/README.md is missing, a docs file collides with a generated page (Home.md,
+ *   _Sidebar.md), `outDir` (after resolving symlinks) is the repo root, one of its ancestors, or inside it, or
+ *   `outDir` is a non-empty directory that is not a wiki clone (a `.git` directory whose config has a remote url ending in
+ *   `.wiki.git`); an empty or nonexistent one is fine.
  */
 export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undefined }) {
-    const root = resolve(repoRoot)
-    const target = resolve(outDir)
+    const root = await realPathLoose(repoRoot)
+    const target = await realPathLoose(outDir)
     if (contains(target, root) || contains(root, target)) {
         throw new Error(
             `Refusing to clear "${target}": it overlaps the repository root "${root}" (use a directory outside the repo)`,
         )
     }
-    const existing = await readdir(target).catch((error) => {
-        if (error?.code === 'ENOENT') {
-            return []
-        }
-        throw error
-    })
-    if (existing.length > 0 && !existing.includes('.git')) {
+    const existing = await readOutputDir(target)
+    if (existing.length > 0 && !(await isWikiClone(target))) {
         throw new Error(
-            `Refusing to clear "${target}": it is not empty and has no .git entry (use an empty directory or a clone of the wiki repo)`,
+            `Refusing to clear "${target}": it is not empty and is not a wiki clone (expected a .git directory whose config has a remote url ending in .wiki.git); use an empty directory or a clone of the wiki repo`,
         )
     }
 
@@ -196,9 +388,16 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
     if (!files.includes('README.md')) {
         throw new Error('docs/README.md is required: it becomes the wiki Home page')
     }
+    for (const reserved of ['Home.md', '_Sidebar.md']) {
+        if (files.includes(reserved)) {
+            throw new Error(
+                `docs/${reserved} collides with a generated wiki page (Home comes from docs/README.md, _Sidebar.md is generated); rename it`,
+            )
+        }
+    }
 
     await mkdir(target, { recursive: true })
-    for (const entry of await readdir(target)) {
+    for (const entry of await readOutputDir(target)) {
         if (entry !== '.git') {
             await rm(join(target, entry), { recursive: true, force: true })
         }
@@ -218,7 +417,7 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
             warn,
         })
         await writeFile(join(target, `${name}.md`), rewritten)
-        pages.push({ name, title: /^#\s+(.+)$/m.exec(source)?.[1].trim() ?? name })
+        pages.push({ name, title: firstHeading(source) ?? name })
     }
 
     pages.sort((a, b) => {
@@ -242,15 +441,62 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
  * Resolves `owner/name` from the Actions environment, falling back to the `origin` remote.
  * @param {string} repoRoot - repository root used as the git working directory.
  * @returns {string} `owner/name`.
+ * @throws {Error} when GITHUB_REPOSITORY is unset and the origin remote cannot be read.
  */
 function resolveRepo(repoRoot) {
     const fromEnv = process.env.GITHUB_REPOSITORY
     if (fromEnv) {
         return fromEnv
     }
-    return parseRepo(
-        execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: repoRoot, encoding: 'utf8' }),
-    )
+    let remote
+    try {
+        remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+            cwd: repoRoot,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+        })
+    } catch (error) {
+        throw new Error(
+            'Cannot determine the GitHub repository. Set GITHUB_REPOSITORY or add an origin remote',
+            {
+                cause: error,
+            },
+        )
+    }
+    return parseRepo(remote)
+}
+
+/**
+ * Formats an error and its `cause` chain for the terminal.
+ * @param {unknown} error - whatever was thrown.
+ * @returns {string} the message, followed by one `  caused by: ...` line per cause.
+ */
+function describeError(error) {
+    const lines = [error instanceof Error ? error.message : String(error)]
+    let cause = error instanceof Error ? error.cause : undefined
+    for (let depth = 0; cause !== undefined && depth < 10; depth += 1) {
+        lines.push(`  caused by: ${cause instanceof Error ? cause.message : String(cause)}`)
+        cause = cause instanceof Error ? cause.cause : undefined
+    }
+    return lines.join('\n')
+}
+
+/**
+ * Tells whether this module is the process entry point, comparing real paths so a symlinked or substituted
+ * path to the script still counts.
+ * @returns {boolean} true when `node` was started on this file.
+ */
+function isEntryPoint() {
+    if (!process.argv[1]) {
+        return false
+    }
+    try {
+        return (
+            realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))
+        )
+    } catch {
+        return false
+    }
 }
 
 async function main() {
@@ -269,9 +515,9 @@ async function main() {
     console.log(`Wrote ${pages.length} wiki pages to ${outDir}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (isEntryPoint()) {
     main().catch((error) => {
-        console.error(error instanceof Error ? error.message : String(error))
+        console.error(describeError(error))
         process.exitCode = 1
     })
 }
