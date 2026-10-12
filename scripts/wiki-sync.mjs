@@ -36,14 +36,14 @@ export function parseRepo(remoteUrl) {
 
 const branch = 'main'
 const externalPattern = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i
-const fencePattern = /^\s*(`{3,}|~{3,})(.*)$/
+const fencePattern = /^ {0,3}(`{3,}|~{3,})(.*)$/
 // Reference-style definition at line start: `[label]: target "title"`. Footnotes (`[^1]: ...`) are not matched.
-const definitionPattern = /^(\s{0,3}\[[^\]^][^\]]*\]:\s+)(<[^>]*>|\S+)(.*)$/
+const definitionPattern = /^(\s{0,3}\[[^\]^][^\]]*\]:\s*)(<[^>]*>|\S+)(.*)$/
 // Alternative 1 consumes a whole inline code span so link-looking text inside it is skipped. Alternative 2 is an
 // inline link or image whose text may itself contain code spans or an embedded image, e.g.
 // [`core`](../packages/core) or [![logo](logo.png)](index.md). The target may be wrapped in angle brackets.
 const tokenPattern =
-    /`[^`]*`|(!?)\[((?:`[^`]*`|!\[[^\]]*\]\([^)\s]*\)|[^\]`])*)\]\((<[^>]*>|[^)\s]+)((?:\s+"[^"]*")?)\)/g
+    /`[^`]*`|(!?)\[((?:`[^`]*`|!\[[^[\]]*\]\([^()\s]*\)|[^\]`]){0,1000})\]\((<[^>]*>|[^)\s]+)((?:\s+"[^"]*")?)\)/g
 
 /**
  * Creates a stateful fenced-code-block tracker. A fence opens with 3+ backticks or tildes and closes only on a
@@ -55,7 +55,8 @@ function createFenceTracker() {
     return (line) => {
         const match = fencePattern.exec(line)
         if (open === null) {
-            if (match) {
+            // A backtick fence's info string cannot contain a backtick (that is an inline code span).
+            if (match && !(match[1][0] === '`' && match[2].includes('`'))) {
                 open = { char: match[1][0], length: match[1].length }
                 return true
             }
@@ -74,6 +75,19 @@ function createFenceTracker() {
 }
 
 /**
+ * Percent-decodes the path part of a link target, keeping it as written when it is malformed.
+ * @param {string} path - the target without query and fragment.
+ * @returns {string} the decoded path.
+ */
+function decodePath(path) {
+    try {
+        return decodeURIComponent(path)
+    } catch {
+        return path
+    }
+}
+
+/**
  * Resolves one link or image target for the wiki.
  * @param {string} target - the raw target inside `(...)`, angle brackets already removed.
  * @param {object} options - see {@link rewriteLinks}.
@@ -86,11 +100,20 @@ function rewriteTarget(target, options, isImage) {
         return { target }
     }
     const hashIndex = target.indexOf('#')
-    const linkPath = hashIndex === -1 ? target : target.slice(0, hashIndex)
     const fragment = hashIndex === -1 ? '' : target.slice(hashIndex)
+    const withQuery = hashIndex === -1 ? target : target.slice(0, hashIndex)
+    const queryIndex = withQuery.indexOf('?')
+    const linkPath = decodePath(queryIndex === -1 ? withQuery : withQuery.slice(0, queryIndex))
+    // A root-relative target ('/packages/core') starts from the repo root, not from the source file.
+    const rooted = linkPath.startsWith('/')
     // '.' stands for the repo root itself and keeps its single character.
     const resolved = posix
-        .normalize(posix.join(posix.dirname(sourceFile), linkPath))
+        .normalize(
+            posix.join(
+                rooted ? '' : posix.dirname(sourceFile),
+                rooted ? linkPath.slice(1) : linkPath,
+            ),
+        )
         .replace(/(?<=.)\/$/, '')
 
     if (resolved === '..' || resolved.startsWith('../')) {
@@ -111,7 +134,7 @@ function rewriteTarget(target, options, isImage) {
         return { target }
     }
     const mode = isImage ? 'raw' : kind === 'dir' ? 'tree' : 'blob'
-    const path = resolved === '.' ? '' : `/${resolved}`
+    const path = resolved === '.' ? '' : `/${encodeURI(resolved)}`
     return { target: `https://github.com/${repo}/${mode}/${branch}${path}${fragment}` }
 }
 
@@ -140,6 +163,10 @@ function unwrapTarget(rawTarget) {
  * @returns {string} the rewritten line.
  */
 function rewriteLine(line, options) {
+    // Cheap exit that also keeps lines like '!['.repeat(n) from rescanning to the end of the line.
+    if (!line.includes('](')) {
+        return line
+    }
     return line.replace(tokenPattern, (match, bang, text, rawTarget, title) => {
         if (text === undefined) {
             return match
@@ -172,14 +199,17 @@ function rewriteLine(line, options) {
 export function rewriteLinks(markdown, options) {
     const inFence = createFenceTracker()
     const lines = []
-    for (const line of markdown.split('\n')) {
+    for (const rawLine of markdown.split('\n')) {
+        // Keep CRLF endings: patterns see the line without its \r, which is put back on output.
+        const eol = rawLine.endsWith('\r') ? '\r' : ''
+        const line = eol === '' ? rawLine : rawLine.slice(0, -1)
         if (inFence(line)) {
-            lines.push(line)
+            lines.push(rawLine)
             continue
         }
         const definition = definitionPattern.exec(line)
         if (definition === null) {
-            lines.push(rewriteLine(line, options))
+            lines.push(rewriteLine(line, options) + eol)
             continue
         }
         const target = unwrapTarget(definition[2])
@@ -189,8 +219,8 @@ export function rewriteLinks(markdown, options) {
         }
         lines.push(
             result.target === target
-                ? line
-                : `${definition[1]}${formatTarget(result.target)}${definition[3]}`,
+                ? rawLine
+                : `${definition[1]}${formatTarget(result.target)}${definition[3]}${eol}`,
         )
     }
     return lines.join('\n')
@@ -299,6 +329,24 @@ async function readOutputDir(dir) {
 }
 
 /**
+ * Tells whether a directory is a clone of a GitHub wiki: it has a `.git` directory (not a worktree-style file)
+ * whose config lists a remote url ending in `.wiki.git`. Reads the config directly instead of spawning git.
+ * @param {string} dir - absolute directory.
+ * @returns {Promise<boolean>} true for a wiki clone.
+ */
+async function isWikiClone(dir) {
+    try {
+        if (!(await lstat(join(dir, '.git'))).isDirectory()) {
+            return false
+        }
+        const config = await readFile(join(dir, '.git', 'config'), 'utf8')
+        return /^\s*url\s*=\s*\S*\.wiki\.git\s*$/m.test(config)
+    } catch {
+        return false
+    }
+}
+
+/**
  * Builds the wiki tree from docs/ into `outDir`, replacing its previous contents (except `.git`).
  * @param {object} options
  * @param {string} options.repoRoot - absolute repository root containing docs/.
@@ -308,7 +356,8 @@ async function readOutputDir(dir) {
  * @returns {Promise<{ pages: { name: string, title: string }[] }>} the pages written, Home first.
  * @throws {Error} when docs/README.md is missing, a docs file collides with a generated page (Home.md,
  *   _Sidebar.md), `outDir` (after resolving symlinks) is the repo root, one of its ancestors, or inside it, or
- *   `outDir` is a non-empty directory without a `.git` entry (an empty or nonexistent one is fine).
+ *   `outDir` is a non-empty directory that is not a wiki clone (a `.git` directory whose config has a remote url ending in
+ *   `.wiki.git`); an empty or nonexistent one is fine.
  */
 export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undefined }) {
     const root = await realPathLoose(repoRoot)
@@ -319,9 +368,9 @@ export async function buildWikiTree({ repoRoot, outDir, repo, warn = () => undef
         )
     }
     const existing = await readOutputDir(target)
-    if (existing.length > 0 && !existing.includes('.git')) {
+    if (existing.length > 0 && !(await isWikiClone(target))) {
         throw new Error(
-            `Refusing to clear "${target}": it is not empty and has no .git entry (use an empty directory or a clone of the wiki repo)`,
+            `Refusing to clear "${target}": it is not empty and is not a wiki clone (expected a .git directory whose config has a remote url ending in .wiki.git); use an empty directory or a clone of the wiki repo`,
         )
     }
 

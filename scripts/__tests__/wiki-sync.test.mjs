@@ -75,7 +75,10 @@ const kinds = {
     'logo.png': 'file',
     'docs/img/a.png': 'file',
     '..foo.md': 'file',
+    'docs/my file.md': 'file',
 }
+
+const wikiConfig = '[remote "origin"]\n\turl = https://github.com/o/r.wiki.git\n'
 
 function makeOptions(overrides = {}) {
     const warnings = []
@@ -245,6 +248,72 @@ describe('rewriteLinks', () => {
         expect(rewriteLinks('a\n[s]: ../.claude/status.md\nb', makeOptions())).toBe('a\nb')
     })
 
+    it('does not tokenize pathological lines in quadratic or worse time', () => {
+        const lines = ['!['.repeat(20000), `${'[!['.repeat(5000)}](`, '[x]('.repeat(3000)]
+        for (const line of lines) {
+            const start = performance.now()
+            expect(rewriteLinks(line, makeOptions())).toBe(line)
+            expect(performance.now() - start).toBeLessThan(500)
+        }
+    })
+
+    it('handles CRLF input: fences skipped, definitions and links rewritten, endings kept', () => {
+        const text = [
+            '[a](architecture.md)',
+            '```',
+            '[a](architecture.md)',
+            '```',
+            '[ref]: architecture.md',
+            '[gone]: ../.claude/s.md',
+            'end',
+        ].join('\r\n')
+        expect(rewriteLinks(text, makeOptions())).toBe(
+            [
+                '[a](architecture)',
+                '```',
+                '[a](architecture.md)',
+                '```',
+                '[ref]: architecture',
+                'end',
+            ].join('\r\n'),
+        )
+    })
+
+    it('does not treat a line indented 4+ spaces as a fence', () => {
+        const text = '    ```\n[a](architecture.md)'
+        expect(rewriteLinks(text, makeOptions())).toBe('    ```\n[a](architecture)')
+    })
+
+    it('does not open a backtick fence whose info string has a backtick', () => {
+        const text = '```js```\n[a](architecture.md)'
+        expect(rewriteLinks(text, makeOptions())).toBe('```js```\n[a](architecture)')
+    })
+
+    it('accepts a definition without a space after the colon', () => {
+        expect(rewriteLinks('[a]:architecture.md', makeOptions())).toBe('[a]:architecture')
+    })
+
+    it('resolves root-relative targets against the repo root', () => {
+        expect(rewriteLinks('[c](/packages/core)', makeOptions())).toBe(
+            '[c](https://github.com/o/r/tree/main/packages/core)',
+        )
+    })
+
+    it('strips a query before resolving', () => {
+        expect(rewriteLinks('[r](../README.md?plain=1#x)', makeOptions())).toBe(
+            '[r](https://github.com/o/r/blob/main/README.md#x)',
+        )
+    })
+
+    it('decodes %20 when resolving, keeping the original text if it fails', () => {
+        const options = makeOptions()
+        expect(rewriteLinks('[m](my%20file.md)', options)).toBe(
+            '[m](https://github.com/o/r/blob/main/docs/my%20file.md)',
+        )
+        expect(rewriteLinks('[n](no%20such.md)', options)).toBe('[n](no%20such.md)')
+        expect(options.warnings).toHaveLength(1)
+    })
+
     it('warns and leaves a link whose target does not exist', () => {
         const options = makeOptions()
         expect(rewriteLinks('[x](../nope.md)', options)).toBe('[x](../nope.md)')
@@ -279,6 +348,7 @@ describe('buildWikiTree', () => {
         await writeFile(join(repoRoot, 'docs', 'sub', 'x.md'), '# Nested\n')
         await writeFile(join(outDir, 'Old.md'), 'stale')
         await writeFile(join(outDir, '.git', 'HEAD'), 'ref: refs/heads/master\n')
+        await writeFile(join(outDir, '.git', 'config'), wikiConfig)
     })
 
     afterEach(async () => {
@@ -376,6 +446,31 @@ describe('buildWikiTree', () => {
             )
         },
     )
+
+    it('refuses a non-empty dir whose .git points at a non-wiki remote', async () => {
+        const other = join(root, 'other')
+        await mkdir(join(other, '.git'), { recursive: true })
+        await writeFile(
+            join(other, '.git', 'config'),
+            '[remote "origin"]\n\turl = https://github.com/o/r.git\n',
+        )
+        await writeFile(join(other, 'keep.txt'), 'precious')
+        await expect(buildWikiTree({ repoRoot, outDir: other, repo: 'o/r' })).rejects.toThrow(
+            /\.wiki\.git/,
+        )
+        expect(await readFile(join(other, 'keep.txt'), 'utf8')).toBe('precious')
+    })
+
+    it('refuses a non-empty dir whose .git is a file', async () => {
+        const worktree = join(root, 'worktree')
+        await mkdir(worktree)
+        await writeFile(join(worktree, '.git'), 'gitdir: ../elsewhere/.git\n')
+        await writeFile(join(worktree, 'keep.txt'), 'precious')
+        await expect(buildWikiTree({ repoRoot, outDir: worktree, repo: 'o/r' })).rejects.toThrow(
+            /Refusing/,
+        )
+        expect(await readFile(join(worktree, 'keep.txt'), 'utf8')).toBe('precious')
+    })
 
     it('refuses a non-empty output dir without .git and keeps its files', async () => {
         const stray = join(root, 'stray')
