@@ -1,12 +1,10 @@
 name: Wiki
 
 on:
-    push:
+    workflow_run:
+        workflows: [Release]
+        types: [completed]
         branches: [main]
-        paths:
-            - 'docs/**'
-            - 'scripts/wiki-sync.mjs'
-            - '.github/workflows/wiki.yml'
     workflow_dispatch:
 
 permissions:
@@ -21,19 +19,39 @@ env:
 
 jobs:
     sync:
-        if: github.ref == 'refs/heads/main'
+        if: >-
+            (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+            || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         runs-on: ubuntu-latest
 
         steps:
             - name: Checkout repository
               uses: actions/checkout@v6.0.1
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+                  fetch-depth: 0
+                  fetch-tags: true
+
+            - name: Detect release
+              id: release
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  if [ "$EVENT_NAME" = 'workflow_dispatch' ] || [ -n "$(git tag --points-at HEAD)" ]; then
+                      echo 'publish=true' >> "$GITHUB_OUTPUT"
+                  else
+                      echo 'No release tag at this commit, skipping wiki sync'
+                      echo 'publish=false' >> "$GITHUB_OUTPUT"
+                  fi
 
             - name: Setup Node.js
+              if: steps.release.outputs.publish == 'true'
               uses: actions/setup-node@v6.1.0
               with:
                   node-version: 24
 
             - name: Clone wiki
+              if: steps.release.outputs.publish == 'true'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
@@ -48,12 +66,15 @@ jobs:
                   fi
 
             - name: Build wiki from docs
+              if: steps.release.outputs.publish == 'true'
               run: node scripts/wiki-sync.mjs "$RUNNER_TEMP/wiki"
 
             - name: Push changes
+              if: steps.release.outputs.publish == 'true'
               working-directory: ${{ runner.temp }}/wiki
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  SYNC_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
               run: |
                   if [ -z "$(git status --porcelain)" ]; then
                       echo 'Wiki is already up to date'
@@ -62,7 +83,7 @@ jobs:
                   git config user.name 'github-actions[bot]'
                   git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
                   git add -A
-                  git commit -m "docs: sync from ${GITHUB_SHA::7}"
+                  git commit -m "docs: sync from ${SYNC_SHA::7}"
                   auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
                   echo "::add-mask::$auth"
                   export GIT_CONFIG_COUNT=1
