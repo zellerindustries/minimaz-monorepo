@@ -1,11 +1,82 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { EventEmitter } from 'node:events'
+import { createInterface } from 'node:readline'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+    askQuestion,
     envWithoutNpmConfig,
     executeCommand,
     initEnv,
     parseArgs,
     parseBooleanFlag,
 } from '../core.js'
+
+vi.mock('node:readline', () => ({ createInterface: vi.fn() }))
+
+describe('askQuestion', () => {
+    interface FakeInterface extends EventEmitter {
+        question: ReturnType<typeof vi.fn>
+        close: ReturnType<typeof vi.fn>
+    }
+
+    /** Builds a fake readline interface whose `question` callback the test drives manually. */
+    function mockInterface(): FakeInterface {
+        const rl = Object.assign(new EventEmitter(), {
+            question: vi.fn(),
+            close: vi.fn(),
+        }) as FakeInterface
+        vi.mocked(createInterface).mockReturnValue(
+            rl as unknown as ReturnType<typeof createInterface>,
+        )
+        return rl
+    }
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.restoreAllMocks()
+    })
+
+    it('resolves with the trimmed answer and closes the interface', async () => {
+        const rl = mockInterface()
+        rl.question.mockImplementation((_query: string, cb: (answer: string) => void) => {
+            cb('  blog  ')
+        })
+
+        await expect(askQuestion('Template?', 'default')).resolves.toBe('blog')
+        expect(rl.question).toHaveBeenCalledWith('[QUESTION] Template? ', expect.any(Function))
+        expect(rl.close).toHaveBeenCalled()
+    })
+
+    it('falls back to the default answer on empty input', async () => {
+        const rl = mockInterface()
+        rl.question.mockImplementation((_query: string, cb: (answer: string) => void) => {
+            cb('   ')
+        })
+
+        await expect(askQuestion('Template?', 'default')).resolves.toBe('default')
+    })
+
+    it('falls back to the default answer after the 60s timeout', async () => {
+        vi.useFakeTimers()
+        const rl = mockInterface()
+
+        const answer = askQuestion('Template?', 'default')
+        await vi.advanceTimersByTimeAsync(60000)
+
+        await expect(answer).resolves.toBe('default')
+        expect(rl.close).toHaveBeenCalled()
+    })
+
+    it('exits with code 130 on SIGINT', () => {
+        const rl = mockInterface()
+        const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+
+        void askQuestion('Template?')
+        rl.emit('SIGINT')
+
+        expect(rl.close).toHaveBeenCalled()
+        expect(exit).toHaveBeenCalledWith(130)
+    })
+})
 
 describe('parseArgs', () => {
     it('separates positionals from --flag=value, --flag value and bare flags', () => {
