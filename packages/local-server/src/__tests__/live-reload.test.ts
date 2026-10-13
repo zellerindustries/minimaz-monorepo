@@ -262,6 +262,50 @@ describe('createLiveReload', () => {
             await waitForReload(res, before)
         })
 
+        it('keeps retrying while the directory does not exist yet, then reloads once it appears', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-late-'))
+            const served = join(root, 'out')
+
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+            await sleep(150)
+
+            await mkdir(served)
+
+            await waitForReload(res, 0)
+        })
+
+        it('does not treat a plain file at the watched path as a directory', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-file-'))
+            const served = join(root, 'out')
+            await writeFile(served, 'not a dir')
+
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+            controller = createLiveReload(served)
+            await sleep(250)
+
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore)
+        })
+
+        it('re-arms and reloads after the watcher emits an error', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-error-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            const createdBefore = watcherState.created.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+
+            const first = watcherState.created[createdBefore] as FSWatcher
+            first.emit('error', new Error('EPERM'))
+
+            await waitForReload(res, 0)
+            expect(watcherState.closed.has(first)).toBe(true)
+            expect(watcherState.created.length).toBeGreaterThan(createdBefore + 1)
+        })
+
         it('closes every watcher it created and arms no new one after close()', async () => {
             root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-leak-'))
             const served = join(root, 'out')
