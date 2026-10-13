@@ -47,6 +47,12 @@ describe('renderHtml', () => {
         )
     })
 
+    it('uses the default title for a full page without one', () => {
+        const out = toHtml('hi', { full: true })
+        expect(out).toContain('<!DOCTYPE html>')
+        expect(out).toContain('<title>Document</title>')
+    })
+
     it('renders block mode by default (no document shell)', () => {
         expect(toHtml('hi')).not.toContain('<!DOCTYPE html>')
     })

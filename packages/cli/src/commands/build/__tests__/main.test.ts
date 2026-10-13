@@ -193,6 +193,79 @@ describe('build', () => {
         expect(await pathExists(path.join(cwd, 'dist', 'vendor', 'lib.js'))).toBe(true)
     })
 
+    it('builds local externals into the output and skips remote ones', async () => {
+        await writeConfig({
+            input: {
+                dir: 'src',
+                externals: { 'https://cdn.example.com/lib.js': 'lib.js', vendor: 'assets/vendor' },
+            },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'vendor'), { recursive: true })
+        await writeFile(path.join(cwd, 'vendor', 'notes.txt'), 'vendored', 'utf8')
+
+        await build(cwd)
+
+        expect(
+            await readFile(path.join(cwd, 'dist', 'assets', 'vendor', 'notes.txt'), 'utf8'),
+        ).toBe('vendored')
+        expect((await readdir(path.join(cwd, 'dist'))).sort()).toEqual(['assets', 'index.html'])
+        expect((await readdir(cwd)).sort()).toEqual([
+            'dist',
+            'minimaz.config.json',
+            'src',
+            'vendor',
+        ])
+    })
+
+    it.each([
+        ['input.dir', { input: { dir: 'src' }, output: { dir: 'src/dist' } }],
+        [
+            'a local external',
+            {
+                input: { dir: 'src', externals: { './dist/vendor': 'vendor' } },
+                output: { dir: 'dist' },
+            },
+        ],
+        [
+            'a local external alongside a remote one',
+            {
+                input: {
+                    dir: 'src',
+                    externals: {
+                        'https://cdn.example.com/a.js': 'a.js',
+                        './dist/vendor': 'vendor',
+                    },
+                },
+                output: { dir: 'dist' },
+            },
+        ],
+    ])(
+        'refuses an output overlapping %s before touching the stale temp dir or the sources',
+        async (_label, config) => {
+            await writeConfig(config)
+            await mkdir(path.join(cwd, 'src'), { recursive: true })
+            await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+            await mkdir(path.join(cwd, 'dist', 'vendor'), { recursive: true })
+            await writeFile(path.join(cwd, 'dist', 'vendor', 'lib.js'), 'export {}', 'utf8')
+            const tempDir = path.join(cwd, getBuildTempDirName('dist'))
+            await mkdir(tempDir, { recursive: true })
+            await writeFile(path.join(tempDir, 'stale.txt'), 'stale', 'utf8')
+
+            const result = build(cwd)
+
+            await expect(result).rejects.toBeInstanceOf(KnownError)
+            await expect(result).rejects.toThrow(/refusing output directory that overlaps/)
+            expect(await readFile(path.join(tempDir, 'stale.txt'), 'utf8')).toBe('stale')
+            expect(await readdir(tempDir)).toEqual(['stale.txt'])
+            expect(await pathExists(path.join(cwd, 'src', 'a.html'))).toBe(true)
+            expect(await pathExists(path.join(cwd, 'dist', 'vendor', 'lib.js'))).toBe(true)
+            expect(await pathExists(path.join(cwd, getBuildOldDirName('dist')))).toBe(false)
+        },
+    )
+
     it('accepts a relative cwd', async () => {
         await writeConfig({
             input: { dir: 'src' },

@@ -38,6 +38,14 @@ describe('minifyCss', () => {
         expect(minifyCss('a{b:c;}')).toBe('a{b:c}')
     })
 
+    it('drops an unterminated comment through the end of input', () => {
+        expect(minifyCss('a{b:c}/* never closed')).toBe('a{b:c}')
+    })
+
+    it('drops trailing whitespace at the end of input', () => {
+        expect(minifyCss('a{b:c}   \n')).toBe('a{b:c}')
+    })
+
     it('rejects a non-string input', () => {
         expect(() => minifyCss(undefined as unknown as string)).toThrow(
             'minifyCss: code must be a string',
