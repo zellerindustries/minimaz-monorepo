@@ -76,6 +76,8 @@ const kinds = {
     'docs/img/a.png': 'file',
     '..foo.md': 'file',
     'docs/my file.md': 'file',
+    'docs/a#b.md': 'file',
+    'docs/q?x.md': 'file',
 }
 
 const wikiConfig = '[remote "origin"]\n\turl = https://github.com/o/r.wiki.git\n'
@@ -326,6 +328,129 @@ describe('rewriteLinks', () => {
         expect(rewriteLinks('[x](../../outside.md)', options)).toBe('[x](../../outside.md)')
         expect(options.warnings).toHaveLength(1)
     })
+
+    it('re-encodes # and ? that were percent-encoded in the path', () => {
+        expect(rewriteLinks('[a](a%23b.md)', makeOptions())).toBe(
+            '[a](https://github.com/o/r/blob/main/docs/a%23b.md)',
+        )
+        expect(rewriteLinks('[q](q%3Fx.md#top)', makeOptions())).toBe(
+            '[q](https://github.com/o/r/blob/main/docs/q%3Fx.md#top)',
+        )
+    })
+
+    describe('raw HTML', () => {
+        it('rewrites relative href and src attributes', () => {
+            expect(rewriteLinks('<a href="architecture.md#x">t</a>', makeOptions())).toBe(
+                '<a href="architecture#x">t</a>',
+            )
+            expect(rewriteLinks('<img src="../logo.png" alt="l">', makeOptions())).toBe(
+                '<img src="https://github.com/o/r/raw/main/logo.png" alt="l">',
+            )
+            expect(rewriteLinks("<a class='c' href='../packages/core'>c</a>", makeOptions())).toBe(
+                '<a class=\'c\' href="https://github.com/o/r/tree/main/packages/core">c</a>',
+            )
+            expect(rewriteLinks('<A HREF=architecture.md>t</A>', makeOptions())).toBe(
+                '<A HREF="architecture">t</A>',
+            )
+        })
+
+        it('leaves external, anchor and unrelated attributes alone', () => {
+            const text =
+                '<a href="https://x.dev/a.md">x</a> <a href="#top">y</a> <img data-src="architecture.md" src="https://x.dev/a.png"> <a name="architecture.md">z</a>'
+            expect(rewriteLinks(text, makeOptions())).toBe(text)
+        })
+
+        it('skips fenced blocks and inline code, including multi-backtick spans', () => {
+            const html = '<a href="architecture.md">t</a>'
+            const text = [
+                '```html',
+                html,
+                '```',
+                `\`${html}\``,
+                `\`\` a \`b\` ${html} \`\``,
+                '`` [a](architecture.md) `x` ``',
+            ].join('\n')
+            expect(rewriteLinks(text, makeOptions())).toBe(text)
+        })
+
+        it('still rewrites links after a multi-backtick span', () => {
+            expect(rewriteLinks('`` a ` b `` [a](architecture.md)', makeOptions())).toBe(
+                '`` a ` b `` [a](architecture)',
+            )
+        })
+
+        it('replaces an <img> under .claude/ with its alt text', () => {
+            expect(rewriteLinks('x <img src="../.claude/s.png" alt="shot"> y', makeOptions())).toBe(
+                'x shot y',
+            )
+            expect(rewriteLinks('x <img src="../.claude/s.png"> y', makeOptions())).toBe('x  y')
+        })
+
+        it('replaces a simple <a> under .claude/ with its text', () => {
+            expect(
+                rewriteLinks('see <a href="../.claude/s.md">status</a> now', makeOptions()),
+            ).toBe('see status now')
+        })
+
+        it('leaves a complex <a> under .claude/ unchanged and warns', () => {
+            const options = makeOptions()
+            const text = '<a href="../.claude/s.md"><b>x</b></a>'
+            expect(rewriteLinks(text, options)).toBe(text)
+            expect(options.warnings).toHaveLength(1)
+            const open = makeOptions()
+            expect(rewriteLinks('<a href="../.claude/s.md">x', open)).toBe(
+                '<a href="../.claude/s.md">x',
+            )
+            expect(open.warnings).toHaveLength(1)
+        })
+
+        it('warns about a relative src that does not exist', () => {
+            const options = makeOptions()
+            expect(rewriteLinks('<img src="../nope.png">', options)).toBe('<img src="../nope.png">')
+            expect(options.warnings).toHaveLength(1)
+        })
+
+        it('rewrites html nested in link text', () => {
+            expect(rewriteLinks('[<img src="img/a.png">](architecture.md)', makeOptions())).toBe(
+                '[<img src="https://github.com/o/r/raw/main/docs/img/a.png">](architecture)',
+            )
+        })
+    })
+
+    describe('references to dropped definitions', () => {
+        const defn = '[s]: ../.claude/status.md'
+
+        it('turns full, collapsed and shortcut uses into plain text', () => {
+            const text = ['a [text][s] b', 'c [s][] d', 'e [s] f', 'g ![alt][s] h', defn].join('\n')
+            expect(rewriteLinks(text, makeOptions())).toBe(
+                ['a text b', 'c s d', 'e s f', 'g alt h'].join('\n'),
+            )
+        })
+
+        it('matches labels case-insensitively and finds definitions below the use', () => {
+            expect(rewriteLinks('[Text][S]\n[s]: ../.claude/x.md', makeOptions())).toBe('Text')
+        })
+
+        it('leaves other labels, code and fences alone', () => {
+            const text = [
+                '[a][keep] `[x][s]`',
+                '```',
+                '[x][s]',
+                '```',
+                '[keep]: architecture.md',
+                defn,
+            ].join('\n')
+            expect(rewriteLinks(text, makeOptions())).toBe(
+                ['[a][keep] `[x][s]`', '```', '[x][s]', '```', '[keep]: architecture'].join('\n'),
+            )
+        })
+
+        it('does not warn twice about the same definition', () => {
+            const options = makeOptions()
+            rewriteLinks('[m]: ../nope.md', options)
+            expect(options.warnings).toHaveLength(1)
+        })
+    })
 })
 
 describe('buildWikiTree', () => {
@@ -536,6 +661,79 @@ describe('buildWikiTree', () => {
             expect(await readFile(join(outDir, 'Old.md'), 'utf8')).toBe('stale')
         },
     )
+
+    it.each(['home.md', 'HOME.md', '_sidebar.md', '_SIDEBAR.md'])(
+        'throws when docs/%s collides with a generated page case-insensitively',
+        async (file) => {
+            await writeFile(join(repoRoot, 'docs', file), '# Clash\n')
+            await expect(buildWikiTree({ repoRoot, outDir, repo: 'o/r' })).rejects.toThrow(
+                /collides/,
+            )
+            expect(await readFile(join(outDir, 'Old.md'), 'utf8')).toBe('stale')
+        },
+    )
+
+    it('escapes sidebar titles and wraps targets that contain spaces or parentheses', async () => {
+        await writeFile(join(repoRoot, 'docs', 'my page (v2).md'), '# Arrays [beta] \\ more\n')
+        await writeFile(join(repoRoot, 'docs', 'a#b.md'), '# Hash\n')
+        const { pages } = await buildWikiTree({ repoRoot, outDir, repo: 'o/r' })
+        expect(pages.find((page) => page.name === 'my page (v2)')?.title).toBe(
+            'Arrays [beta] \\ more',
+        )
+        const sidebar = await readFile(join(outDir, '_Sidebar.md'), 'utf8')
+        expect(sidebar).toContain('- [Arrays \\[beta\\] \\\\ more](<my page (v2)>)\n')
+        expect(sidebar).toContain('- [Hash](a%23b)\n')
+        expect(sidebar).toContain('- [Architecture](architecture)\n')
+    })
+
+    it('keeps the previous tree when building a page fails', async () => {
+        await writeFile(join(repoRoot, 'docs', 'broken.md'), '# Broken\n[x](../missing.md)\n')
+        await expect(
+            buildWikiTree({
+                repoRoot,
+                outDir,
+                repo: 'o/r',
+                warn: () => {
+                    throw new Error('boom')
+                },
+            }),
+        ).rejects.toThrow('boom')
+        expect((await readdir(outDir)).sort()).toEqual(['.git', 'Old.md'])
+    })
+
+    it.each([
+        ['# Title ##', 'Title'],
+        ['# Title #', 'Title'],
+        ['# C# language', 'C# language'],
+        ['# Title \\#', 'Title \\#'],
+        ['# [Guide](guide.md) intro', 'Guide intro'],
+        ['# ![logo](logo.png) Brand', 'logo Brand'],
+        ['# [![a](b.png)](c.md) Linked', 'a Linked'],
+        ['# See [ref][r] and [other][]', 'See ref and other'],
+        ['# [`core`](../c) pkg #', '`core` pkg'],
+    ])('derives the sidebar title from heading %j', async (heading, expected) => {
+        await writeFile(join(repoRoot, 'docs', 'h.md'), `${heading}\n`)
+        const { pages } = await buildWikiTree({ repoRoot, outDir, repo: 'o/r' })
+        expect(pages.find((page) => page.name === 'h')?.title).toBe(expected)
+    })
+
+    it('accepts a wiki remote url with a trailing slash', async () => {
+        await writeFile(
+            join(outDir, '.git', 'config'),
+            '[remote "origin"]\n\turl = https://github.com/o/r.wiki.git/\n',
+        )
+        await buildWikiTree({ repoRoot, outDir, repo: 'o/r' })
+        expect(await readdir(outDir)).not.toContain('Old.md')
+    })
+
+    it('refuses a dir whose wiki url is only a pushurl', async () => {
+        await writeFile(
+            join(outDir, '.git', 'config'),
+            '[remote "origin"]\n\turl = https://github.com/o/r.git\n\tpushurl = https://github.com/o/r.wiki.git\n',
+        )
+        await expect(buildWikiTree({ repoRoot, outDir, repo: 'o/r' })).rejects.toThrow(/Refusing/)
+        expect(await readFile(join(outDir, 'Old.md'), 'utf8')).toBe('stale')
+    })
 
     it('wraps a failure to read the output dir with a cause', async () => {
         const file = join(root, 'plain-file')
