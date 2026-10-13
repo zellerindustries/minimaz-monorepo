@@ -79,6 +79,67 @@ describe('minifyJs', () => {
         expect(minifyJs(src)).toBe('const r = /`\'"/g\nconst s = `a\n   b`')
     })
 
+    it('keeps an escaped backtick inside template text from closing the template', () => {
+        const src = 'const t = `a\\`b // not a comment ${x}`  // real'
+        expect(minifyJs(src)).toBe('const t = `a\\`b // not a comment ${x}`')
+    })
+
+    it('keeps a lone trailing backslash in an unterminated template', () => {
+        expect(minifyJs('const t = `a\\')).toBe('const t = `a\\')
+    })
+
+    it('strips a line comment that follows an operator (regex position)', () => {
+        expect(minifyJs('x = // c\ny')).toBe('x =\ny')
+    })
+
+    it('strips a line comment at end of input in regex position', () => {
+        expect(minifyJs('x = // c')).toBe('x =')
+    })
+
+    it('strips a block comment that follows an operator (regex position)', () => {
+        expect(minifyJs('x = /* c */ 1')).toBe('x =  1')
+    })
+
+    it('strips an unterminated block comment in regex position', () => {
+        expect(minifyJs('x = /* never closed')).toBe('x =')
+    })
+
+    it('ends an unterminated regex at the newline and keeps the rest of the source', () => {
+        expect(minifyJs('x = /abc\n  y()')).toBe('x = /abc\ny()')
+    })
+
+    it('passes an unterminated regex at end of input through unchanged', () => {
+        expect(minifyJs('x = /abc')).toBe('x = /abc')
+    })
+
+    it('passes a regex ending in a dangling backslash through unchanged', () => {
+        expect(minifyJs('x = /a\\')).toBe('x = /a\\')
+    })
+
+    it('keeps binary and octal literals intact and treats a following slash as division', () => {
+        expect(minifyJs('a = 0b1_01 / 2 / 1 + 0B11n + 0o17 / 3 / 1 + 0O7')).toBe(
+            'a = 0b1_01 / 2 / 1 + 0B11n + 0o17 / 3 / 1 + 0O7',
+        )
+    })
+
+    it('keeps an uppercase-X hex literal intact', () => {
+        expect(minifyJs('a = 0XFF_ff / 2 / 1')).toBe('a = 0XFF_ff / 2 / 1')
+    })
+
+    it('keeps decimal fractions, leading-dot and trailing-dot numbers intact', () => {
+        expect(minifyJs('a = 1_0.2_5 / 2 / 1 + .5 / 2 / 1 + 3. / 1 / 1')).toBe(
+            'a = 1_0.2_5 / 2 / 1 + .5 / 2 / 1 + 3. / 1 / 1',
+        )
+    })
+
+    it('treats a trailing-dot number as one literal so a following // is still a comment', () => {
+        expect(minifyJs('a = 3. / 1 // c\nb()')).toBe('a = 3. / 1\nb()')
+    })
+
+    it('keeps signed and uppercase exponents intact and leaves a bare "e" as an identifier', () => {
+        expect(minifyJs('a = 2E5 + 1.5e+3 + 1e')).toBe('a = 2E5 + 1.5e+3 + 1e')
+    })
+
     it('rejects a non-string input', () => {
         expect(() => minifyJs(null as unknown as string)).toThrow('minifyJs: code must be a string')
     })

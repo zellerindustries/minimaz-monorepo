@@ -169,6 +169,98 @@ describe('replaceOutDir', () => {
         expect(calls).toBe(1)
         expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
     })
+
+    it('refuses to swap when the previous output cannot be moved aside, leaving it unchanged', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        const renameDir = async (from: string, to: string): Promise<void> => {
+            if (from === outDir) {
+                throw errnoError('EXDEV')
+            }
+            await rename(from, to)
+        }
+
+        const result = replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/could not move the previous output .* aside/)
+        await expect(result).rejects.toThrow(tempDir)
+        expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
+        expect(await readFile(path.join(tempDir, 'new.txt'), 'utf8')).toBe('new')
+    })
+
+    it('reports where both builds are when the swap and the restore both fail', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        const oldDir = getBuildOldDirName(outDir)
+        const renameDir = async (from: string, to: string): Promise<void> => {
+            if (from === tempDir || from === oldDir) {
+                throw errnoError('EXDEV')
+            }
+            await rename(from, to)
+        }
+
+        const result = replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/nor restore the previous output/)
+        await expect(result).rejects.toThrow(`The previous output is in ${oldDir}`)
+        await expect(result).rejects.toThrow(`the completed build is in ${tempDir}`)
+        expect(await readFile(path.join(oldDir, 'old.txt'), 'utf8')).toBe('old')
+        expect(await readFile(path.join(tempDir, 'new.txt'), 'utf8')).toBe('new')
+        expect(await pathExists(outDir)).toBe(false)
+    })
+
+    it('has nothing to restore when there was no previous output and the move-in fails', async () => {
+        const outDir = path.join(dir, 'dist')
+        const tempDir = getBuildTempDirName(outDir)
+        await mkdir(tempDir, { recursive: true })
+        await writeFile(path.join(tempDir, 'new.txt'), 'new', 'utf8')
+        const renameDir = (): Promise<void> => Promise.reject(errnoError('EXDEV'))
+
+        const result = replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(
+            `could not move the completed build into ${outDir} (EXDEV: simulated). The completed build is in ${tempDir}`,
+        )
+        expect(await readFile(path.join(tempDir, 'new.txt'), 'utf8')).toBe('new')
+    })
+
+    it('does not retry an error that has no code, and stringifies a non-Error rejection', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        let plainCalls = 0
+        const plainError = (from: string, to: string): Promise<void> => {
+            if (from === tempDir) {
+                plainCalls += 1
+                return Promise.reject(new Error('plain failure'))
+            }
+            return rename(from, to)
+        }
+
+        await expect(
+            replaceOutDir(tempDir, outDir, { renameDir: plainError, retryDelayMs: 0 }),
+        ).rejects.toThrow('plain failure')
+        expect(plainCalls).toBe(1)
+        expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
+    })
+
+    it('treats a non-Error rejection as non-transient and uses its string form', async () => {
+        const { outDir, tempDir } = await writeOldAndTemp()
+        let calls = 0
+        const renameDir = (from: string, to: string): Promise<void> => {
+            if (from === tempDir) {
+                calls += 1
+                // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+                return Promise.reject('disk on fire')
+            }
+            return rename(from, to)
+        }
+
+        const result = replaceOutDir(tempDir, outDir, { renameDir, retryDelayMs: 0 })
+
+        await expect(result).rejects.toThrow(/\(disk on fire\); the previous output was restored/)
+        expect(calls).toBe(1)
+        expect(await readFile(path.join(outDir, 'old.txt'), 'utf8')).toBe('old')
+    })
 })
 
 describe('runDiscovery', () => {
@@ -461,6 +553,69 @@ describe('processExternals', () => {
         )
 
         expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(true)
+    })
+
+    it('skips an external already claimed by ignoredFiles', async () => {
+        const externalSrc = path.join(dir, 'vendor', 'lib.css')
+        await mkdir(path.dirname(externalSrc), { recursive: true })
+        await writeFile(externalSrc, 'body{}', 'utf8')
+        const outDir = path.join(dir, 'dist')
+        await mkdir(outDir, { recursive: true })
+
+        await processExternals(
+            dir,
+            dir,
+            outDir,
+            { 'vendor/lib.css': 'assets/lib.css' },
+            makeConfig({}, { css: { bundling: false, minify: false } }),
+            new Set([externalSrc]),
+            new Map(),
+        )
+
+        expect(await pathExists(path.join(outDir, 'assets', 'lib.css'))).toBe(false)
+    })
+
+    it('walks a local external directory into its destination', async () => {
+        await mkdir(path.join(dir, 'vendor', 'nested'), { recursive: true })
+        await writeFile(path.join(dir, 'vendor', 'a.txt'), 'a', 'utf8')
+        await writeFile(path.join(dir, 'vendor', 'nested', 'b.txt'), 'b', 'utf8')
+        const outDir = path.join(dir, 'dist')
+        await mkdir(outDir, { recursive: true })
+
+        await processExternals(
+            dir,
+            dir,
+            outDir,
+            { vendor: 'assets/vendor' },
+            makeConfig(),
+            new Set(),
+            new Map(),
+        )
+
+        expect(await readFile(path.join(outDir, 'assets', 'vendor', 'a.txt'), 'utf8')).toBe('a')
+        expect(
+            await readFile(path.join(outDir, 'assets', 'vendor', 'nested', 'b.txt'), 'utf8'),
+        ).toBe('b')
+    })
+
+    it('copies a local external file with an unprocessed extension byte-for-byte', async () => {
+        const bytes = Buffer.from([0, 1, 2, 255, 254])
+        await mkdir(path.join(dir, 'vendor'), { recursive: true })
+        await writeFile(path.join(dir, 'vendor', 'logo.bin'), bytes)
+        const outDir = path.join(dir, 'dist')
+        await mkdir(outDir, { recursive: true })
+
+        await processExternals(
+            dir,
+            dir,
+            outDir,
+            { 'vendor/logo.bin': 'logo.bin' },
+            makeConfig(),
+            new Set(),
+            new Map(),
+        )
+
+        expect(await readFile(path.join(outDir, 'logo.bin'))).toEqual(bytes)
     })
 
     it('skips externals not found on disk', async () => {

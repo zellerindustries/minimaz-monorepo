@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { formatJson, minifyJson, parseJson } from '../core.js'
 
 describe('parseJson', () => {
@@ -17,6 +17,15 @@ describe('parseJson', () => {
         expect(caught).toBeInstanceOf(Error)
         expect((caught as Error).message).toMatch(/^parseJson: invalid JSON: /)
         expect((caught as Error).cause).toBeInstanceOf(SyntaxError)
+    })
+
+    it('stringifies a non-Error value thrown by JSON.parse', () => {
+        vi.spyOn(JSON, 'parse').mockImplementation(() => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercising the non-Error fallback
+            throw 'plain failure'
+        })
+
+        expect(() => parseJson('{}')).toThrow('parseJson: invalid JSON: plain failure')
     })
 
     it('rejects a non-string input', () => {

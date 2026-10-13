@@ -92,6 +92,15 @@ describe('validateHtml', () => {
         expect(errorsFor('<div')).toEqual(['unclosed tag starting at index 0'])
     })
 
+    it('skips a terminated comment, including tags inside it', () => {
+        expect(errorsFor('<!-- <div> --><p>x</p>')).toEqual([])
+    })
+
+    it('reports a tag without a valid name as malformed', () => {
+        expect(errorsFor('<1>')).toEqual(['malformed tag: <1>'])
+        expect(errorsFor('</ >')).toEqual(['malformed tag: </ >'])
+    })
+
     it('reports an unterminated comment', () => {
         expect(errorsFor('<!-- open')).toEqual(['unterminated comment'])
     })

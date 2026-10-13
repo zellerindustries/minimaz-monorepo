@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
+import { pathExists } from '@minimaz/core'
 import { log } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -14,7 +15,15 @@ import {
     updateTemplateFrom,
     writeSettings,
 } from '../core.js'
+import type * as MinimazCore from '@minimaz/core'
 import type { Settings } from '../types.js'
+
+// Pass-through wrapper so one test can make the seeds-directory check fail; every other call
+// (restoreMocks resets the wrapper to its original implementation) hits the real function.
+vi.mock('@minimaz/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof MinimazCore>()
+    return { ...actual, pathExists: vi.fn(actual.pathExists) }
+})
 
 describe('getGlobalDir', () => {
     it('resolves to ~/.minimaz', () => {
@@ -127,6 +136,14 @@ describe('seedDefaults', () => {
             readFile(path.join(templatesDir, 'default', 'CUSTOM_MARKER.txt'), 'utf8'),
         ).rejects.toThrow()
     })
+
+    it('throws a build hint when the bundled seeds directory is missing', async () => {
+        vi.mocked(pathExists).mockResolvedValueOnce(false)
+
+        await expect(seedDefaults(globalDir, templatesDir)).rejects.toThrow(
+            /Seed templates not found at ".*seeds" — run "npm run build" first/,
+        )
+    })
 })
 
 describe('writeSettings', () => {
@@ -217,6 +234,124 @@ describe('writeSettings', () => {
             const messages = warn.mock.calls.map((call) => String(call[0]))
             expect(messages.some((m) => m.includes('npmGlobalPath'))).toBe(false)
         })
+
+        it('does not warn about an npmGlobalPath already present in an existing file', async () => {
+            const settingsPath = path.join(globalDir, 'settings.json')
+            await writeFile(
+                settingsPath,
+                JSON.stringify({
+                    createdAt: '2020-01-01T00:00:00.000Z',
+                    templatesPath: path.join(globalDir, 'templates'),
+                    npmGlobalPath: path.resolve('/old/sitekit'),
+                }),
+            )
+            const warn = vi.spyOn(log, 'warn')
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const messages = warn.mock.calls.map((call) => String(call[0]))
+            expect(messages.some((m) => m.includes('npmGlobalPath'))).toBe(false)
+            const settings = await readWritten()
+            expect(settings.npmGlobalPath).toBe(path.resolve('/old/sitekit'))
+        })
+
+        it('uses <APPDATA>/npm on win32 when npm_config_prefix is unset', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' })
+            const appData = path.resolve('/fake/appdata')
+            vi.stubEnv('npm_config_prefix', '')
+            vi.stubEnv('APPDATA', appData)
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            expect(settings.npmGlobalPath).toBe(
+                path.join(appData, 'npm', 'node_modules', '@minimaz', 'sitekit'),
+            )
+        })
+
+        it('uses the prefix itself on win32 when npm_config_prefix is set', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' })
+            const prefix = path.resolve('/fake/prefix')
+            vi.stubEnv('npm_config_prefix', prefix)
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            expect(settings.npmGlobalPath).toBe(
+                path.join(prefix, 'node_modules', '@minimaz', 'sitekit'),
+            )
+        })
+
+        it('uses <prefix>/lib on non-win32 platforms when npm_config_prefix is set', async () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' })
+            const prefix = path.resolve('/fake/prefix')
+            vi.stubEnv('npm_config_prefix', prefix)
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            expect(settings.npmGlobalPath).toBe(
+                path.join(prefix, 'lib', 'node_modules', '@minimaz', 'sitekit'),
+            )
+        })
+
+        it('falls back to /usr/local/lib on non-win32 platforms without a prefix', async () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' })
+            vi.stubEnv('npm_config_prefix', '')
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            const expected = path.join('/usr/local/lib', 'node_modules', '@minimaz', 'sitekit')
+            // A rooted-but-driveless path is not absolute on Windows, so the key is omitted there.
+            if (path.isAbsolute(expected)) {
+                expect(settings.npmGlobalPath).toBe(expected)
+            } else {
+                expect('npmGlobalPath' in settings).toBe(false)
+            }
+        })
+
+        it('omits the key when the derived path is not absolute', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' })
+            vi.stubEnv('npm_config_prefix', 'relative-prefix')
+
+            await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+            const settings = await readWritten()
+            expect('npmGlobalPath' in settings).toBe(false)
+        })
+    })
+
+    it('recreates settings.json from the template when the existing file is corrupt', async () => {
+        const settingsPath = path.join(globalDir, 'settings.json')
+        await writeFile(settingsPath, '{not valid json')
+        const warn = vi.spyOn(log, 'warn').mockImplementation(() => undefined)
+
+        await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+        expect(warn).toHaveBeenCalledWith('Failed to read settings.json, recreating from template')
+        const settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Settings
+        expect(settings.templatesPath).toBe(path.join(globalDir, 'templates'))
+        expect(typeof settings.createdAt).toBe('string')
+    })
+
+    it('warns about unknown keys and leaves them in place', async () => {
+        const settingsPath = path.join(globalDir, 'settings.json')
+        await writeFile(
+            settingsPath,
+            JSON.stringify({
+                createdAt: '2020-01-01T00:00:00.000Z',
+                templatesPath: path.join(globalDir, 'templates'),
+                bogus: 1,
+            }),
+        )
+        const warn = vi.spyOn(log, 'warn').mockImplementation(() => undefined)
+
+        await writeSettings(globalDir, path.join(globalDir, 'templates'))
+
+        expect(warn).toHaveBeenCalledWith('Unknown key "bogus" found in settings.json')
+        const settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>
+        expect(settings['bogus']).toBe(1)
     })
 
     it('overwrites entirely when overwrite is true', async () => {

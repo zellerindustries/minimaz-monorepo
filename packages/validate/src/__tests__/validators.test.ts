@@ -1,5 +1,5 @@
 import { KnownError } from '@minimaz/logger'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { CssValidationError, validateCss } from '../css.js'
 import { ValidationError } from '../errors.js'
 import { JsValidationError, validateJs } from '../js.js'
@@ -70,6 +70,45 @@ describe('validateCss', () => {
         expect(() => {
             validateCss('} a {')
         }).not.toThrow()
+    })
+})
+
+describe('validateCss edge cases', () => {
+    it('skips an escaped quote inside a string', () => {
+        expect(() => {
+            validateCss('a { content: "say \\"hi\\"" }')
+        }).not.toThrow()
+    })
+
+    it('reports a string that ends in a trailing backslash as unterminated', () => {
+        const error = captureError(() => {
+            validateCss('a { content: "x\\')
+        })
+
+        expect((error as CssValidationError).errors).toEqual([
+            'unterminated string literal',
+            'unbalanced braces (depth 1)',
+        ])
+    })
+
+    it('ignores braces inside a terminated comment', () => {
+        expect(() => {
+            validateCss('/* { ( */ a { b: c }')
+        }).not.toThrow()
+    })
+
+    it('accepts balanced parentheses', () => {
+        expect(() => {
+            validateCss('a { width: calc(1px + (2px * 3)) }')
+        }).not.toThrow()
+    })
+
+    it('reports an unmatched closing parenthesis', () => {
+        const error = captureError(() => {
+            validateCss('a { b: c) }')
+        })
+
+        expect((error as CssValidationError).errors).toEqual(['unbalanced parentheses (depth -1)'])
     })
 })
 
@@ -145,6 +184,21 @@ describe('validateJson', () => {
         expect(error).toBeInstanceOf(JsonValidationError)
         expect((error as JsonValidationError).errors).toHaveLength(1)
         expect((error as JsonValidationError).errors[0]).toMatch(/property name/)
+    })
+})
+
+describe('validateJson non-Error throw', () => {
+    it('stringifies a non-Error value thrown by JSON.parse', () => {
+        vi.spyOn(JSON, 'parse').mockImplementation(() => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercising the non-Error fallback
+            throw 'plain failure'
+        })
+
+        const error = captureError(() => {
+            validateJson('{}')
+        })
+
+        expect((error as JsonValidationError).errors).toEqual(['plain failure'])
     })
 })
 
