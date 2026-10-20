@@ -42,11 +42,17 @@ for (const outfile of outfiles) {
     })
 }
 
-// A plain `tsc -b` (npm run typecheck) also compiles the __tests__ files into dist/ — keep them out of the package.
+// Keep dist/ to the bundled entry points plus declarations. `tsc` also emits one unbundled .js per source file
+// (redundant once bundled; nothing deep-imports them — no package has an `exports` map) and, on a plain `tsc -b`
+// (npm run typecheck), compiled __tests__ files — drop both.
 const distFiles = await readdir('dist', { recursive: true }).catch(() => [])
 for (const file of distFiles) {
-    if (/\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(file)) {
-        await rm(join('dist', file), { force: true })
+    const path = join('dist', file)
+    const entryPath = path.replaceAll('\\', '/').replace(/\.map$/, '')
+    const isEmittedJs = /\.js(\.map)?$/.test(file) && !outfiles.has(entryPath)
+    const isTestOutput = /\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(file)
+    if (isEmittedJs || isTestOutput) {
+        await rm(path, { force: true })
     }
 }
 
