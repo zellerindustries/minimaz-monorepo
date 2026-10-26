@@ -11,6 +11,11 @@ tsconfig*.json
 vitest.config.ts
 eslint.config.mjs
 .prettierrc.json
+.editorconfig
+.gitattributes
+.nvmrc
+.prettierignore
+.github/
 .husky/
 .changeset/
 scripts/
@@ -33,6 +38,8 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# Internal working docs
+# Internal working docs and local-only state (gitignored, but .npmignore replaces .gitignore for npm)
 .claude/
+.superpowers/
+.worktrees/
 docs/
