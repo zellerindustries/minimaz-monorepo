@@ -51,10 +51,11 @@ How often does this occur?
 
 Fill in relevant details only.
 
+- **Package and version:** (e.g. `@minimaz/cli` 0.3.0, or `@minimaz/sitekit` for the `minimaz`/`mz` binary)
+- **Node.js version:**
+- **npm version:**
 - **OS:** (e.g. Windows 11, macOS 14, Ubuntu 22.04)
-- **Browser:** (e.g. Chrome 121, Firefox 122)
-- **Device:** (e.g. Desktop, iPhone 13, Samsung S21)
-- **App/Build version:** (if applicable)
+- **`minimaz.config.json`:** (the relevant part)
 
 ---
 

@@ -63,12 +63,15 @@ Thumbs.db
 # ==========================================
 # Claude Code worktrees / local state
 # ==========================================
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
+.claude/superpowers/
 .superpowers/
 .worktrees/
 
-.vscode/*
-.vscode/
+# Copied from the root LICENSE by scripts/bundle.mjs at build time
+packages/*/LICENSE
+toolkits/*/LICENSE
 
 **/coverage/
 **/.vitest-result/

@@ -24,12 +24,12 @@ files at commit time, and the full validation gate at push time. You don't need 
 ## Everyday commands
 
 ```bash
-npm run build             # build the build tools, then run every package's own build (tsc -b + bundle)
+npm run build             # every package's own build (tsc -b + bundle)
 npm run typecheck:watch   # tsc -b --watch — fast feedback loop while editing (doesn't re-bundle)
 npm run lint / lint:fix
 npm run format / format:check
 npm run validate          # lint + format:check + typecheck — the same gate CI runs
-npm test                  # every package's own tests
+npm test                  # every package's own tests, then the repo scripts' tests (test:scripts)
 ```
 
 Run any of these for a single package with `--workspace`:
@@ -48,6 +48,9 @@ npx vitest run packages/css/src/__tests__/minify.test.ts
 Tests live in a `__tests__/` directory next to the code they cover (e.g. `packages/css/src/__tests__/minify.test.ts`
 for `packages/css/src/minify.ts`), not in a separate test package. `npm test` from inside a package directory runs
 only that package's tests.
+
+Some tests read other packages' built `dist/` (e.g. `@minimaz/cli`'s `init` tests load `@minimaz/templates`'s
+seeds), so run `npm run build` before `npm test` on a fresh checkout.
 
 ## Trying the CLI locally
 

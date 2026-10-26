@@ -263,12 +263,12 @@ describe('runCli dispatch', () => {
         expect(buildDocs).toHaveBeenCalledWith(process.cwd())
     })
 
-    it('passes --gitprovider and --gitremote through to init', async () => {
-        await run('init', 'site', '--git', '--gitprovider=github', '--gitremote=upstream')
+    it('passes --gitprovider through to init', async () => {
+        await run('init', 'site', '--git', '--gitprovider=github')
 
         expect(init).toHaveBeenCalledWith(
             'site',
-            { template: 'default', git: true, gitprovider: 'github', gitremote: 'upstream' },
+            { template: 'default', git: true, gitprovider: 'github' },
             resolve(process.cwd(), 'site'),
             'TEMPLATES',
         )

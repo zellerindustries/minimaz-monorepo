@@ -85,7 +85,6 @@ export async function runCli(pkgPath: string): Promise<void> {
                   : 'default'
         const gitproviderFlag =
             typeof args['gitprovider'] === 'string' ? args['gitprovider'] : undefined
-        const gitremoteFlag = typeof args['gitremote'] === 'string' ? args['gitremote'] : undefined
         const npmFlag = parseBooleanFlag(args['npm'] as string | boolean | undefined)
         const gitFlag = parseBooleanFlag(args['git'] as string | boolean | undefined)
 
@@ -94,7 +93,6 @@ export async function runCli(pkgPath: string): Promise<void> {
             ...(npmFlag !== undefined ? { npm: npmFlag } : {}),
             ...(gitFlag !== undefined ? { git: gitFlag } : {}),
             ...(gitproviderFlag !== undefined ? { gitprovider: gitproviderFlag } : {}),
-            ...(gitremoteFlag !== undefined ? { gitremote: gitremoteFlag } : {}),
         }
 
         await init(projectName, options, resolve(cwd, projectName), templatesDir)
