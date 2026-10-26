@@ -2960,12 +2960,23 @@ class Parser {
  * The source type is detected: a file using `import`/`export`/`import.meta` or a top-level `await`
  * is parsed as a module (strict mode, `sourceType: 'module'`); anything else is a sloppy-mode
  * script. A script that uses `await` as a plain identifier at the top level is read as a module
- * when that parses, since top-level `await` is by far the likelier intent.
+ * when that parses, since top-level `await` is by far the likelier intent. A leading `#!` line is
+ * kept in `Program.hashbang`.
  * @param code - Source text.
  * @returns The program AST.
  * @throws {ParseError} On a syntax error, with the offending source offset.
  */
 export function parse(code: string): Program {
+    const program = parseSource(code)
+    const hashbang = /^#!.*/.exec(code)
+    if (hashbang !== null) {
+        program.hashbang = hashbang[0]
+    }
+    return program
+}
+
+/** Parses the source as a script, or as a module when it needs to be one (see {@link parse}). */
+function parseSource(code: string): Program {
     const script = new Parser(code, false)
     let program: Program
     try {

@@ -59,6 +59,8 @@ export interface Program extends BaseNode {
     type: 'Program'
     body: Statement[]
     sourceType: 'module' | 'script'
+    /** The leading `#!` line without its line terminator, set only when the source has one. */
+    hashbang?: string
 }
 
 // ---- Leaves ----
