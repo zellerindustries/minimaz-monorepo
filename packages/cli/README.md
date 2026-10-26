@@ -18,7 +18,7 @@ npm install -g @minimaz/sitekit
 minimaz help [command]
 minimaz version
 minimaz validate --path=<file>
-minimaz init [name] [--template=<name>] [--npm] [--git] [--gitprovider=<provider>] [--gitremote=<url>]
+minimaz init [name] [--template=<name>] [--npm] [--git] [--gitprovider=<provider>]
 minimaz config [--overwrite]
 minimaz template [path] [--list] [--delete=<name>] [--update[=<name>]]
 minimaz docs <init|build>
@@ -32,7 +32,7 @@ Single-letter aliases: `h` (help), `v` (version), `i` (init), `t` (template), `b
 - `validate` — validate a CSS, HTML, JS, TS, or JSON file.
 - `init` — scaffold a new project from a global template (`--template`, default `"default"`); `--npm`/`--git`
   skip their respective interactive prompts; `--gitprovider` accepts `local`, `github`, `gitlab`, or a remote URL
-  (GitHub/GitLab remote creation requires `gh`/`glab` to be installed). `--gitremote` is accepted for flag parity with `minimaz-cli` but currently has no effect. If the npm/git step fails, the scaffolded
+  (GitHub/GitLab remote creation requires `gh`/`glab` to be installed). If the npm/git step fails, the scaffolded
   project directory is left in place and the error names it, so the step can be rerun manually.
 - `config` — seed (or `--overwrite` to re-seed) the global `~/.minimaz` directory with default templates and
   settings. `@minimaz/sitekit` (the bin that wraps this package) runs it automatically (non-fatally) on
