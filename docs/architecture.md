@@ -9,7 +9,8 @@ document is about how the pieces work, not which ones exist yet.
 ```txt
 packages/     @minimaz/* library packages — published, independently versioned
 toolkits/     @minimaz/sitekit — the published minimaz/mz bin, wrapping @minimaz/cli
-scripts/      repo scripts, not packages: bundle.mjs (the esbuild step of every package's build)
+scripts/      repo scripts, not packages: bundle.mjs (the esbuild step of every package's build) and
+              wiki-sync.mjs (syncs docs/ to the GitHub wiki, run by .github/workflows/wiki.yml after Release)
 docs/         this documentation
 .claude/      status.md / migration.md (internal working ledgers) and superpowers/ design specs and plans
 ```
@@ -24,8 +25,9 @@ but were folded into `@minimaz/cli` and retired before `sitekit` took their plac
 @minimaz/sitekit (the minimaz/mz bin) → @minimaz/cli
 @minimaz/cli (library implementing the minimaz/mz commands)
   → @minimaz/config, @minimaz/core, @minimaz/logger, @minimaz/markdown, @minimaz/templates,
-    @minimaz/validate, @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts, @minimaz/local-server
-@minimaz/bundler      → @minimaz/ts (JS/TS import-graph resolver — not yet a @minimaz/cli dependency)
+    @minimaz/validate, @minimaz/css, @minimaz/js, @minimaz/html, @minimaz/ts, @minimaz/bundler,
+    @minimaz/local-server
+@minimaz/bundler      → @minimaz/ts (JS/TS import-graph resolver — used by @minimaz/cli's build)
 @minimaz/local-server → @minimaz/logger (dev HTTP server, wired into @minimaz/cli's serve command)
 @minimaz/config       → @minimaz/json, @minimaz/logger
 @minimaz/html         → @minimaz/validate
@@ -51,7 +53,7 @@ from those references, not from `package.json` dependencies directly.
 Each package follows the same internal shape: `core.ts` (logic) / `main.ts` (entry point, where applicable) /
 `types.ts` / `index.ts` (a barrel of named exports only — no default exports). `@minimaz/cli` additionally has a
 `src/commands/` directory with one subdirectory per command (`help`, `version`, `validate`, `init`, `config`,
-`template`, `docs`, `build`, `clear`) and a `src/cli/` directory for argument parsing, the dispatch table, and the postinstall hook.
+`template`, `docs`, `build`, `clear`, `serve`) and a `src/cli/` directory for argument parsing, the dispatch table, and the postinstall hook.
 
 ## Build pipeline
 
@@ -99,10 +101,10 @@ before assuming the two are unified.
 ## The CLI
 
 `@minimaz/cli` implements the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`,
-`template`, `docs`, `clear`, and `build` — full `minimaz-cli` command-name parity. `build` ports `minimaz-cli`'s
+`template`, `docs`, `clear`, `build`, and `serve` — full `minimaz-cli` command-name parity plus `docs` and `serve`. `build` ports `minimaz-cli`'s
 two-pass discovery/processing pipeline onto `@minimaz/css`/`@minimaz/js`/`@minimaz/html`/`@minimaz/ts` instead of
-`esbuild`; JS/TS import-graph bundling is the one piece not yet wired in (`output.js.bundling: true` throws
-rather than resolving the graph via the separate `@minimaz/bundler` package). `@minimaz/sitekit` is the actual
+`esbuild`; `output.js.bundling: true` rewrites relative imports to emitted `.js` paths via the separate
+`@minimaz/bundler` package (native ES modules, one file per source file; HTML needs `<script type="module">`). `@minimaz/sitekit` is the actual
 published `minimaz`/`mz` binary — a thin passthrough that calls `@minimaz/cli`'s exported `runCli()`. See each
 package's own README, or run `minimaz help`, for per-command usage.
 
@@ -126,6 +128,8 @@ inline config with `extends: true`, which is what makes the root `test` options 
 them.
 
 `npm test` runs every project; a package's own `npm test` runs `vitest run --root ../.. --project <package-name>`.
+The repo scripts aren't workspace packages, so they get their own `scripts` Vitest project
+(`scripts/__tests__/*.test.mjs`); the root `npm test` runs it after the workspaces via `npm run test:scripts`.
 To run a single file: `npx vitest run packages/css/src/__tests__/minify.test.ts` from the repo root.
 
 ## Releases
