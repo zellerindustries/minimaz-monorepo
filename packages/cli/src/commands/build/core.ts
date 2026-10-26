@@ -206,7 +206,7 @@ export async function reCreateOutDir(path: string): Promise<void> {
  * `bundleCss` and adds every non-entry input path to `ignoredFiles` — so
  * the processing pass (`walkFolder`) skips them instead of emitting them
  * as standalone output files. JS/TS files are never added, since JS/TS
- * bundling isn't supported. The bundle result is cached by resolved entry
+ * bundling keeps one output file per source file. The bundle result is cached by resolved entry
  * path in `cssBundleCache`, so the processing pass's `processCss` can
  * reuse it instead of re-resolving the same `@import` graph from disk.
  *
@@ -273,13 +273,13 @@ export async function processFile(
             break
         }
         case '.js': {
-            const content = processJs(file, config)
+            const content = await processJs(file, config)
             await outputFile(file.dest, content)
             break
         }
         case '.ts':
         case '.tsx': {
-            const content = processTs(file, config)
+            const content = await processTs(file, config)
             const jsDest = file.dest.replace(/\.(ts|tsx)$/i, '.js')
             await outputFile(jsDest, content)
             break

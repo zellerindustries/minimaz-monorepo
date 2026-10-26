@@ -30,25 +30,19 @@ import type { CssBundleCache } from './types.js'
  * @param {string} cwdArg - Directory to look for `minimaz.config.json` in
  *   (a relative path resolves against `process.cwd()`); `input.dir`/
  *   `output.dir` are resolved relative to it.
- * @throws {KnownError} When `output.js.bundling` is `true` (JS/TS
- *   import-graph bundling isn't implemented yet), when the resolved
- *   `output.dir` isn't strictly inside `cwd` (refuses to ever delete
- *   the project root, an ancestor of it, or an unrelated directory), when
- *   `output.dir` equals, contains, or is nested inside `input.dir` or a local
- *   `input.externals` source, when the temp directory overlaps either of
- *   those, when `input.dir` is missing or empty, or when swapping the
- *   finished build into `output.dir` fails (the message names the temp
- *   directory still holding it).
+ * @throws {KnownError} When the resolved `output.dir` isn't strictly inside
+ *   `cwd` (refuses to ever delete the project root, an ancestor of it, or an
+ *   unrelated directory), when `output.dir` equals, contains, or is nested
+ *   inside `input.dir` or a local `input.externals` source, when the temp
+ *   directory overlaps either of those, when `input.dir` is missing or
+ *   empty, when a relative import or relative dynamic import in bundled JS/TS
+ *   can't be resolved, or when swapping the finished build into
+ *   `output.dir` fails (the message names the temp directory still holding
+ *   it).
  */
 export async function build(cwdArg: string): Promise<void> {
     const cwd = resolve(cwdArg)
     const config = await loadConfig(cwd, { initCommand: 'minimaz init' })
-
-    if (config.output.js.bundling) {
-        throw new KnownError(
-            'build: output.js.bundling is not supported yet — set it to false in minimaz.config.json',
-        )
-    }
 
     const inDirPath = resolve(cwd, config.input.dir)
     const outDirPath = resolve(cwd, config.output.dir)

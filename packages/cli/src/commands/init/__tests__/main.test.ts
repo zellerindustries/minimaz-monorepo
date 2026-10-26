@@ -42,9 +42,8 @@ describe('init', () => {
             output: { js: { bundling: boolean } }
         }
         expect(parsed).toHaveProperty('input')
-        // build throws a KnownError when output.js.bundling is true (JS/TS
-        // import-graph bundling isn't implemented yet) - a freshly scaffolded
-        // project must be buildable out of the box.
+        // output.js.bundling: true changes the emitted module layout (native ESM
+        // import rewriting), so a freshly scaffolded project keeps it off by default.
         expect(parsed.output.js.bundling).toBe(false)
     })
 
@@ -144,7 +143,7 @@ describe('init with the seeded default template', () => {
         )
 
         const config = await loadConfig(targetDir)
-        // build() throws a KnownError when output.js.bundling is true.
+        // The scaffolded config must load with bundling still off.
         expect(config.output.js.bundling).toBe(false)
     })
 })

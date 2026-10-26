@@ -102,14 +102,14 @@ describe('seedDefaults', () => {
         expect(settings.templatesPath).toBe(templatesDir)
     })
 
-    it('seeds a default template config that leaves unsupported js bundling disabled', async () => {
+    it('seeds a default template config that leaves js bundling disabled by default', async () => {
         await seedDefaults(globalDir, templatesDir)
 
         const config = JSON.parse(
             await readFile(path.join(templatesDir, 'default', 'minimaz.config.json'), 'utf8'),
         ) as { output: { js?: { bundling?: boolean } } }
-        // build throws a KnownError for output.js.bundling: true, and init keeps
-        // a template's own config, so the seed must not enable it.
+        // init keeps a template's own config, and bundling changes the emitted
+        // module layout, so the seed must not enable it by default.
         expect(config.output.js?.bundling ?? false).toBe(false)
     })
 

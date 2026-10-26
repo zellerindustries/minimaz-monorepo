@@ -12,6 +12,7 @@
         "src/**/__mocks__/**"
     ],
     "references": [
+        { "path": "../bundler/tsconfig.build.json" },
         { "path": "../config/tsconfig.build.json" },
         { "path": "../core/tsconfig.build.json" },
         { "path": "../css/tsconfig.build.json" },
