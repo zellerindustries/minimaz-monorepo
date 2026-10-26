@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { resolveModuleGraph } from '../core.js'
+import { resolveFileImports, resolveModuleGraph } from '../core.js'
+import { BundlerError } from '../errors.js'
 
 describe('resolveModuleGraph', () => {
     let dir: string
@@ -127,7 +128,9 @@ describe('resolveModuleGraph', () => {
         const entry = path.join(dir, 'entry.js')
         await writeFile(entry, "import './missing'\n", 'utf8')
 
-        await expect(resolveModuleGraph(entry)).rejects.toThrow(/Cannot resolve "\.\/missing"/)
+        const promise = resolveModuleGraph(entry)
+        await expect(promise).rejects.toThrow(/Cannot resolve "\.\/missing"/)
+        await expect(promise).rejects.toBeInstanceOf(BundlerError)
     })
 
     it('throws when a relative dynamic import is encountered', async () => {
@@ -246,5 +249,210 @@ describe('resolveModuleGraph', () => {
             expect(inner).toContain("import '../up.js'")
             expect(inner).toContain("import '../.env.js'")
         })
+    })
+})
+
+describe('resolveFileImports', () => {
+    let dir: string
+
+    beforeEach(async () => {
+        dir = await mkdtemp(path.join(tmpdir(), 'bundler-file-'))
+    })
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true })
+    })
+
+    it('rewrites a ./b import to ./b.js when b.ts exists', async () => {
+        await writeFile(path.join(dir, 'b.ts'), 'export const b = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import { b } from './b'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toContain("from './b.js'")
+    })
+
+    it('resolves ./lib to ./lib/index.js', async () => {
+        await mkdir(path.join(dir, 'lib'))
+        await writeFile(path.join(dir, 'lib', 'index.ts'), 'export const l = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import { l } from './lib'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toContain("from './lib/index.js'")
+    })
+
+    it('resolves ./x.js to ./x.js when only x.ts exists', async () => {
+        await writeFile(path.join(dir, 'x.ts'), 'export const x = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import { x } from './x.js'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe("import { x } from './x.js'\n")
+    })
+
+    it('throws for ./x.js when neither x.js nor x.ts exists', async () => {
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import { x } from './x.js'\n", 'utf8')
+
+        await expect(resolveFileImports(entry)).rejects.toBeInstanceOf(BundlerError)
+    })
+
+    it('uses the provided source instead of reading the file from disk', async () => {
+        await writeFile(path.join(dir, 'b.ts'), 'export const b = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import { nope } from './nope'\n", 'utf8')
+
+        const output = await resolveFileImports(entry, "import { b } from './b'\n")
+
+        expect(output).toBe("import { b } from './b.js'\n")
+    })
+
+    it('transpiles a provided source based on the file extension', async () => {
+        const entry = path.join(dir, 'a.ts')
+
+        const output = await resolveFileImports(entry, 'export const v: number = 1\n')
+
+        expect(output).not.toContain(': number')
+        expect(output).toContain('export const v = 1')
+    })
+
+    it('transpiles files with an uppercase extension', async () => {
+        const entry = path.join(dir, 'Foo.TS')
+        await writeFile(entry, 'export const v: number = 1\n', 'utf8')
+        const tsx = path.join(dir, 'Bar.TSX')
+        await writeFile(tsx, 'export const el = <div />\n', 'utf8')
+
+        const output = await resolveFileImports(entry)
+        const tsxOutput = await resolveFileImports(tsx)
+
+        expect(output).not.toContain(': number')
+        expect(tsxOutput).not.toContain('<div')
+    })
+
+    it('leaves bare specifiers and ./data.json untouched', async () => {
+        await writeFile(path.join(dir, 'data.json'), '{}', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        const source = "import x from 'lodash'\nimport d from './data.json'\n"
+        await writeFile(entry, source, 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe(source)
+    })
+
+    it('returns transpiled JS (no type annotations) for a .ts file', async () => {
+        const entry = path.join(dir, 'a.ts')
+        await writeFile(entry, 'export const value: number = 1\n', 'utf8')
+
+        const output = await resolveFileImports(entry)
+
+        expect(output).not.toContain(': number')
+        expect(output).toContain('export const value = 1')
+    })
+
+    it('does not follow imports: succeeds when a dependency has an unresolvable import', async () => {
+        await writeFile(path.join(dir, 'b.js'), "import './nope'\n", 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import './b'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toContain("import './b.js'")
+    })
+
+    it('handles circular imports', async () => {
+        const a = path.join(dir, 'a.js')
+        const b = path.join(dir, 'b.js')
+        await writeFile(a, "import './b'\n", 'utf8')
+        await writeFile(b, "import './a'\n", 'utf8')
+
+        expect(await resolveFileImports(a)).toContain("import './b.js'")
+        expect(await resolveFileImports(b)).toContain("import './a.js'")
+    })
+
+    it('throws BundlerError naming file, specifier and tried paths for a missing target', async () => {
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import './missing'\n", 'utf8')
+
+        const promise = resolveFileImports(entry)
+        await expect(promise).rejects.toBeInstanceOf(BundlerError)
+        await expect(promise).rejects.toThrow(/Cannot resolve "\.\/missing"/)
+        await expect(promise).rejects.toThrow(/imported from ".*a\.js"/)
+        await expect(promise).rejects.toThrow(/tried:\n\s+- .*missing\.ts/)
+    })
+
+    it('throws BundlerError for a relative dynamic import', async () => {
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "const m = import('./x')\n", 'utf8')
+
+        const promise = resolveFileImports(entry)
+        await expect(promise).rejects.toBeInstanceOf(BundlerError)
+        await expect(promise).rejects.toThrow(/Dynamic import\("\.\/x"\)/)
+    })
+
+    it('rewrites the specifier of an `export { a } from` re-export', async () => {
+        await writeFile(path.join(dir, 'x.ts'), 'export const a = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "export { a } from './x'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe("export { a } from './x.js'\n")
+    })
+
+    it('rewrites the specifier of an `export * from` re-export', async () => {
+        await writeFile(path.join(dir, 'x.ts'), 'export const a = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "export * from './x'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe("export * from './x.js'\n")
+    })
+
+    it('rewrites a side-effect import', async () => {
+        await writeFile(path.join(dir, 'polyfill.ts'), 'globalThis.p = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, "import './polyfill'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe("import './polyfill.js'\n")
+    })
+
+    it('rewrites single- and double-quoted specifiers, preserving the quote style', async () => {
+        await writeFile(path.join(dir, 'x.ts'), 'export const x = 1\n', 'utf8')
+        await writeFile(path.join(dir, 'y.ts'), 'export const y = 1\n', 'utf8')
+        const entry = path.join(dir, 'a.js')
+        await writeFile(entry, 'import \'./x\'\nimport "./y"\n', 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe('import \'./x.js\'\nimport "./y.js"\n')
+    })
+
+    it('rewrites ../ specifiers from a nested directory, keeping the ../ prefix', async () => {
+        await mkdir(path.join(dir, 'sub', 'deep'), { recursive: true })
+        await writeFile(path.join(dir, 'sub', 'util.ts'), 'export const u = 1\n', 'utf8')
+        await writeFile(path.join(dir, 'root.ts'), 'export const r = 1\n', 'utf8')
+        const entry = path.join(dir, 'sub', 'deep', 'a.js')
+        await writeFile(entry, "import '../util'\nimport '../../root'\n", 'utf8')
+
+        expect(await resolveFileImports(entry)).toBe(
+            "import '../util.js'\nimport '../../root.js'\n",
+        )
+    })
+
+    it('emits forward slashes for a directory import resolved through nested folders', async () => {
+        await mkdir(path.join(dir, 'a', 'b'), { recursive: true })
+        await writeFile(path.join(dir, 'a', 'b', 'index.ts'), 'export const i = 1\n', 'utf8')
+        const entry = path.join(dir, 'entry.js')
+        await writeFile(entry, "import './a/b'\n", 'utf8')
+
+        const output = await resolveFileImports(entry)
+
+        expect(output).toBe("import './a/b/index.js'\n")
+        expect(output).not.toContain('\\')
+    })
+
+    it('transpiles a .tsx file (JSX removed) while rewriting its imports', async () => {
+        await writeFile(path.join(dir, 'button.tsx'), 'export const B = () => <b />\n', 'utf8')
+        const entry = path.join(dir, 'app.tsx')
+        await writeFile(
+            entry,
+            "import { B } from './button'\nexport const App = () => <B />\n",
+            'utf8',
+        )
+
+        const output = await resolveFileImports(entry)
+
+        expect(output).toContain("from './button.js'")
+        expect(output).not.toContain('<B')
     })
 })

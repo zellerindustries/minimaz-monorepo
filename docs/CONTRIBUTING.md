@@ -61,9 +61,13 @@ Run the full validation gate locally — CI runs the same thing:
 
 ```bash
 npm run validate
-npm test
 npm run build
+npm test
 ```
+
+`npm run verify` runs all three in that order (the pre-push hook runs it). Tests read other packages' built
+`dist/`, so build before testing. `npm run verify:release` adds a changeset check and a `npm pack --dry-run` of
+every workspace, then `scripts/verify-packages.mjs` (every tarball has LICENSE and `dist/`, and no sources or tests).
 
 Keep PRs focused on one package or one concern where possible. If your change
 affects `.claude/status.md`'s "working today" / "in progress" / "planned"
@@ -95,6 +99,9 @@ grants broader write access).
 `changesets/action` also automatically creates a GitHub Release per published
 package/version tag — releases are no longer manually cut, but they are still
 created, just by the bot rather than by hand.
+
+After a Release run on `main`, `.github/workflows/wiki.yml` syncs `docs/` to the GitHub wiki
+(`scripts/wiki-sync.mjs`).
 
 Running `npm run version` locally (outside CI) requires a `GITHUB_TOKEN`
 environment variable, since the changelog generator queries the GitHub API

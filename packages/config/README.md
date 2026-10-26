@@ -27,9 +27,9 @@ try {
 ## API
 
 - `loadConfig(cwd, { initCommand? })` — reads `minimaz.config.json` from `cwd`, type-checks every known field,
-  and defaults missing ones. Understands **both** the docs-builder schema (`docs.input.dir`,
+  and defaults missing ones. Understands **both** the `docs.*` section (`docs.input.dir`,
   `docs.output.bundle`, `docs.output.formats`) and the build-oriented schema (`input`/`output`, `mapping`,
-  `externals`, `exclude`, CSS/JS/HTML processing options), plus the `serve` section below. Unknown keys are
+  `externals`, `exclude`, `output.replace`, CSS/JS/HTML processing options), plus the `serve` section below. Unknown keys are
   logged as warnings and ignored. `initCommand` (e.g. `'minimaz init'`) is appended to a `ConfigNotFoundError`
   as a "Run ... first." hint.
 - `configFileName` — `'minimaz.config.json'`.

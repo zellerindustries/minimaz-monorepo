@@ -11,7 +11,7 @@ npm install -g @minimaz/sitekit
 ## Commands
 
 See [`@minimaz/cli`](../../packages/cli)'s README for the full command list — `sitekit` runs the exact
-same commands (`help`, `version`, `validate`, `init`, `config`, `template`, `docs`) under this
+same commands (`help`, `version`, `validate`, `init`, `config`, `template`, `docs`, `clear`, `build`, `serve`) under this
 package's name and version.
 
 ## Why a separate package?

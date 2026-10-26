@@ -8,12 +8,12 @@
 
 ## Packages
 
-Each package, toolkit, and internal tool has its own README with install/usage/API detail:
+Each package and toolkit has its own README with install/usage/API detail:
 
 | Package                                       | What it does                                                                  |
 | --------------------------------------------- | ----------------------------------------------------------------------------- |
 | [`@minimaz/core`](../packages/core)           | Filesystem utilities shared across the ecosystem.                             |
-| [`@minimaz/logger`](../packages/logger)       | Minimal, performance-oriented structured logger.                              |
+| [`@minimaz/logger`](../packages/logger)       | Minimal, performance-oriented structured logger, plus shared CLI error handling (`KnownError`, `handleCliError`). |
 | [`@minimaz/markdown`](../packages/markdown)   | Dependency-free Markdown parser with HTML/PDF renderers.                      |
 | [`@minimaz/css`](../packages/css)             | Dependency-free CSS minifier and `@import` bundler.                           |
 | [`@minimaz/js`](../packages/js)               | Dependency-free JavaScript minifier.                                          |
@@ -23,7 +23,9 @@ Each package, toolkit, and internal tool has its own README with install/usage/A
 | [`@minimaz/html`](../packages/html)           | HTML minifier, plus `@minimaz/validate`'s HTML validator re-exported.         |
 | [`@minimaz/config`](../packages/config)       | Loads and validates `minimaz.config.json`.                                    |
 | [`@minimaz/templates`](../packages/templates) | Manages the global `~/.minimaz` directory and template CRUD.                  |
-| [`@minimaz/cli`](../packages/cli)             | Library implementing the `minimaz`/`mz` commands.                             |
+| [`@minimaz/bundler`](../packages/bundler)     | Zero-dependency relative-import JS/TS module graph resolver. Used by `@minimaz/cli`'s `build` command. |
+| [`@minimaz/local-server`](../packages/local-server) | Dependency-free `node:http` static file server with SSE live reload, for serving a built site during development. Wired into `@minimaz/cli`'s `serve` command. |
+| [`@minimaz/cli`](../packages/cli)             | Library implementing the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`, `template`, `docs`, `clear`, `build`, `serve`. |
 | [`@minimaz/sitekit`](../toolkits/sitekit)     | The published `minimaz`/`mz` binary, wrapping `@minimaz/cli`'s commands.      |
 
 Project status and the `minimaz-cli` migration checklist are internal working ledgers, not published docs — see

@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { transpileTs } from '@minimaz/ts'
+import { BundlerError } from './errors.js'
 import type { ModuleGraphResult } from './types.js'
 
 const resolvableExtensions = ['.ts', '.tsx', '.js']
@@ -34,9 +35,9 @@ async function fileExists(filePath: string): Promise<boolean> {
     }
 }
 
-async function loadAndTranspile(filePath: string): Promise<string> {
-    const raw = await readFile(filePath, 'utf8')
-    const ext = extname(filePath)
+async function loadAndTranspile(filePath: string, source?: string): Promise<string> {
+    const raw = source ?? (await readFile(filePath, 'utf8'))
+    const ext = extname(filePath).toLowerCase()
 
     if (ext === '.ts' || ext === '.tsx') {
         return transpileTs(raw, { jsx: ext === '.tsx' })
@@ -91,7 +92,7 @@ async function findCandidate(
  * resolves; otherwise it is code.
  *
  * @returns The resolved path, or `null` when the specifier is an asset.
- * @throws {Error} When a code-looking specifier cannot be resolved.
+ * @throws {BundlerError} When a code-looking specifier cannot be resolved.
  */
 async function resolveSpecifier(fromFile: string, specifier: string): Promise<string | null> {
     const ext = extname(specifier)
@@ -110,7 +111,7 @@ async function resolveSpecifier(fromFile: string, specifier: string): Promise<st
         return null
     }
 
-    throw new Error(
+    throw new BundlerError(
         `Cannot resolve "${specifier}" imported from "${fromFile}" — tried:\n${result.tried
             .map((c) => `  - ${c}`)
             .join('\n')}`,
@@ -123,21 +124,21 @@ interface Edit {
     text: string
 }
 
-async function processFile(
+/**
+ * Loads (transpiling TypeScript) `filePath` and rewrites each relative code
+ * specifier to its resolved `.js` form. Does not recurse; `onDependency` is
+ * called with each resolved target so callers can walk the graph themselves.
+ */
+async function rewriteImports(
     filePath: string,
-    visited: Set<string>,
-    modules: Map<string, string>,
-): Promise<void> {
-    if (visited.has(filePath)) {
-        return
-    }
-    visited.add(filePath)
-
-    const original = await loadAndTranspile(filePath)
+    onDependency?: (resolved: string) => Promise<void>,
+    source?: string,
+): Promise<string> {
+    const original = await loadAndTranspile(filePath, source)
 
     const dynamicImportMatch = dynamicImportRe.exec(original)
     if (dynamicImportMatch) {
-        throw new Error(
+        throw new BundlerError(
             `Dynamic import("${dynamicImportMatch[2] ?? ''}") in "${filePath}" is not supported — ` +
                 `@minimaz/bundler only resolves static "import"/"export ... from" statements.`,
         )
@@ -158,7 +159,7 @@ async function processFile(
         if (resolvedPath === null) {
             continue
         }
-        await processFile(resolvedPath, visited, modules)
+        await onDependency?.(resolvedPath)
 
         const newSpecifier = toRelativeSpecifier(fromDir, resolvedPath).replace(/\.tsx?$/, '.js')
         const specifierStart = match.index + match[0].lastIndexOf(specifier)
@@ -174,7 +175,40 @@ async function processFile(
         contents = contents.slice(0, edit.start) + edit.text + contents.slice(edit.end)
     }
 
+    return contents
+}
+
+async function processFile(
+    filePath: string,
+    visited: Set<string>,
+    modules: Map<string, string>,
+): Promise<void> {
+    if (visited.has(filePath)) {
+        return
+    }
+    visited.add(filePath)
+
+    const contents = await rewriteImports(filePath, async (dep) =>
+        processFile(dep, visited, modules),
+    )
+
     modules.set(filePath, contents)
+}
+
+/**
+ * Transpiles a single file (TypeScript to JS) and rewrites its relative code
+ * specifiers to `./….js`, confirming each target exists. Does not follow
+ * imports.
+ *
+ * @param {string} filePath - Path to the file (resolved to absolute). Its extension
+ *   decides whether the text is transpiled, and its directory is the resolution base.
+ * @param {string} [source] - Text to process instead of reading `filePath` from disk
+ *   (e.g. content that already had replacements applied). `filePath` need not exist then.
+ * @returns {Promise<string>} The file's rewritten JS text.
+ * @throws {BundlerError} On an unresolvable specifier or relative dynamic import.
+ */
+export async function resolveFileImports(filePath: string, source?: string): Promise<string> {
+    return rewriteImports(resolve(filePath), undefined, source)
 }
 
 /**

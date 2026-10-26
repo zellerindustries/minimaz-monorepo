@@ -3,7 +3,7 @@
 //
 // Each `main`/`bin` path in package.json (`dist/<name>.js`) is bundled from `src/<name>.ts`. Dependencies and Node
 // built-ins stay external, so cross-package `@minimaz/*` imports still resolve through the workspace at runtime.
-import { readdir, readFile, rm } from 'node:fs/promises'
+import { copyFile, readdir, readFile, rm } from 'node:fs/promises'
 import { builtinModules } from 'node:module'
 import { join } from 'node:path'
 import { build } from 'esbuild'
@@ -55,5 +55,8 @@ for (const file of distFiles) {
         await rm(path, { force: true })
     }
 }
+
+// npm only auto-includes a LICENSE found in the package root, so ship the repo's one with every package.
+await copyFile('../../LICENSE', 'LICENSE')
 
 console.log(`Bundled ${pkg.name}`)
