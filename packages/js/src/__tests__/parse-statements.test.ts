@@ -260,26 +260,26 @@ describe('control flow', () => {
     })
 
     it.each([
-        'for (const a;;);',
-        'for (let [a];;);',
-        'for (let a = 1 of b);',
-        'for (var a = 1 of b);',
-        'for (let a = 1 in b);',
-        'for (var [a] = 1 in b);',
-        'for (var a, b of c);',
-        'for (let of x);',
-        'for (let.a of x);',
-        'for (f() of y);',
-        'for (x = 1 in y);',
-        'for (x = 1 of y);',
-        'for (a, b of c);',
-        'for (x of y, z);',
-        'async function f() { for await (x in y); }',
-        'async function f() { for await (;;); }',
-        'async function f() { for await (x;;); }',
-        "'use strict'; for (var a = 1 in b);",
-    ])('rejects the invalid for head %j', (code) => {
-        expect(() => parse(code)).toThrow(ParseError)
+        ['for (const a;;);', 12],
+        ['for (let [a];;);', 12],
+        ['for (let a = 1 of b);', 13],
+        ['for (var a = 1 of b);', 13],
+        ['for (let a = 1 in b);', 13],
+        ['for (var [a] = 1 in b);', 15],
+        ['for (var a, b of c);', 5],
+        ['for (let of x);', 12],
+        ['for (let.a of x);', 11],
+        ['for (f() of y);', 5],
+        ['for (x = 1 in y);', 5],
+        ['for (x = 1 of y);', 5],
+        ['for (a, b of c);', 10],
+        ['for (x of y, z);', 11],
+        ['async function f() { for await (x in y); }', 34],
+        ['async function f() { for await (;;); }', 32],
+        ['async function f() { for await (x;;); }', 33],
+        ["'use strict'; for (var a = 1 in b);", 27],
+    ])('rejects the invalid for head %j', (code, offset) => {
+        expect(failure(code).offset).toBe(offset)
     })
 
     it('parses while and do-while, with ASI after do-while', () => {
@@ -606,8 +606,8 @@ describe('modules', () => {
         expect(first("export * from 'a' with { type: 'json' }")).toMatchObject({
             attributes: [{ key: { name: 'type' } }],
         })
-        expect(() => parse("import a from 'a' with { type: 'x', type: 'y' }")).toThrow(ParseError)
-        expect(() => parse("import a from 'a' with { type: 1 }")).toThrow(ParseError)
+        expect(failure("import a from 'a' with { type: 'x', type: 'y' }").offset).toBe(36)
+        expect(failure("import a from 'a' with { type: 1 }").offset).toBe(31)
     })
 
     it('parses every export form', () => {

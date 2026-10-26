@@ -151,8 +151,8 @@ describe('operators and precedence', () => {
 
     it('rejects an unparenthesized unary operand of **', () => {
         expect(failure('-a ** 2').offset).toBe(0)
-        expect(() => parse('typeof a ** 2')).toThrow(ParseError)
-        expect(() => parse('!a ** 2')).toThrow(ParseError)
+        expect(failure('typeof a ** 2').offset).toBe(0)
+        expect(failure('!a ** 2').offset).toBe(0)
         expect(sxOf('(-a) ** 2')).toBe('(** (- a) 2)')
         expect(sxOf('a++ ** 2')).toBe('(** (x++ a) 2)')
         expect(sxOf('++a ** 2')).toBe('(** (++x a) 2)')
@@ -160,7 +160,7 @@ describe('operators and precedence', () => {
 
     it('rejects mixing ?? with || or && without parentheses', () => {
         for (const code of ['a ?? b || c', 'a || b ?? c', 'a && b ?? c', 'a ?? b && c']) {
-            expect(() => parse(code), code).toThrow(ParseError)
+            expect(failure(code).offset, code).toBe(0)
         }
         expect(sxOf('(a && b) ?? c')).toBe('(?? (&& a b) c)')
         expect(sxOf('a ?? (b && c)')).toBe('(?? a (&& b c))')
@@ -181,9 +181,9 @@ describe('operators and precedence', () => {
             right: { type: 'Identifier', name: 'a' },
         })
         expect(sxOf('a && #x in b')).toBe('(&& a (in #x b))')
-        expect(() => parse('a + #x in b')).toThrow(ParseError)
-        expect(() => parse('#x + 1')).toThrow(ParseError)
-        expect(() => parse('#x')).toThrow(ParseError)
+        expect(failure('a + #x in b').offset).toBe(4)
+        expect(failure('#x + 1').offset).toBe(0)
+        expect(failure('#x').offset).toBe(0)
     })
 })
 
@@ -390,26 +390,26 @@ describe('arrow functions', () => {
     })
 
     it.each([
-        'x\n=> 1',
-        '(a)\n=> 1',
-        'async x\n=> 1',
-        'a + x => 1',
-        'x => {} + 1',
-        'x => {}()',
-        '((a)) => 1',
-        '([(a)]) => 1',
-        '(a.b) => 1',
-        '(1) => 1',
-        '(a, ...b,) => 1',
-        '(...a, b) => 1',
-        '() + 1',
-        '()',
-        '(a,) + 1',
-        '(...a)',
-        '({a: 1}) => 1',
-        '(a, a.b) => 1',
-    ])('rejects %j', (code) => {
-        expect(() => parse(code)).toThrow(ParseError)
+        ['x\n=> 1', 2],
+        ['(a)\n=> 1', 4],
+        ['async x\n=> 1', 6],
+        ['a + x => 1', 6],
+        ['x => {} + 1', 8],
+        ['x => {}()', 7],
+        ['((a)) => 1', 2],
+        ['([(a)]) => 1', 3],
+        ['(a.b) => 1', 1],
+        ['(1) => 1', 1],
+        ['(a, ...b,) => 1', 4],
+        ['(...a, b) => 1', 1],
+        ['() + 1', 1],
+        ['()', 1],
+        ['(a,) + 1', 3],
+        ['(...a)', 1],
+        ['({a: 1}) => 1', 5],
+        ['(a, a.b) => 1', 4],
+    ])('rejects %j', (code, offset) => {
+        expect(failure(code).offset).toBe(offset)
     })
 
     it('allows a trailing comma only after a non-rest parameter', () => {
@@ -537,7 +537,7 @@ describe('function and class expressions', () => {
     it('parses ASI between class fields', () => {
         const cls = expr('(class { a\nb\nc = 1\nd })')
         expect((cls as { body: { body: unknown[] } }).body.body).toHaveLength(4)
-        expect(() => parse('(class { a = 1 b = 2 })')).toThrow(ParseError)
+        expect(failure('(class { a = 1 b = 2 })').offset).toBe(15)
     })
 
     it('parses super in constructors and methods', () => {
@@ -546,11 +546,11 @@ describe('function and class expressions', () => {
         ).not.toThrow()
         expect(() => parse('({ m(){ super.x } })')).not.toThrow()
         expect(sxOf('(class extends A { m(){ super.x } })')).toBe('ClassExpression')
-        expect(() => parse('super.x')).toThrow(ParseError)
-        expect(() => parse('(class { constructor(){ super() } })')).toThrow(ParseError)
-        expect(() => parse('(class extends A { m(){ super() } })')).toThrow(ParseError)
-        expect(() => parse('({ m: function(){ super.x } })')).toThrow(ParseError)
-        expect(() => parse('({ m(){ super() } })')).toThrow(ParseError)
+        expect(failure('super.x').offset).toBe(0)
+        expect(failure('(class { constructor(){ super() } })').offset).toBe(24)
+        expect(failure('(class extends A { m(){ super() } })').offset).toBe(24)
+        expect(failure('({ m: function(){ super.x } })').offset).toBe(18)
+        expect(failure('({ m(){ super() } })').offset).toBe(8)
         expect(() =>
             parse('(class extends A { constructor(){ (() => super())() } })'),
         ).not.toThrow()
@@ -569,15 +569,15 @@ describe('function and class expressions', () => {
     })
 
     it('validates accessor arity and constructor kinds', () => {
-        expect(() => parse('(class { get a(b){} })')).toThrow(ParseError)
-        expect(() => parse('(class { set a(){} })')).toThrow(ParseError)
-        expect(() => parse('(class { set a(...b){} })')).toThrow(ParseError)
-        expect(() => parse('({ get a(b){} })')).toThrow(ParseError)
-        expect(() => parse('({ set a(b, c){} })')).toThrow(ParseError)
-        expect(() => parse('(class { get constructor(){} })')).toThrow(ParseError)
-        expect(() => parse('(class { *constructor(){} })')).toThrow(ParseError)
-        expect(() => parse('(class { constructor(){} constructor(){} })')).toThrow(ParseError)
-        expect(() => parse('(class { #constructor })')).toThrow(ParseError)
+        expect(failure('(class { get a(b){} })').offset).toBe(14)
+        expect(failure('(class { set a(){} })').offset).toBe(14)
+        expect(failure('(class { set a(...b){} })').offset).toBe(14)
+        expect(failure('({ get a(b){} })').offset).toBe(8)
+        expect(failure('({ set a(b, c){} })').offset).toBe(8)
+        expect(failure('(class { get constructor(){} })').offset).toBe(13)
+        expect(failure('(class { *constructor(){} })').offset).toBe(10)
+        expect(failure('(class { constructor(){} constructor(){} })').offset).toBe(25)
+        expect(failure('(class { #constructor })').offset).toBe(9)
         expect(() =>
             parse('(class { static constructor(){} static constructor(){} })'),
         ).not.toThrow()
@@ -587,15 +587,15 @@ describe('function and class expressions', () => {
         expect(() => parse('(class A extends B.c {})')).not.toThrow()
         expect(() => parse('(class A extends B() {})')).not.toThrow()
         expect(() => parse('(class A extends (a, b) {})')).not.toThrow()
-        expect(() => parse('(class A extends a ? b : c {})')).toThrow(ParseError)
-        expect(() => parse('(class A extends a + b {})')).toThrow(ParseError)
+        expect(failure('(class A extends a ? b : c {})').offset).toBe(19)
+        expect(failure('(class A extends a + b {})').offset).toBe(19)
     })
 
     it('supports new.target only inside functions', () => {
         expect(expr('(function(){ new.target })')).toMatchObject({ type: 'FunctionExpression' })
-        expect(() => parse('new.target')).toThrow(ParseError)
-        expect(() => parse('(() => new.target)')).toThrow(ParseError)
-        expect(() => parse('(function(){ new.foo })')).toThrow(ParseError)
+        expect(failure('new.target').offset).toBe(0)
+        expect(failure('(() => new.target)').offset).toBe(7)
+        expect(failure('(function(){ new.foo })').offset).toBe(17)
     })
 })
 
@@ -689,11 +689,11 @@ describe('object and array literals', () => {
 
     it('accepts a trailing comma and rejects stray commas', () => {
         expect(sxOf('({a,})')).toBe('{a}')
-        expect(() => parse('({ , })')).toThrow(ParseError)
-        expect(() => parse('({ a, , b })')).toThrow(ParseError)
-        expect(() => parse('({ a b })')).toThrow(ParseError)
-        expect(() => parse('({ if })')).toThrow(ParseError)
-        expect(() => parse('({ 1 })')).toThrow(ParseError)
+        expect(failure('({ , })').offset).toBe(3)
+        expect(failure('({ a, , b })').offset).toBe(6)
+        expect(failure('({ a b })').offset).toBe(5)
+        expect(failure('({ if })').offset).toBe(6)
+        expect(failure('({ 1 })').offset).toBe(5)
     })
 })
 
@@ -779,15 +779,15 @@ describe('templates', () => {
         expect(expr('tag`\\unicode and \\xerror`')).toMatchObject({
             quasi: { quasis: [{ value: { cooked: null, raw: '\\unicode and \\xerror' } }] },
         })
-        expect(() => parse('`\\unicode`')).toThrow(ParseError)
-        expect(() => parse('`\\xZ`')).toThrow(ParseError)
-        expect(() => parse('`\\01`')).toThrow(ParseError)
+        expect(failure('`\\unicode`').offset).toBe(0)
+        expect(failure('`\\xZ`').offset).toBe(0)
+        expect(failure('`\\01`').offset).toBe(0)
         expect(expr('`\\0`')).toMatchObject({ quasis: [{ value: { cooked: '\0' } }] })
     })
 
     it('reports unterminated templates at the chunk start', () => {
         expect(failure('a = `abc').offset).toBe(4)
-        expect(failure('a = `abc${b').offset).toBeGreaterThanOrEqual(4)
+        expect(failure('a = `abc${b').offset).toBe(11)
         expect(failure('a = `abc${b}').offset).toBe(11)
         expect(failure('`a${b c}`').offset).toBe(6)
     })
@@ -807,8 +807,23 @@ describe('regular expressions and division', () => {
         expect(expr('/(?<n>a)\\k<n>/u')).toMatchObject({ regex: { flags: 'u' } })
     })
 
-    it('keeps a regex value null when the engine rejects the pattern', () => {
-        expect(expr('/?a/')).toMatchObject({ value: null, regex: { pattern: '?a' } })
+    it('rejects patterns the engine reports as syntax errors', () => {
+        expect(failure('/?a/').offset).toBe(0)
+        expect(failure('x = /(/').offset).toBe(4)
+        expect(failure('x = /a/vu').offset).toBe(7)
+    })
+
+    it('keeps value null for v-flag patterns, which a host may not support', () => {
+        const node = expr('/[\\p{L}--[a-z]]/v')
+        expect(node).toMatchObject({ regex: { flags: 'v' } })
+        expect(() => parse('/(/v')).not.toThrow()
+    })
+
+    it('rejects a pending shorthand initializer once subscripts follow the literal', () => {
+        expect(failure('[{a=1}].x = 1').offset).toBe(3)
+        expect(failure('({a=1}.x = 1)').offset).toBe(3)
+        expect(failure('({a=1}).x = 1').offset).toBe(3)
+        expect(sxOf('({a=1} = 1)')).toBe('(= {(= a 1)} 1)')
     })
 
     it('decides regex vs division from the parser position', () => {
@@ -1042,7 +1057,7 @@ describe('member access, calls, new and optional chaining', () => {
         expect(failure('new a?.()').offset).toBe(5)
         expect(failure('a?.`x`').offset).toBe(3)
         expect(failure('a?.b`x`').offset).toBe(4)
-        expect(() => parse('a?.')).toThrow(ParseError)
+        expect(failure('a?.').offset).toBe(3)
     })
 
     it('parses private member access', () => {
@@ -1070,10 +1085,10 @@ describe('member access, calls, new and optional chaining', () => {
     })
 
     it('rejects malformed import and new', () => {
-        expect(() => parse('import()')).toThrow(ParseError)
-        expect(() => parse('import(...a)')).toThrow(ParseError)
-        expect(() => parse('import.foo')).toThrow(ParseError)
-        expect(() => parse('new import(a)')).toThrow(ParseError)
+        expect(failure('import()').offset).toBe(7)
+        expect(failure('import(...a)').offset).toBe(7)
+        expect(failure('import.foo').offset).toBe(7)
+        expect(failure('new import(a)').offset).toBe(4)
         expect(() => parse('new (import(a))')).not.toThrow()
     })
 })
@@ -1114,8 +1129,8 @@ describe('yield and await', () => {
     it('treats yield as an identifier outside generators', () => {
         expect(sxOf('yield')).toBe('yield')
         expect(sxOf('yield + 1')).toBe('(+ yield 1)')
-        expect(() => parse('(function*(){ var yield })')).toThrow(ParseError)
-        expect(() => parse('(function*(){ yield = 1 })')).toThrow(ParseError)
+        expect(failure('(function*(){ var yield })').offset).toBe(18)
+        expect(failure('(function*(){ yield = 1 })').offset).toBe(20)
     })
 
     it('parses await forms', () => {
@@ -1130,15 +1145,15 @@ describe('yield and await', () => {
     })
 
     it('rejects an unparenthesized await operand of **', () => {
-        expect(() => parse('(async function(){ await a ** 2 })')).toThrow(ParseError)
+        expect(failure('(async function(){ await a ** 2 })').offset).toBe(19)
     })
 
     it('treats await as an identifier outside async functions', () => {
         expect(sxOf('await')).toBe('await')
         expect(sxOf('(function(){ await + 1 })')).toBe('FunctionExpression')
         expect(sxOf('(function(){ await })')).toBe('FunctionExpression')
-        expect(() => parse('(async function(){ await })')).toThrow(ParseError)
-        expect(() => parse('(async function(){ var await })')).toThrow(ParseError)
+        expect(failure('(async function(){ await })').offset).toBe(25)
+        expect(failure('(async function(){ var await })').offset).toBe(23)
     })
 
     it('does not leak async/generator context into nested functions', () => {
@@ -1209,7 +1224,7 @@ describe('comments and whitespace', () => {
 
     it('counts a newline inside a block comment as a line terminator for ASI', () => {
         expect(parse('a /* x\ny */ b').body).toHaveLength(2)
-        expect(() => parse('a /* x y */ b')).toThrow(ParseError)
+        expect(failure('a /* x y */ b').offset).toBe(12)
         expect(parse('a // c\nb').body).toHaveLength(2)
     })
 
@@ -1235,10 +1250,10 @@ describe('identifiers', () => {
     })
 
     it('does not treat escaped keywords as keywords', () => {
-        expect(() => parse('n\\u0065w a')).toThrow(ParseError)
-        expect(() => parse('a = \\u0066unction(){}')).toThrow(ParseError)
+        expect(failure('n\\u0065w a').offset).toBe(0)
+        expect(failure('a = \\u0066unction(){}').offset).toBe(4)
         expect(sxOf('({ g\\u0065t: 1 })')).toBe('{get:1}')
-        expect(() => parse('({ g\\u0065t a(){} })')).toThrow(ParseError)
+        expect(failure('({ g\\u0065t a(){} })').offset).toBe(12)
     })
 
     it('rejects reserved words as identifiers', () => {
@@ -1262,10 +1277,12 @@ describe('identifiers', () => {
             ) {
                 continue
             }
-            expect(() => parse(`a = ${word}`), word).toThrow(ParseError)
+            expect(failure(`a = ${word}`).offset, word).toBe(
+                word === 'class' || word === 'function' ? 4 + word.length : 4,
+            )
         }
-        expect(() => parse('({ if })')).toThrow(ParseError)
-        expect(() => parse('(a, if) => 1')).toThrow(ParseError)
+        expect(failure('({ if })').offset).toBe(6)
+        expect(failure('(a, if) => 1').offset).toBe(4)
     })
 
     it('rejects stray characters with an offset', () => {
@@ -1296,7 +1313,7 @@ describe('statement basics', () => {
         expect(parse('a\n++b').body).toHaveLength(2)
         expect(parse('a\n--b').body).toHaveLength(2)
         expect(failure('a b').offset).toBe(2)
-        expect(failure('a ? b').offset).toBeGreaterThanOrEqual(5)
+        expect(failure('a ? b').offset).toBe(5)
     })
 
     it('marks directive prologues only on leading string statements', () => {

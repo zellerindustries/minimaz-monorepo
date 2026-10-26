@@ -38,7 +38,10 @@ import { Lexer, ParseError, type LexToken } from './lexer.js'
 
 export { ParseError } from './lexer.js'
 
-/** Tracks a `{a = 1}` shorthand-with-initializer, legal only if the literal is later reinterpreted as a pattern. */
+/**
+ * Tracks a `{a = 1}` shorthand-with-initializer, legal only if the literal is later reinterpreted
+ * as a pattern.
+ */
 interface Cover {
     shorthandAssign: number
 }
@@ -57,7 +60,10 @@ interface FnContext {
     switches: number
 }
 
-/** An enclosing label; `kind` is `'loop'` when it labels an iteration statement (valid `continue` target). */
+/**
+ * An enclosing label; `kind` is `'loop'` when it labels an iteration statement (valid `continue`
+ * target).
+ */
 interface Label {
     name: string
     kind: 'loop' | null
@@ -187,7 +193,10 @@ function isUnaryOperator(op: string): op is UnaryOperator {
     return unaryPunctuators.has(op) || unaryKeywords.has(op)
 }
 
-/** Parser state and grammar. `module` parses as an ES module (strict, top-level `await`, import/export). */
+/**
+ * Parser state and grammar. `module` parses as an ES module (strict, top-level `await`,
+ * import/export).
+ */
 class Parser {
     private readonly code: string
     private readonly lexer: Lexer
@@ -200,7 +209,9 @@ class Parser {
     sawModule = false
     /** Set when `await` is used as an identifier at the top level (it may be a top-level await). */
     sawTopLevelAwait = false
-    /** Start offset at which an arrow function may begin (set by every assignment-expression parse). */
+    /**
+     * Start offset at which an arrow function may begin (set by every assignment-expression parse).
+     */
     private arrowStart = -1
     private readonly parenthesized = new Set<Node>()
     /** Spread elements followed by a comma, which can never be rest elements. */
@@ -327,7 +338,10 @@ class Parser {
         }
     }
 
-    /** Parses statements until `atEnd` reports the terminator; function and program bodies get a directive prologue. */
+    /**
+     * Parses statements until `atEnd` reports the terminator; function and program bodies get a
+     * directive prologue.
+     */
     private parseStatementList(
         atEnd: () => boolean,
         directives: boolean,
@@ -381,7 +395,10 @@ class Parser {
         return { type: 'ExpressionStatement', expression, start: t.start, end: this.prevEnd }
     }
 
-    /** Parses a statement introduced by a name token, or returns `null` when it starts an expression statement. */
+    /**
+     * Parses a statement introduced by a name token, or returns `null` when it starts an expression
+     * statement.
+     */
     private parseKeywordStatement(
         name: string,
         start: number,
@@ -471,7 +488,9 @@ class Parser {
         }
     }
 
-    /** Plain function declarations are legal in lists, and (sloppy mode only) as `if`/label bodies. */
+    /**
+     * Plain function declarations are legal in lists, and (sloppy mode only) as `if`/label bodies.
+     */
     private checkFunctionPlace(place: StatementPlace, offset: number): void {
         if (place === 'single' || (place === 'loose' && this.strict)) {
             throw new ParseError('function declaration in single-statement context', offset)
@@ -491,7 +510,10 @@ class Parser {
         return next.type === 'punct' && (next.value === '[' || next.value === '{')
     }
 
-    /** Consumes a statement terminator: `;`, or nothing when ASI applies (newline, `}` or end of input). */
+    /**
+     * Consumes a statement terminator: `;`, or nothing when ASI applies (newline, `}` or end of
+     * input).
+     */
     private semicolon(): void {
         if (this.eatPunct(';')) {
             return
@@ -720,8 +742,8 @@ class Parser {
     }
 
     /**
-     * Parses `var|let|const a = 1, b`. In a `for` head (`forHead`), a declarator may omit its initializer when
-     * `in`/`of` follows; the caller validates the rest.
+     * Parses `var|let|const a = 1, b`. In a `for` head (`forHead`), a declarator may omit its
+     * initializer when `in`/`of` follows; the caller validates the rest.
      */
     private parseVar(noIn: boolean, forHead: boolean): VariableDeclaration {
         const start = this.tok.start
@@ -1452,10 +1474,17 @@ class Parser {
         if (expr.type !== 'Super' && this.isPlainArrow(expr)) {
             return expr
         }
-        return this.parseSubscripts(expr, start, false)
+        const result = this.parseSubscripts(expr, start, false)
+        if (result !== expr && cover !== null && cover.shorthandAssign !== -1) {
+            throw new ParseError('invalid shorthand property initializer', cover.shorthandAssign)
+        }
+        return result
     }
 
-    /** Like {@link Parser.parseExprAtom} but also yields a `Super` node (always followed by a subscript). */
+    /**
+     * Like {@link Parser.parseExprAtom} but also yields a `Super` node (always followed by a
+     * subscript).
+     */
     private parseAtomOrSuper(cover: Cover | null): Expression | Super {
         const t = this.tok
         if (t.type !== 'name' || t.escaped || t.value !== 'super') {
@@ -1491,9 +1520,9 @@ class Parser {
     }
 
     /**
-     * Reinterprets an expression as an assignment target (`binding` false) or a binding pattern (arrow
-     * parameters, `binding` true). Already-converted patterns pass through (verified when `binding`).
-     * Throws `ParseError('invalid assignment target')` when impossible.
+     * Reinterprets an expression as an assignment target (`binding` false) or a binding pattern
+     * (arrow parameters, `binding` true). Already-converted patterns pass through (verified when
+     * `binding`). Throws `ParseError('invalid assignment target')` when impossible.
      */
     private toAssignable(node: Expression | SpreadElement | Pattern, binding: boolean): Pattern {
         const parenthesized = this.parenthesized.has(node)
@@ -1605,7 +1634,10 @@ class Parser {
         return { type: 'ObjectPattern', properties, start: node.start, end: node.end }
     }
 
-    /** Throws if an already-converted pattern contains a member expression or a parenthesized target. */
+    /**
+     * Throws if an already-converted pattern contains a member expression or a parenthesized
+     * target.
+     */
     private verifyBinding(pattern: Pattern): void {
         switch (pattern.type) {
             case 'Identifier':
@@ -1708,11 +1740,15 @@ class Parser {
     private parseRegex(): Literal {
         const t = this.tok
         this.advance()
-        let value: RegExp | null
+        // A SyntaxError from the engine means the pattern is invalid, except with the `v` flag: its
+        // set notation depends on the host's regex support, so there the value stays null instead.
+        let value: RegExp | null = null
         try {
             value = new RegExp(t.value, t.flags)
-        } catch {
-            value = null
+        } catch (error) {
+            if (!(error instanceof SyntaxError) || !t.flags.includes('v')) {
+                throw new ParseError('invalid regular expression', t.start)
+            }
         }
         return {
             type: 'Literal',
@@ -2921,10 +2957,10 @@ class Parser {
 /**
  * Parses JavaScript source into an ESTree `Program`.
  *
- * The source type is detected: a file using `import`/`export`/`import.meta` or a top-level `await` is parsed
- * as a module (strict mode, `sourceType: 'module'`); anything else is a sloppy-mode script. A script that uses
- * `await` as a plain identifier at the top level is read as a module when that parses, since top-level
- * `await` is by far the likelier intent.
+ * The source type is detected: a file using `import`/`export`/`import.meta` or a top-level `await`
+ * is parsed as a module (strict mode, `sourceType: 'module'`); anything else is a sloppy-mode
+ * script. A script that uses `await` as a plain identifier at the top level is read as a module
+ * when that parses, since top-level `await` is by far the likelier intent.
  * @param code - Source text.
  * @returns The program AST.
  * @throws {ParseError} On a syntax error, with the offending source offset.

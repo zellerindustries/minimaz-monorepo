@@ -17,10 +17,10 @@ export type TokenType =
     'name' | 'private' | 'punct' | 'num' | 'bigint' | 'string' | 'regex' | 'template' | 'eof'
 
 /**
- * One token. `value` is the identifier/punctuator text, the cooked string, the regex pattern or the raw
- * template chunk. `num`/`big` hold numeric values, `flags` regex flags, `cooked`/`tail` template data.
- * A template token spans from the opening backtick (or the `}` of a continuation) to the closing backtick or
- * the `${` that ends the chunk.
+ * One token. `value` is the identifier/punctuator text, the cooked string, the regex pattern or the
+ * raw template chunk. `num`/`big` hold numeric values, `flags` regex flags, `cooked`/`tail`
+ * template data. A template token spans from the opening backtick (or the `}` of a continuation) to
+ * the closing backtick or the `${` that ends the chunk.
  */
 export interface LexToken {
     type: TokenType
@@ -110,12 +110,14 @@ function isLineTerminator(c: number): boolean {
 
 /**
  * On-demand JavaScript lexer. It never guesses whether `/` starts a regex: the parser passes
- * `regexAllowed` to {@link Lexer.next}, or re-reads a `/` token with {@link Lexer.rescanRegex} when it
- * finds itself in operand position. Template continuations (after the `}` closing a `${`) are likewise
- * requested by the parser through {@link Lexer.readTemplateContinuation}.
+ * `regexAllowed` to {@link Lexer.next}, or re-reads a `/` token with {@link Lexer.rescanRegex} when
+ * it finds itself in operand position. Template continuations (after the `}` closing a `${`) are
+ * likewise requested by the parser through {@link Lexer.readTemplateContinuation}.
  */
 export class Lexer {
-    /** Current read position; always the end of the last token returned unless the parser resets it. */
+    /**
+     * Current read position; always the end of the last token returned unless the parser resets it.
+     */
     pos = 0
     private readonly code: string
 
@@ -131,7 +133,8 @@ export class Lexer {
 
     /**
      * Reads the next token.
-     * @param regexAllowed - Whether a `/` here starts a regular expression literal rather than dividing.
+     * @param regexAllowed - Whether a `/` here starts a regular expression literal rather than
+     * dividing.
      * @returns The token (type `eof` at the end of input).
      */
     next(regexAllowed: boolean): LexToken {
@@ -299,7 +302,10 @@ export class Lexer {
         return { text, escaped }
     }
 
-    /** Reads the part of a `\u` escape after the `u`; returns -1 (after consuming what it saw) if invalid. */
+    /**
+     * Reads the part of a `\u` escape after the `u`; returns -1 (after consuming what it saw) if
+     * invalid.
+     */
     private readCodePointEscape(): number {
         if (this.code.charAt(this.pos) === '{') {
             this.pos++
@@ -420,7 +426,10 @@ export class Lexer {
         return result
     }
 
-    /** Reads `.frac` and `e+exp` after the integer digits; returns the numeric text and whether it is integral. */
+    /**
+     * Reads `.frac` and `e+exp` after the integer digits; returns the numeric text and whether it
+     * is integral.
+     */
     private readDecimalTail(intDigits: string): { text: string; isInt: boolean } {
         let text = intDigits
         let isInt = true
@@ -650,6 +659,9 @@ export class Lexer {
                 throw new ParseError('invalid regular expression flags', flagsStart)
             }
             seen.add(flag)
+        }
+        if (seen.has('u') && seen.has('v')) {
+            throw new ParseError('invalid regular expression flags', flagsStart)
         }
         if (code.charAt(this.pos) === '\\') {
             throw new ParseError('invalid regular expression flags', this.pos)
