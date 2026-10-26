@@ -179,7 +179,7 @@ describe('executeCommand', () => {
 
 describe('envWithoutNpmConfig', () => {
     const keys = [
-        'npm_config_registry',
+        'npm_config_minimaz_unrelated',
         'npm_config_allow_scripts',
         'npm_config_allow-scripts',
         'NPM_CONFIG_ALLOW_SCRIPTS',
@@ -192,14 +192,14 @@ describe('envWithoutNpmConfig', () => {
     })
 
     it('keeps unrelated npm_config_* vars and drops only allow-scripts spellings', () => {
-        process.env['npm_config_registry'] = 'https://r.example'
+        process.env['npm_config_minimaz_unrelated'] = 'https://r.example'
         process.env['npm_config_allow_scripts'] = 'x'
         process.env['npm_config_allow-scripts'] = 'x'
         process.env['NPM_CONFIG_ALLOW_SCRIPTS'] = 'x'
 
         const env = envWithoutNpmConfig()
 
-        expect(env['npm_config_registry']).toBe('https://r.example')
+        expect(env['npm_config_minimaz_unrelated']).toBe('https://r.example')
         expect(env['npm_config_allow_scripts']).toBeUndefined()
         expect(env['npm_config_allow-scripts']).toBeUndefined()
         expect(env['NPM_CONFIG_ALLOW_SCRIPTS']).toBeUndefined()
