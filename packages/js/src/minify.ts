@@ -1,300 +1,174 @@
-const keywordsBeforeRegex = new Set([
-    'return',
+import { isIdentifierChar, isMemberName, tokenize } from './tokenize.js'
+import type { Token } from './tokenize.js'
+
+/** After these, a line break is never removed: ASI would (or might) act on it. */
+const neverJoinAfterWords = new Set(['return', 'break', 'continue', 'throw', 'yield', 'async'])
+
+/** After these keywords the next token always continues the statement. */
+const joinAfterWords = new Set([
+    'else',
+    'do',
+    'try',
+    'finally',
     'typeof',
-    'instanceof',
-    'in',
-    'of',
     'new',
     'delete',
     'void',
-    'throw',
-    'yield',
+    'in',
+    'instanceof',
     'case',
-    'do',
-    'else',
-    'await',
-    'default',
+    'var',
+    'const',
+    'function',
+    'class',
+    'extends',
 ])
 
-function isIdentifierPart(char: string): boolean {
-    return /[A-Za-z0-9_$]/.test(char)
+/** Punctuators that end an expression, so a line break after them can matter. */
+const endsExpression = new Set([')', ']', '}', '++', '--'])
+
+/** Tokens that can never begin a new statement, so a line break before them is not an ASI point. */
+const joinBeforePunct = new Set(['(', '[', '.', '?.', ')', ']', ',', ';', ':', '}'])
+
+const binaryOperators = new Set([
+    '+',
+    '-',
+    '*',
+    '/',
+    '%',
+    '**',
+    '=',
+    '+=',
+    '-=',
+    '*=',
+    '/=',
+    '%=',
+    '**=',
+    '<<=',
+    '>>=',
+    '>>>=',
+    '&=',
+    '|=',
+    '^=',
+    '&&=',
+    '||=',
+    '??=',
+    '==',
+    '!=',
+    '===',
+    '!==',
+    '<',
+    '>',
+    '<=',
+    '>=',
+    '&&',
+    '||',
+    '??',
+    '&',
+    '|',
+    '^',
+    '<<',
+    '>>',
+    '>>>',
+    '?',
+    '=>',
+])
+
+/** Whether the line break between `tokens[index - 1]` and `tokens[index]` can be dropped without changing meaning. */
+function canJoin(tokens: readonly Token[], index: number): boolean {
+    const prev = tokens[index - 1]
+    const token = tokens[index]
+    if (prev === undefined || token === undefined) {
+        return false
+    }
+    if (token.type === 'punct' && (token.value === '++' || token.value === '--')) {
+        return false
+    }
+    const prevIsKeyword = prev.type === 'word' && !isMemberName(tokens, index - 1)
+    if (prevIsKeyword && neverJoinAfterWords.has(prev.value)) {
+        return false
+    }
+    if (prev.type === 'punct' && !endsExpression.has(prev.value)) {
+        return true
+    }
+    if (prevIsKeyword && joinAfterWords.has(prev.value)) {
+        return true
+    }
+    if (token.type === 'template') {
+        return true
+    }
+    return (
+        token.type === 'punct' &&
+        (joinBeforePunct.has(token.value) || binaryOperators.has(token.value))
+    )
 }
 
-function isIdentifierStart(char: string): boolean {
-    return /[A-Za-z_$]/.test(char)
+/** Whether `prev` and `token` would lex differently (or as one token) if written without a space. */
+function needsSpace(prev: Token, token: Token): boolean {
+    const last = prev.value.charAt(prev.value.length - 1)
+    const first = token.value.charAt(0)
+    if (isIdentifierChar(last) && isIdentifierChar(first)) {
+        return true
+    }
+    if (prev.type === 'regex' && (token.type === 'word' || token.type === 'number')) {
+        return true
+    }
+    if (prev.type === 'punct' && token.type === 'punct') {
+        if ((last === '+' || last === '-') && first === last) {
+            return true
+        }
+        if (prev.value === '<' && token.value === '!') {
+            return true
+        }
+    }
+    if (prev.type === 'punct' && prev.value === '/' && token.type === 'regex') {
+        return true
+    }
+    if (prev.type === 'number' && !/[.exn]/i.test(prev.value) && first === '.') {
+        return true
+    }
+    return prev.type === 'punct' && prev.value === '?' && first === '.'
 }
 
 /**
- * Minifies JavaScript by stripping comments, deliberately conservative
- * about whitespace: trims each line and collapses consecutive blank lines,
- * but never joins lines or collapses whitespace across a newline — JS's
- * automatic semicolon insertion means removing the newline after `return`
- * (or `break`/`continue`/`throw`/postfix `++`/`--`) can silently change
- * behavior (`return\n{ a: 1 }` returns `undefined`, not the object).
+ * Minifies JavaScript by tokenizing it: comments are dropped and whitespace is
+ * reduced to the minimum that keeps the token stream identical. A line break
+ * is only removed where automatic semicolon insertion provably cannot apply
+ * (after an operator or `,`/`;`/`(`/`[`/`{`, before `.`/`(`/`[`/`)` and so on);
+ * everywhere else, including after `return`/`break`/`continue`/`throw` and
+ * before `++`/`--`, it is kept. Strings, templates and regexes are copied
+ * verbatim. Nothing is renamed, reordered or removed besides whitespace and
+ * comments; a leading `#!` line is preserved.
  *
- * Regex-literal-vs-division disambiguation uses a preceding-token
- * heuristic (regex allowed at start of input, after most punctuators, and
- * after keywords like `return`/`typeof`; division assumed after
- * identifiers, numbers, strings, and `)`/`]`). This is a known-imperfect
- * heuristic — the same approach every non-full-parser JS minifier uses —
- * and can misjudge unusual code, most notably a regex literal immediately
- * after a `)` that closes an `if`/`while`/`for` condition rather than a
- * function call (`if (x) /re/.test(y)` is treated as division, matching
- * the far more common `foo(x) / 2` case instead).
+ * Regex-vs-division is decided from the preceding token (a heuristic, not a
+ * parser), which is right for all ordinary code.
  *
  * @param {string} code - JavaScript source to minify
  * @returns {string} Minified JavaScript
+ * @throws {Error} `minifyJs: …` if `code` is not a string or has an unterminated
+ *   string, template literal, regex or block comment
  */
 export function minifyJs(code: string): string {
     if (typeof code !== 'string') {
         throw new Error('minifyJs: code must be a string')
     }
 
-    let result = ''
-    // Offsets in `result` of newlines inside a string or template literal body;
-    // the trim/collapse pass must leave those untouched.
-    const literalNewlines = new Set<number>()
-    const appendLiteral = (text: string): void => {
-        for (let k = text.indexOf('\n'); k !== -1; k = text.indexOf('\n', k + 1)) {
-            literalNewlines.add(result.length + k)
+    const { hashbang, tokens } = tokenize(code)
+    let body = ''
+    for (const [index, token] of tokens.entries()) {
+        const prev = tokens[index - 1]
+        if (prev !== undefined) {
+            if (token.newlineBefore && !canJoin(tokens, index)) {
+                body += '\n'
+            } else if (needsSpace(prev, token)) {
+                body += ' '
+            }
         }
-        result += text
-    }
-    let i = 0
-    const len = code.length
-
-    let inString: '"' | "'" | null = null
-    const templateDepths: number[] = []
-    let regexAllowed = true
-
-    while (i < len) {
-        const char = code.charAt(i)
-
-        if (inString !== null) {
-            appendLiteral(char)
-            if (char === '\\' && i + 1 < len) {
-                appendLiteral(code.charAt(i + 1))
-                i += 2
-                continue
-            }
-            if (char === inString) {
-                inString = null
-                regexAllowed = false
-            }
-            i++
-            continue
-        }
-
-        if (templateDepths.length > 0 && templateDepths[templateDepths.length - 1] === 0) {
-            if (char === '\\' && i + 1 < len) {
-                appendLiteral(char + code.charAt(i + 1))
-                i += 2
-                continue
-            }
-            if (char === '`') {
-                templateDepths.pop()
-                result += char
-                regexAllowed = false
-                i++
-                continue
-            }
-            if (char === '$' && code.charAt(i + 1) === '{') {
-                templateDepths[templateDepths.length - 1] = 1
-                result += '${'
-                i += 2
-                regexAllowed = true
-                continue
-            }
-            appendLiteral(char)
-            i++
-            continue
-        }
-
-        if (char === '"' || char === "'") {
-            inString = char
-            result += char
-            i++
-            continue
-        }
-
-        if (char === '`') {
-            templateDepths.push(0)
-            result += char
-            i++
-            continue
-        }
-
-        if (
-            char === '}' &&
-            templateDepths.length > 0 &&
-            (templateDepths[templateDepths.length - 1] ?? 0) > 0
-        ) {
-            const depth = templateDepths[templateDepths.length - 1] ?? 0
-            templateDepths[templateDepths.length - 1] = depth === 1 ? 0 : depth - 1
-            result += char
-            regexAllowed = false
-            i++
-            continue
-        }
-
-        if (
-            char === '{' &&
-            templateDepths.length > 0 &&
-            (templateDepths[templateDepths.length - 1] ?? 0) > 0
-        ) {
-            templateDepths[templateDepths.length - 1] =
-                (templateDepths[templateDepths.length - 1] ?? 0) + 1
-            result += char
-            regexAllowed = true
-            i++
-            continue
-        }
-
-        if (char === '/' && !regexAllowed) {
-            const next = code.charAt(i + 1)
-            if (next === '/') {
-                const end = code.indexOf('\n', i + 2)
-                i = end === -1 ? len : end
-                continue
-            }
-            if (next === '*') {
-                const end = code.indexOf('*/', i + 2)
-                i = end === -1 ? len : end + 2
-                continue
-            }
-            result += char
-            regexAllowed = true
-            i++
-            continue
-        }
-
-        if (char === '/' && regexAllowed) {
-            const next = code.charAt(i + 1)
-            if (next === '/') {
-                const end = code.indexOf('\n', i + 2)
-                i = end === -1 ? len : end
-                continue
-            }
-            if (next === '*') {
-                const end = code.indexOf('*/', i + 2)
-                i = end === -1 ? len : end + 2
-                continue
-            }
-            let j = i + 1
-            let inClass = false
-            while (j < len) {
-                const c = code.charAt(j)
-                if (c === '\\') {
-                    j += 2
-                    continue
-                }
-                if (c === '[') {
-                    inClass = true
-                } else if (c === ']') {
-                    inClass = false
-                } else if (c === '/' && !inClass) {
-                    break
-                } else if (c === '\n') {
-                    break
-                }
-                j++
-            }
-            let flagsEnd = j + 1
-            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) {
-                flagsEnd++
-            }
-            result += code.slice(i, Math.min(flagsEnd, len))
-            i = Math.min(flagsEnd, len)
-            regexAllowed = false
-            continue
-        }
-
-        if (/[0-9]/.test(char) || (char === '.' && /[0-9]/.test(code.charAt(i + 1)))) {
-            let j = i
-            if (char === '0' && (code.charAt(i + 1) === 'x' || code.charAt(i + 1) === 'X')) {
-                j += 2
-                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) {
-                    j++
-                }
-            } else if (char === '0' && /[bBoO]/.test(code.charAt(i + 1))) {
-                j += 2
-                while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                    j++
-                }
-            } else {
-                while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                    j++
-                }
-                if (code.charAt(j) === '.') {
-                    j++
-                    while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                        j++
-                    }
-                }
-                if (code.charAt(j) === 'e' || code.charAt(j) === 'E') {
-                    let k = j + 1
-                    if (code.charAt(k) === '+' || code.charAt(k) === '-') {
-                        k++
-                    }
-                    if (/[0-9]/.test(code.charAt(k))) {
-                        j = k
-                        while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                            j++
-                        }
-                    }
-                }
-            }
-            if (code.charAt(j) === 'n') {
-                j++
-            }
-            result += code.slice(i, j)
-            i = j
-            regexAllowed = false
-            continue
-        }
-
-        if (isIdentifierStart(char)) {
-            let j = i
-            while (j < len && isIdentifierPart(code.charAt(j))) {
-                j++
-            }
-            const word = code.slice(i, j)
-            result += word
-            regexAllowed = keywordsBeforeRegex.has(word)
-            i = j
-            continue
-        }
-
-        if (/\s/.test(char)) {
-            result += char
-            i++
-            continue
-        }
-
-        result += char
-        regexAllowed = !(char === ')' || char === ']')
-        i++
+        body += token.value
     }
 
-    const lines: string[] = []
-    let lineStart = 0
-    for (let k = result.indexOf('\n'); k !== -1; k = result.indexOf('\n', k + 1)) {
-        if (!literalNewlines.has(k)) {
-            lines.push(result.slice(lineStart, k).trim())
-            lineStart = k + 1
-        }
+    if (hashbang === '') {
+        return body
     }
-    lines.push(result.slice(lineStart).trim())
-    const collapsed: string[] = []
-    let previousBlank = false
-    for (const line of lines) {
-        const isBlank = line === ''
-        if (isBlank && previousBlank) {
-            continue
-        }
-        collapsed.push(line)
-        previousBlank = isBlank
-    }
-
-    return collapsed.join('\n').trim()
+    return body === '' ? hashbang : `${hashbang}\n${body}`
 }

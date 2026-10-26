@@ -25,6 +25,28 @@ function rethrowTsSyntaxError(error: unknown, filePath: string): never {
 }
 
 /**
+ * Runs `minifyJs`, re-throwing its `minifyJs: …` errors (an unterminated
+ * string, template literal, regex or block comment — a mistake in the user's
+ * source, not a bug) as a `KnownError` naming the source file, with the
+ * original error as `cause`. Anything else is rethrown unchanged.
+ *
+ * @param {string} content - JavaScript to minify
+ * @param {string} filePath - Path to the source file the content came from
+ * @returns {string} The minified JavaScript
+ * @throws {KnownError} If `minifyJs` rejects the source as malformed
+ */
+function minifyForBuild(content: string, filePath: string): string {
+    try {
+        return minifyJs(content)
+    } catch (error: unknown) {
+        if (error instanceof Error && error.message.startsWith('minifyJs:')) {
+            throw new KnownError(`${filePath}: ${error.message}`, { cause: error })
+        }
+        throw error
+    }
+}
+
+/**
  * Runs `resolveFileImports`, re-throwing its `BundlerError`s (an unresolvable
  * relative import, a malformed specifier — mistakes in the user's source, not
  * bugs) as `KnownError`s with the original error as `cause`. TypeScript syntax
@@ -63,14 +85,15 @@ export async function resolveFileImportsForBuild(
  * @param {File} file - The file being processed
  * @param {MinimazConfig} config - The loaded build configuration
  * @returns {Promise<string>} The final JS content to write to `file.dest`
- * @throws {KnownError} When bundling is enabled and an import can't be resolved
+ * @throws {KnownError} When bundling is enabled and an import can't be resolved, or
+ *   minification meets an unterminated string, template literal, regex or block comment
  */
 export async function processJs(file: File, config: MinimazConfig): Promise<string> {
     const content = config.output.js.bundling
         ? await resolveFileImportsForBuild(file.src, file.content)
         : file.content
 
-    return config.output.js.minify ? minifyJs(content) : content
+    return config.output.js.minify ? minifyForBuild(content, file.src) : content
 }
 
 /**
@@ -83,8 +106,8 @@ export async function processJs(file: File, config: MinimazConfig): Promise<stri
  * @param {File} file - The file being processed (`file.ext` is `.ts` or `.tsx`)
  * @param {MinimazConfig} config - The loaded build configuration
  * @returns {Promise<string>} The final JS content to write (caller is responsible for using a `.js` destination path)
- * @throws {KnownError} When bundling is enabled and an import can't be resolved, or the
- *   source has a TypeScript syntax error
+ * @throws {KnownError} When bundling is enabled and an import can't be resolved, the
+ *   source has a TypeScript syntax error, or minification meets an unterminated literal or comment
  */
 export async function processTs(file: File, config: MinimazConfig): Promise<string> {
     let content: string
@@ -98,5 +121,5 @@ export async function processTs(file: File, config: MinimazConfig): Promise<stri
         }
     }
 
-    return config.output.js.minify ? minifyJs(content) : content
+    return config.output.js.minify ? minifyForBuild(content, file.src) : content
 }

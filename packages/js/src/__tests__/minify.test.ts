@@ -1,143 +1,137 @@
+import vm from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { minifyJs } from '../minify.js'
+import { tokenize } from '../tokenize.js'
+
+function tokenKeys(code: string): string[] {
+    return tokenize(code).tokens.map((token) => `${token.type}:${token.value}`)
+}
+
+/** Fixtures: [source, exact minified output]. */
+const exact: [string, string][] = [
+    ['const a = 1 // note\nconst b = 2', 'const a=1\nconst b=2'],
+    ['/* block */\nlet x = 1', 'let x=1'],
+    ['const s = "// not a comment"', 'const s="// not a comment"'],
+    ["const c = 'it\\'s // x'", "const c='it\\'s // x'"],
+    ['const t = `a ${b /* c */} // d`', 'const t=`a ${b /* c */} // d`'],
+    ['const r = /\\/\\/ab/g.test(x)', 'const r=/\\/\\/ab/g.test(x)'],
+    ['const r = /[/]/.test(x) // c', 'const r=/[/]/.test(x)'],
+    ['  a()\n\n\n\n  b()  ', 'a()\nb()'],
+    // regex vs division
+    ['d = a / b / c', 'd=a/b/c'],
+    ['x = /re/g', 'x=/re/g'],
+    ['y = (a + b) / 2 / 1', 'y=(a+b)/2/1'],
+    ['if (x) /re/.test(y)', 'if(x)/re/.test(y)'],
+    ['{}\n/re/.test(y)', '{}\n/re/.test(y)'],
+    ['function f() { return /re/.test(y) }', 'function f(){return/re/.test(y)}'],
+    ['a = b / /re/.source.length', 'a=b/ /re/.source.length'],
+    ['/a/ in x', '/a/ in x'],
+    // ASI
+    ['function f() { return\nx }', 'function f(){return\nx}'],
+    ['function f() { return\n{ a: 1 } }', 'function f(){return\n{a:1}}'],
+    ['a\n++b', 'a\n++b'],
+    ['a\n--b', 'a\n--b'],
+    ['a\n(b)', 'a(b)'],
+    ['x = {}\nfoo()', 'x={}\nfoo()'],
+    ['x = 1\ny = 2', 'x=1\ny=2'],
+    ['a = 1 +\n2', 'a=1+2'],
+    ['a\n.b\n.c()', 'a.b.c()'],
+    ['for (;;) {\n  break\n}', 'for(;;){break\n}'],
+    ['async\nfunction f() {}', 'async\nfunction f(){}'],
+    ['var\nx = 1', 'var x=1'],
+    ['if (a) {\n  b()\n} else {\n  c()\n}', 'if(a){b()}else{c()}'],
+    // templates
+    ['const u = `x ${ {a: 1}.a } y`', 'const u=`x ${ {a: 1}.a } y`'],
+    [
+        'const s = `\n  <ul>\n\n\n    <li>x</li>\n  </ul>  \n`;',
+        'const s=`\n  <ul>\n\n\n    <li>x</li>\n  </ul>  \n`;',
+    ],
+    ['const s = `a ${ `n\n  l` } b\n   c`', 'const s=`a ${ `n\n  l` } b\n   c`'],
+    ['const s = `a ${ "}`" + \'}`\' } z`', 'const s=`a ${ "}`" + \'}`\' } z`'],
+    ["const s = 'one \\\n    two \\\n   three'", "const s='one \\\n    two \\\n   three'"],
+    ['tag\n`x`', 'tag`x`'],
+    // operator spacing
+    ['a + +b', 'a+ +b'],
+    ['a - -b', 'a- -b'],
+    ['a+ ++b', 'a+ ++b'],
+    ['a++ + b', 'a++ +b'],
+    ['a-- - b', 'a-- -b'],
+    ['1 .toString()', '1 .toString()'],
+    ['1..toString()', '1..toString()'],
+    ['1.5.toFixed()', '1.5.toFixed()'],
+    ['a ? .5 : 1', 'a? .5:1'],
+    ['a ? b : c', 'a?b:c'],
+    ['a?.b', 'a?.b'],
+    ['a / /re/', 'a/ /re/'],
+    ['typeof x === "y"', 'typeof x==="y"'],
+    ['a < !--b', 'a< !--b'],
+    ['x = a in b', 'x=a in b'],
+    // numbers and identifiers
+    ['n = 0x1F + 1e-3 + 10n + 1_000 + .5e-3', 'n=0x1F+1e-3+10n+1_000+.5e-3'],
+    ['const é = 1; const 日本 = é', 'const é=1;const 日本=é'],
+    ['class A { #p = 1; has(o) { return #p in o } }', 'class A{#p=1;has(o){return #p in o}}'],
+    ['var \\u0061 = 1', 'var \\u0061=1'],
+    ['async () => { await x }', 'async()=>{await x}'],
+    ['a\n/ b / c', 'a/b/c'],
+]
 
 describe('minifyJs', () => {
-    it('strips a line comment', () => {
-        expect(minifyJs('const a = 1 // note\nconst b = 2')).toBe('const a = 1\nconst b = 2')
+    for (const [source, expected] of exact) {
+        it(`minifies ${JSON.stringify(source)}`, () => {
+            expect(minifyJs(source)).toBe(expected)
+        })
+    }
+
+    it('keeps the token sequence and still parses for every fixture', () => {
+        for (const [source] of exact) {
+            const minified = minifyJs(source)
+            expect(tokenKeys(minified), source).toEqual(tokenKeys(source))
+            expect(() => new vm.Script(`(function(){${minified}\n})`), minified).not.toThrow()
+        }
     })
 
-    it('strips a block comment', () => {
-        expect(minifyJs('/* block */\nlet x = 1')).toBe('let x = 1')
+    it('preserves the behavior of ASI-sensitive code', () => {
+        const src =
+            'function f() { return\n{ a: 1 } }\nlet i = 1\nlet j = i\n++i\nf() === undefined && j === 1 && i === 2'
+        expect(vm.runInNewContext(src)).toBe(true)
+        expect(vm.runInNewContext(minifyJs(src))).toBe(true)
     })
 
-    it('strips an unterminated block comment to the end of input', () => {
-        expect(minifyJs('a()\n/* never closed')).toBe('a()')
+    it('never joins a line after throw or continue', () => {
+        expect(minifyJs('throw\nnew Error()')).toBe('throw\nnew Error()')
+        expect(minifyJs('continue\nfoo()')).toBe('continue\nfoo()')
     })
 
-    it('keeps comment-like text inside a double-quoted string', () => {
-        expect(minifyJs('const s = "// not a comment"')).toBe('const s = "// not a comment"')
+    it('keeps a hashbang line verbatim on its own line', () => {
+        expect(minifyJs('#!/usr/bin/env node\nrun(  )  // go\n')).toBe('#!/usr/bin/env node\nrun()')
     })
 
-    it('keeps comment-like text inside a single-quoted string with an escaped quote', () => {
-        expect(minifyJs("const c = 'it\\'s // x'")).toBe("const c = 'it\\'s // x'")
+    it('returns just the hashbang for a hashbang-only file', () => {
+        expect(minifyJs('#!/usr/bin/env node\n')).toBe('#!/usr/bin/env node')
     })
 
-    it('strips a comment inside a template expression but keeps // in the template text', () => {
-        expect(minifyJs('const t = `a ${b /* c */} // d`')).toBe('const t = `a ${b } // d`')
+    it('drops /*! … */ comments too', () => {
+        expect(minifyJs('/*! license */\na()')).toBe('a()')
     })
 
-    it('tracks nested braces inside a template expression', () => {
-        expect(minifyJs('const u = `x ${ {a: 1}.a } y`')).toBe('const u = `x ${ {a: 1}.a } y`')
+    it('returns an empty string for comment-only input', () => {
+        expect(minifyJs('// a\n/* b */')).toBe('')
     })
 
-    it('keeps a regex literal containing escaped slashes intact', () => {
-        expect(minifyJs('const r = /\\/\\/ab/g.test(x)')).toBe('const r = /\\/\\/ab/g.test(x)')
+    it('is idempotent', () => {
+        for (const [source] of exact) {
+            const once = minifyJs(source)
+            expect(minifyJs(once), source).toBe(once)
+        }
     })
 
-    it('keeps a slash inside a regex character class and strips the trailing comment', () => {
-        expect(minifyJs('const r = /[/]/.test(x) // c')).toBe('const r = /[/]/.test(x)')
-    })
-
-    it('treats slashes between identifiers as division', () => {
-        expect(minifyJs('const d = a / b / c')).toBe('const d = a / b / c')
-    })
-
-    it('never joins a line after return, preserving automatic semicolon insertion', () => {
-        expect(minifyJs('return\n{ a: 1 }')).toBe('return\n{ a: 1 }')
-    })
-
-    it('trims each line and collapses runs of blank lines to one', () => {
-        expect(minifyJs('  a()\n\n\n\n  b()  ')).toBe('a()\n\nb()')
-    })
-
-    it('keeps hex, exponent and BigInt numeric literals intact', () => {
-        expect(minifyJs('const n = 0x1F + 1e-3 + 10n')).toBe('const n = 0x1F + 1e-3 + 10n')
-    })
-
-    it('keeps a multi-line template literal byte-identical (indents, blank lines)', () => {
-        const src = 'const s = `\n  <ul>\n\n\n    <li>x</li>\n  </ul>  \n`;'
-        expect(minifyJs(src)).toBe(src)
-    })
-
-    it('keeps a nested template literal inside ${} byte-identical', () => {
-        const src = 'const s = `a ${ `nested\n  literal\n\n\n  end` } b\n   c`'
-        expect(minifyJs(src)).toBe(src)
-    })
-
-    it('keeps a backslash-continued string byte-identical', () => {
-        const src = "const s = 'one \\\n    two \\\n\n\n   three'"
-        expect(minifyJs(src)).toBe(src)
-    })
-
-    it('still trims and collapses code around literals', () => {
-        const out = minifyJs('  const a = 1\n\n\n\n    const s = `x\n  y`\n\n\n  foo()  \n')
-        expect(out).toBe('const a = 1\n\nconst s = `x\n  y`\n\nfoo()')
-    })
-
-    it('is not confused by backticks/quotes in comments and regex literals', () => {
-        const src = "// `\n/* ' */\nconst r = /`'\"/g\nconst s = `a\n   b`"
-        expect(minifyJs(src)).toBe('const r = /`\'"/g\nconst s = `a\n   b`')
-    })
-
-    it('keeps an escaped backtick inside template text from closing the template', () => {
-        const src = 'const t = `a\\`b // not a comment ${x}`  // real'
-        expect(minifyJs(src)).toBe('const t = `a\\`b // not a comment ${x}`')
-    })
-
-    it('keeps a lone trailing backslash in an unterminated template', () => {
-        expect(minifyJs('const t = `a\\')).toBe('const t = `a\\')
-    })
-
-    it('strips a line comment that follows an operator (regex position)', () => {
-        expect(minifyJs('x = // c\ny')).toBe('x =\ny')
-    })
-
-    it('strips a line comment at end of input in regex position', () => {
-        expect(minifyJs('x = // c')).toBe('x =')
-    })
-
-    it('strips a block comment that follows an operator (regex position)', () => {
-        expect(minifyJs('x = /* c */ 1')).toBe('x =  1')
-    })
-
-    it('strips an unterminated block comment in regex position', () => {
-        expect(minifyJs('x = /* never closed')).toBe('x =')
-    })
-
-    it('ends an unterminated regex at the newline and keeps the rest of the source', () => {
-        expect(minifyJs('x = /abc\n  y()')).toBe('x = /abc\ny()')
-    })
-
-    it('passes an unterminated regex at end of input through unchanged', () => {
-        expect(minifyJs('x = /abc')).toBe('x = /abc')
-    })
-
-    it('passes a regex ending in a dangling backslash through unchanged', () => {
-        expect(minifyJs('x = /a\\')).toBe('x = /a\\')
-    })
-
-    it('keeps binary and octal literals intact and treats a following slash as division', () => {
-        expect(minifyJs('a = 0b1_01 / 2 / 1 + 0B11n + 0o17 / 3 / 1 + 0O7')).toBe(
-            'a = 0b1_01 / 2 / 1 + 0B11n + 0o17 / 3 / 1 + 0O7',
+    it('throws minifyJs: errors for unterminated input', () => {
+        expect(() => minifyJs('a()\n/* never closed')).toThrow(
+            /^minifyJs: unterminated block comment/,
         )
-    })
-
-    it('keeps an uppercase-X hex literal intact', () => {
-        expect(minifyJs('a = 0XFF_ff / 2 / 1')).toBe('a = 0XFF_ff / 2 / 1')
-    })
-
-    it('keeps decimal fractions, leading-dot and trailing-dot numbers intact', () => {
-        expect(minifyJs('a = 1_0.2_5 / 2 / 1 + .5 / 2 / 1 + 3. / 1 / 1')).toBe(
-            'a = 1_0.2_5 / 2 / 1 + .5 / 2 / 1 + 3. / 1 / 1',
-        )
-    })
-
-    it('treats a trailing-dot number as one literal so a following // is still a comment', () => {
-        expect(minifyJs('a = 3. / 1 // c\nb()')).toBe('a = 3. / 1\nb()')
-    })
-
-    it('keeps signed and uppercase exponents intact and leaves a bare "e" as an identifier', () => {
-        expect(minifyJs('a = 2E5 + 1.5e+3 + 1e')).toBe('a = 2E5 + 1.5e+3 + 1e')
+        expect(() => minifyJs('x = "abc')).toThrow(/^minifyJs: unterminated string at offset 4/)
+        expect(() => minifyJs('x = `abc')).toThrow(/^minifyJs: unterminated template literal/)
+        expect(() => minifyJs('x = /abc')).toThrow(/^minifyJs: unterminated regex/)
     })
 
     it('rejects a non-string input', () => {
