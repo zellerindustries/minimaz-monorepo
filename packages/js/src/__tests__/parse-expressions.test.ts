@@ -1135,11 +1135,10 @@ describe('yield and await', () => {
 
     it('treats await as an identifier outside async functions', () => {
         expect(sxOf('await')).toBe('await')
-        expect(sxOf('await + 1')).toBe('(+ await 1)')
+        expect(sxOf('(function(){ await + 1 })')).toBe('FunctionExpression')
         expect(sxOf('(function(){ await })')).toBe('FunctionExpression')
         expect(() => parse('(async function(){ await })')).toThrow(ParseError)
         expect(() => parse('(async function(){ var await })')).toThrow(ParseError)
-        expect(() => parse('await a')).toThrow(ParseError)
     })
 
     it('does not leak async/generator context into nested functions', () => {
@@ -1276,7 +1275,7 @@ describe('identifiers', () => {
     })
 })
 
-describe('statement hook (Task 1 scope)', () => {
+describe('statement basics', () => {
     it('parses empty statements and statement lists with ASI', () => {
         expect(parse(';;a;;').body.map((s) => s.type)).toEqual([
             'EmptyStatement',
@@ -1308,39 +1307,6 @@ describe('statement hook (Task 1 scope)', () => {
         expect(directives).toEqual(['use strict', 'x', undefined, undefined])
         expect(parse("('paren')").body[0]).not.toHaveProperty('directive')
         expect(parse("'a' + b").body[0]).not.toHaveProperty('directive')
-    })
-
-    it.each<[string, number]>([
-        ['var a', 0],
-        ['let a', 0],
-        ['let [a] = 1', 0],
-        ['const a = 1', 0],
-        ['if (a) b', 0],
-        ['for (;;);', 0],
-        ['while (a);', 0],
-        ['do ; while (a)', 0],
-        ['return', 0],
-        ['break', 0],
-        ['continue', 0],
-        ['switch (a) {}', 0],
-        ['throw a', 0],
-        ['try {} catch {}', 0],
-        ['function a(){}', 0],
-        ['class A {}', 0],
-        ['async function a(){}', 0],
-        ['{ a }', 0],
-        ['a: b', 0],
-        ['import a from "b"', 0],
-        ['export default a', 0],
-        ['with (a) b', 0],
-        ['debugger', 0],
-        ['a; var b', 3],
-        ['a\nclass B {}', 2],
-        ['(function(){ if (a) b })', 13],
-    ])('throws ParseError("unsupported") for %j at %i', (code, offset) => {
-        const error = failure(code)
-        expect(error.message).toBe('unsupported')
-        expect(error.offset).toBe(offset)
     })
 
     it('still treats let/async/import as expressions when used as identifiers or calls', () => {
@@ -1378,7 +1344,7 @@ describe('ParseError', () => {
         ['({a: })', 5],
         ['x = {a = 1}', 7],
         ['a ? b', 5],
-        ['function', 0],
+        ['function', 8],
         ['(class A B {})', 9],
     ])('points %j at offset %i', (code, offset) => {
         expect(failure(code).offset).toBe(offset)

@@ -3,13 +3,17 @@ import type {
     AssignmentOperator,
     BinaryOperator,
     BlockStatement,
+    CatchClause,
     ClassBody,
     ClassDeclaration,
     ClassExpression,
     Expression,
+    ExportSpecifier,
     FunctionDeclaration,
     FunctionExpression,
     Identifier,
+    ImportAttribute,
+    ImportDeclaration,
     Literal,
     LogicalOperator,
     MethodDefinition,
@@ -23,9 +27,12 @@ import type {
     StaticBlock,
     Statement,
     Super,
+    SwitchCase,
     TemplateElement,
     TemplateLiteral,
     UnaryOperator,
+    VariableDeclaration,
+    VariableDeclarator,
 } from './ast.js'
 import { Lexer, ParseError, type LexToken } from './lexer.js'
 
@@ -43,7 +50,22 @@ interface FnContext {
     allowNewTarget: boolean
     allowSuperProperty: boolean
     allowSuperCall: boolean
+    /** Inside a function/arrow/method body (where `return` is legal). */
+    inFunction: boolean
+    labels: Label[]
+    loops: number
+    switches: number
 }
+
+/** An enclosing label; `kind` is `'loop'` when it labels an iteration statement (valid `continue` target). */
+interface Label {
+    name: string
+    kind: 'loop' | null
+    statementStart: number
+}
+
+/** Where a statement sits, which decides whether declarations and module items are legal. */
+type StatementPlace = 'top' | 'list' | 'single' | 'loose'
 
 type PropertyKey = Expression | PrivateIdentifier
 
@@ -133,25 +155,17 @@ const reservedWords: ReadonlySet<string> = new Set([
     'with',
 ])
 
-/** Words that start a statement the expression-only parser cannot handle yet. */
-const statementKeywords: ReadonlySet<string> = new Set([
-    'var',
-    'const',
-    'if',
-    'for',
-    'while',
-    'do',
-    'return',
-    'break',
-    'continue',
-    'switch',
-    'throw',
-    'try',
-    'function',
-    'class',
-    'with',
-    'debugger',
-    'export',
+/** Reserved only in strict mode code. */
+const strictReservedWords: ReadonlySet<string> = new Set([
+    'implements',
+    'interface',
+    'let',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'static',
+    'yield',
 ])
 
 const unaryPunctuators: ReadonlySet<string> = new Set(['!', '~', '+', '-'])
@@ -173,27 +187,40 @@ function isUnaryOperator(op: string): op is UnaryOperator {
     return unaryPunctuators.has(op) || unaryKeywords.has(op)
 }
 
-/** Parser state and grammar. Task 2 extends this with statements, classes' bodies, modules and ASI. */
+/** Parser state and grammar. `module` parses as an ES module (strict, top-level `await`, import/export). */
 class Parser {
     private readonly code: string
     private readonly lexer: Lexer
     private tok: LexToken
     private prevEnd = 0
-    private ctx: FnContext = {
-        inGenerator: false,
-        inAsync: false,
-        allowNewTarget: false,
-        allowSuperProperty: false,
-        allowSuperCall: false,
-    }
+    private ctx: FnContext
+    private readonly module: boolean
+    private strict: boolean
+    /** Set when import/export/import.meta is seen (the caller then re-parses as a module). */
+    sawModule = false
+    /** Set when `await` is used as an identifier at the top level (it may be a top-level await). */
+    sawTopLevelAwait = false
     /** Start offset at which an arrow function may begin (set by every assignment-expression parse). */
     private arrowStart = -1
     private readonly parenthesized = new Set<Node>()
     /** Spread elements followed by a comma, which can never be rest elements. */
     private readonly spreadWithComma = new Set<Node>()
 
-    constructor(code: string) {
+    constructor(code: string, module: boolean) {
         this.code = code
+        this.module = module
+        this.strict = module
+        this.ctx = {
+            inGenerator: false,
+            inAsync: module,
+            allowNewTarget: false,
+            allowSuperProperty: false,
+            allowSuperCall: false,
+            inFunction: false,
+            labels: [],
+            loops: 0,
+            switches: 0,
+        }
         this.lexer = new Lexer(code)
         this.tok = this.lexer.next(false)
     }
@@ -282,23 +309,34 @@ class Parser {
         return (
             reservedWords.has(name) ||
             (name === 'yield' && this.ctx.inGenerator) ||
-            (name === 'await' && this.ctx.inAsync)
+            (name === 'await' && (this.ctx.inAsync || this.module)) ||
+            (this.strict && strictReservedWords.has(name))
         )
     }
 
     // ---- Program and statements ----
 
     parseProgram(): Program {
-        const body = this.parseStatementList(() => this.isEof())
-        return { type: 'Program', body, sourceType: 'script', start: 0, end: this.code.length }
+        const body = this.parseStatementList(() => this.isEof(), true, 'top')
+        return {
+            type: 'Program',
+            body,
+            sourceType: this.module ? 'module' : 'script',
+            start: 0,
+            end: this.code.length,
+        }
     }
 
-    /** Parses statements (with a directive prologue) until `atEnd` reports the terminator. */
-    private parseStatementList(atEnd: () => boolean): Statement[] {
+    /** Parses statements until `atEnd` reports the terminator; function and program bodies get a directive prologue. */
+    private parseStatementList(
+        atEnd: () => boolean,
+        directives: boolean,
+        place: StatementPlace,
+    ): Statement[] {
         const body: Statement[] = []
-        let inPrologue = true
+        let inPrologue = directives
         while (!atEnd()) {
-            const statement = this.parseStatement()
+            const statement = this.parseStatement(place)
             if (inPrologue) {
                 if (
                     statement.type === 'ExpressionStatement' &&
@@ -310,6 +348,9 @@ class Parser {
                         statement.expression.start + 1,
                         statement.expression.end - 1,
                     )
+                    if (statement.directive === 'use strict') {
+                        this.strict = true
+                    }
                 } else {
                     inPrologue = false
                 }
@@ -319,11 +360,7 @@ class Parser {
         return body
     }
 
-    /**
-     * Statement hook. Task 1 supports expression statements and `;`; every other statement form throws
-     * `ParseError('unsupported', offset)` until the statement parser lands.
-     */
-    private parseStatement(): Statement {
+    private parseStatement(place: StatementPlace): Statement {
         const t = this.tok
         if (t.type === 'punct') {
             if (t.value === ';') {
@@ -331,37 +368,120 @@ class Parser {
                 return { type: 'EmptyStatement', start: t.start, end: this.prevEnd }
             }
             if (t.value === '{') {
-                throw new ParseError('unsupported', t.start)
+                return this.parseBlockBody(false)
             }
         } else if (t.type === 'name' && !t.escaped) {
-            if (statementKeywords.has(t.value)) {
-                throw new ParseError('unsupported', t.start)
-            }
-            const next = this.peek()
-            if (
-                t.value === 'async' &&
-                next.type === 'name' &&
-                next.value === 'function' &&
-                !next.nlBefore
-            ) {
-                throw new ParseError('unsupported', t.start)
-            }
-            if (t.value === 'let' && this.letStartsDeclaration(next)) {
-                throw new ParseError('unsupported', t.start)
-            }
-            if (
-                t.value === 'import' &&
-                !(next.type === 'punct' && (next.value === '(' || next.value === '.'))
-            ) {
-                throw new ParseError('unsupported', t.start)
-            }
-            if (next.type === 'punct' && next.value === ':' && !this.isReserved(t.value)) {
-                throw new ParseError('unsupported', t.start)
+            const statement = this.parseKeywordStatement(t.value, t.start, place)
+            if (statement !== null) {
+                return statement
             }
         }
         const expression = this.parseExpression(false)
         this.semicolon()
         return { type: 'ExpressionStatement', expression, start: t.start, end: this.prevEnd }
+    }
+
+    /** Parses a statement introduced by a name token, or returns `null` when it starts an expression statement. */
+    private parseKeywordStatement(
+        name: string,
+        start: number,
+        place: StatementPlace,
+    ): Statement | null {
+        const next = this.peek()
+        if (next.type === 'punct' && next.value === ':' && !this.isReserved(name)) {
+            return this.parseLabeled(place)
+        }
+        const single = place === 'single' || place === 'loose'
+        switch (name) {
+            case 'var':
+                return this.parseVarStatement()
+            case 'const':
+                if (single) {
+                    return this.unexpected('lexical declaration in single-statement context')
+                }
+                return this.parseVarStatement()
+            case 'let':
+                if (!this.letStartsDeclaration(next)) {
+                    return null
+                }
+                if (single) {
+                    if (next.type === 'punct' && next.value === '[') {
+                        return this.unexpected('lexical declaration in single-statement context')
+                    }
+                    return null
+                }
+                return this.parseVarStatement()
+            case 'function':
+                this.checkFunctionPlace(place, start)
+                return this.parseFunction(start, true, false)
+            case 'async':
+                if (next.type === 'name' && next.value === 'function' && !next.nlBefore) {
+                    if (single) {
+                        return this.unexpected('async function in single-statement context')
+                    }
+                    this.advance()
+                    return this.parseFunction(start, true, true)
+                }
+                return null
+            case 'class':
+                if (single) {
+                    return this.unexpected('class declaration in single-statement context')
+                }
+                return this.parseClass(start, true)
+            case 'if':
+                return this.parseIf()
+            case 'for':
+                return this.parseFor()
+            case 'while':
+                return this.parseWhile()
+            case 'do':
+                return this.parseDoWhile()
+            case 'return':
+                return this.parseReturn()
+            case 'break':
+            case 'continue':
+                return this.parseBreakContinue(name === 'break')
+            case 'switch':
+                return this.parseSwitch()
+            case 'throw':
+                return this.parseThrow()
+            case 'try':
+                return this.parseTry()
+            case 'with':
+                return this.parseWith()
+            case 'debugger':
+                this.advance()
+                this.semicolon()
+                return { type: 'DebuggerStatement', start, end: this.prevEnd }
+            case 'import':
+                if (next.type === 'punct' && (next.value === '(' || next.value === '.')) {
+                    return null
+                }
+                if (place !== 'top') {
+                    return this.unexpected('import declarations may only appear at top level')
+                }
+                return this.parseImport()
+            case 'export':
+                if (place !== 'top') {
+                    return this.unexpected('export declarations may only appear at top level')
+                }
+                return this.parseExport()
+            default:
+                return null
+        }
+    }
+
+    /** Plain function declarations are legal in lists, and (sloppy mode only) as `if`/label bodies. */
+    private checkFunctionPlace(place: StatementPlace, offset: number): void {
+        if (place === 'single' || (place === 'loose' && this.strict)) {
+            throw new ParseError('function declaration in single-statement context', offset)
+        }
+        if (place === 'loose') {
+            const next = this.peek()
+            if (next.type === 'punct' && next.value === '*') {
+                throw new ParseError('generator declaration in single-statement context', offset)
+            }
+        }
     }
 
     private letStartsDeclaration(next: LexToken): boolean {
@@ -382,12 +502,633 @@ class Parser {
         this.unexpected('expected ";"')
     }
 
-    private parseBlockBody(): BlockStatement {
+    /** Whether a restricted production ends here: `;`, `}`, end of input or a line break. */
+    private endsRestricted(): boolean {
+        return this.isPunct(';') || this.isPunct('}') || this.isEof() || this.tok.nlBefore
+    }
+
+    /**
+     * Parses `{ statements }`.
+     * @param directives - Whether a directive prologue is recognised (function bodies only).
+     */
+    private parseBlockBody(directives = false): BlockStatement {
         const start = this.tok.start
         this.expectPunct('{')
-        const body = this.parseStatementList(() => this.isPunct('}') || this.isEof())
+        const body = this.parseStatementList(
+            () => this.isPunct('}') || this.isEof(),
+            directives,
+            'list',
+        )
         this.expectPunct('}')
         return { type: 'BlockStatement', body, start, end: this.prevEnd }
+    }
+
+    private parseParenExpression(): Expression {
+        this.expectPunct('(')
+        const expression = this.parseExpression(false)
+        this.expectPunct(')')
+        return expression
+    }
+
+    private parseIf(): Statement {
+        const start = this.tok.start
+        this.advance()
+        const test = this.parseParenExpression()
+        const consequent = this.parseStatement('loose')
+        const alternate = this.eatName('else') ? this.parseStatement('loose') : null
+        return { type: 'IfStatement', test, consequent, alternate, start, end: this.prevEnd }
+    }
+
+    /** Parses a loop body with `break`/`continue` allowed. */
+    private parseLoopBody(): Statement {
+        this.ctx.loops++
+        const body = this.parseStatement('single')
+        this.ctx.loops--
+        return body
+    }
+
+    private parseWhile(): Statement {
+        const start = this.tok.start
+        this.advance()
+        const test = this.parseParenExpression()
+        const body = this.parseLoopBody()
+        return { type: 'WhileStatement', test, body, start, end: this.prevEnd }
+    }
+
+    private parseDoWhile(): Statement {
+        const start = this.tok.start
+        this.advance()
+        const body = this.parseLoopBody()
+        this.expectName('while')
+        const test = this.parseParenExpression()
+        // ASI always applies after `do ... while (...)`, even on the same line.
+        this.eatPunct(';')
+        return { type: 'DoWhileStatement', body, test, start, end: this.prevEnd }
+    }
+
+    private parseReturn(): Statement {
+        const start = this.tok.start
+        if (!this.ctx.inFunction) {
+            this.unexpected('return outside of a function')
+        }
+        this.advance()
+        const argument = this.endsRestricted() ? null : this.parseExpression(false)
+        this.semicolon()
+        return { type: 'ReturnStatement', argument, start, end: this.prevEnd }
+    }
+
+    private parseBreakContinue(isBreak: boolean): Statement {
+        const start = this.tok.start
+        this.advance()
+        let label: Identifier | null = null
+        const t = this.tok
+        if (t.type === 'name' && !t.nlBefore && !this.isReserved(t.value)) {
+            label = this.parseIdentifier()
+            const found = this.ctx.labels.find((l) => l.name === t.value)
+            if (found === undefined || (!isBreak && found.kind !== 'loop')) {
+                throw new ParseError(`undefined label "${t.value}"`, t.start)
+            }
+        } else if (isBreak ? this.ctx.loops + this.ctx.switches === 0 : this.ctx.loops === 0) {
+            throw new ParseError(`illegal ${isBreak ? 'break' : 'continue'} statement`, start)
+        }
+        this.semicolon()
+        return isBreak
+            ? { type: 'BreakStatement', label, start, end: this.prevEnd }
+            : { type: 'ContinueStatement', label, start, end: this.prevEnd }
+    }
+
+    private parseThrow(): Statement {
+        const start = this.tok.start
+        this.advance()
+        if (this.tok.nlBefore) {
+            throw new ParseError('illegal newline after throw', this.tok.start)
+        }
+        const argument = this.parseExpression(false)
+        this.semicolon()
+        return { type: 'ThrowStatement', argument, start, end: this.prevEnd }
+    }
+
+    private parseWith(): Statement {
+        const start = this.tok.start
+        if (this.strict) {
+            this.unexpected('"with" is not allowed in strict mode')
+        }
+        this.advance()
+        const object = this.parseParenExpression()
+        const body = this.parseStatement('single')
+        return { type: 'WithStatement', object, body, start, end: this.prevEnd }
+    }
+
+    private parseSwitch(): Statement {
+        const start = this.tok.start
+        this.advance()
+        const discriminant = this.parseParenExpression()
+        this.expectPunct('{')
+        this.ctx.switches++
+        const cases: SwitchCase[] = []
+        let sawDefault = false
+        while (!this.isPunct('}')) {
+            const caseStart = this.tok.start
+            let test: Expression | null = null
+            if (this.eatName('case')) {
+                test = this.parseExpression(false)
+            } else if (this.isName('default')) {
+                if (sawDefault) {
+                    this.unexpected('multiple default clauses')
+                }
+                sawDefault = true
+                this.advance()
+            } else {
+                this.unexpected('expected "case" or "default"')
+            }
+            this.expectPunct(':')
+            const consequent: Statement[] = []
+            while (!this.isPunct('}') && !this.isName('case') && !this.isName('default')) {
+                consequent.push(this.parseStatement('list'))
+            }
+            cases.push({
+                type: 'SwitchCase',
+                test,
+                consequent,
+                start: caseStart,
+                end: this.prevEnd,
+            })
+        }
+        this.ctx.switches--
+        this.expectPunct('}')
+        return { type: 'SwitchStatement', discriminant, cases, start, end: this.prevEnd }
+    }
+
+    private parseTry(): Statement {
+        const start = this.tok.start
+        this.advance()
+        const block = this.parseBlockBody()
+        let handler: CatchClause | null = null
+        let finalizer: BlockStatement | null = null
+        if (this.isName('catch')) {
+            const catchStart = this.tok.start
+            this.advance()
+            let param: Pattern | null = null
+            if (this.eatPunct('(')) {
+                param = this.parseBindingAtom()
+                this.expectPunct(')')
+            }
+            const body = this.parseBlockBody()
+            handler = { type: 'CatchClause', param, body, start: catchStart, end: this.prevEnd }
+        }
+        if (this.eatName('finally')) {
+            finalizer = this.parseBlockBody()
+        }
+        if (handler === null && finalizer === null) {
+            this.unexpected('missing catch or finally after try')
+        }
+        return { type: 'TryStatement', block, handler, finalizer, start, end: this.prevEnd }
+    }
+
+    private parseLabeled(place: StatementPlace): Statement {
+        const start = this.tok.start
+        const label = this.parseIdentifier()
+        this.expectPunct(':')
+        if (this.ctx.labels.some((l) => l.name === label.name)) {
+            throw new ParseError(`label "${label.name}" is already declared`, start)
+        }
+        const t = this.tok
+        const kind =
+            t.type === 'name' && (t.value === 'for' || t.value === 'while' || t.value === 'do')
+                ? 'loop'
+                : null
+        // `a: b: while (x) continue a` - every label stacked on this statement labels the loop.
+        for (let i = this.ctx.labels.length - 1; i >= 0; i--) {
+            const earlier = this.ctx.labels[i]
+            if (earlier?.statementStart !== start) {
+                break
+            }
+            earlier.statementStart = t.start
+            earlier.kind = kind
+        }
+        this.ctx.labels.push({ name: label.name, kind, statementStart: t.start })
+        const body = this.parseStatement(place === 'single' ? 'single' : 'loose')
+        this.ctx.labels.pop()
+        return { type: 'LabeledStatement', label, body, start, end: this.prevEnd }
+    }
+
+    private parseVarStatement(): VariableDeclaration {
+        const declaration = this.parseVar(false, false)
+        this.semicolon()
+        declaration.end = this.prevEnd
+        return declaration
+    }
+
+    /**
+     * Parses `var|let|const a = 1, b`. In a `for` head (`forHead`), a declarator may omit its initializer when
+     * `in`/`of` follows; the caller validates the rest.
+     */
+    private parseVar(noIn: boolean, forHead: boolean): VariableDeclaration {
+        const start = this.tok.start
+        const kind = this.tok.value === 'var' ? 'var' : this.tok.value === 'let' ? 'let' : 'const'
+        this.advance()
+        const declarations: VariableDeclarator[] = []
+        do {
+            const declStart = this.tok.start
+            const id = this.parseBindingAtom()
+            if (kind !== 'var' && id.type === 'Identifier' && id.name === 'let') {
+                throw new ParseError('"let" is disallowed as a lexically bound name', id.start)
+            }
+            let init: Expression | null = null
+            if (this.eatPunct('=')) {
+                init = this.parseMaybeAssign(noIn, null)
+            } else if (!(forHead && (this.isName('in') || this.isName('of')))) {
+                if (kind === 'const') {
+                    this.unexpected('missing initializer in const declaration')
+                }
+                if (id.type !== 'Identifier') {
+                    this.unexpected('missing initializer in destructuring declaration')
+                }
+            }
+            declarations.push({
+                type: 'VariableDeclarator',
+                id,
+                init,
+                start: declStart,
+                end: this.prevEnd,
+            })
+        } while (this.eatPunct(','))
+        return { type: 'VariableDeclaration', kind, declarations, start, end: this.prevEnd }
+    }
+
+    private parseFor(): Statement {
+        const start = this.tok.start
+        this.advance()
+        let isAwait = false
+        if (this.isName('await')) {
+            if (!this.ctx.inAsync) {
+                this.unexpected('"for await" is only valid in async functions')
+            }
+            this.advance()
+            isAwait = true
+        }
+        this.expectPunct('(')
+        if (this.isPunct(';')) {
+            if (isAwait) {
+                this.unexpected('expected "of"')
+            }
+            return this.parseForRest(start, null)
+        }
+        const t = this.tok
+        if (
+            t.type === 'name' &&
+            !t.escaped &&
+            (t.value === 'var' ||
+                t.value === 'const' ||
+                (t.value === 'let' && this.letStartsDeclaration(this.peek())))
+        ) {
+            return this.parseForWithDeclaration(start, isAwait)
+        }
+        const startsWithLet = t.type === 'name' && t.value === 'let' && !t.escaped
+        const cover: Cover = { shorthandAssign: -1 }
+        let init = this.parseMaybeAssign(true, cover)
+        if (this.isName('of') || this.isName('in')) {
+            if (this.isName('of') && startsWithLet) {
+                this.unexpected('the left-hand side of a for-of loop may not be "let"')
+            }
+            if (init.type === 'AssignmentExpression') {
+                throw new ParseError('invalid left-hand side in for-loop head', init.start)
+            }
+            return this.parseForInOf(start, this.toAssignable(init, false), isAwait)
+        }
+        if (cover.shorthandAssign !== -1) {
+            throw new ParseError('invalid shorthand property initializer', cover.shorthandAssign)
+        }
+        if (isAwait) {
+            this.unexpected('expected "of"')
+        }
+        if (this.isPunct(',')) {
+            const expressions = [init]
+            while (this.eatPunct(',')) {
+                expressions.push(this.parseMaybeAssign(true, null))
+            }
+            init = { type: 'SequenceExpression', expressions, start: t.start, end: this.prevEnd }
+        }
+        return this.parseForRest(start, init)
+    }
+
+    private parseForWithDeclaration(start: number, isAwait: boolean): Statement {
+        const declaration = this.parseVar(true, true)
+        if (!this.isName('of') && !this.isName('in')) {
+            if (isAwait) {
+                this.unexpected('expected "of"')
+            }
+            return this.parseForRest(start, declaration)
+        }
+        const single = declaration.declarations[0]
+        if (declaration.declarations.length !== 1 || single === undefined) {
+            throw new ParseError('invalid left-hand side in for-loop head', declaration.start)
+        }
+        if (
+            single.init !== null &&
+            (this.isName('of') ||
+                this.strict ||
+                declaration.kind !== 'var' ||
+                single.id.type !== 'Identifier')
+        ) {
+            throw new ParseError(
+                'for-in/of loop variable may not have an initializer',
+                single.init.start,
+            )
+        }
+        return this.parseForInOf(start, declaration, isAwait)
+    }
+
+    private parseForRest(start: number, init: VariableDeclaration | Expression | null): Statement {
+        this.expectPunct(';')
+        const test = this.isPunct(';') ? null : this.parseExpression(false)
+        this.expectPunct(';')
+        const update = this.isPunct(')') ? null : this.parseExpression(false)
+        this.expectPunct(')')
+        const body = this.parseLoopBody()
+        return { type: 'ForStatement', init, test, update, body, start, end: this.prevEnd }
+    }
+
+    private parseForInOf(
+        start: number,
+        left: VariableDeclaration | Pattern,
+        isAwait: boolean,
+    ): Statement {
+        const isOf = this.isName('of')
+        if (isAwait && !isOf) {
+            this.unexpected('expected "of"')
+        }
+        this.advance()
+        const right = isOf ? this.parseMaybeAssign(false, null) : this.parseExpression(false)
+        this.expectPunct(')')
+        const body = this.parseLoopBody()
+        return isOf
+            ? {
+                  type: 'ForOfStatement',
+                  left,
+                  right,
+                  body,
+                  await: isAwait,
+                  start,
+                  end: this.prevEnd,
+              }
+            : { type: 'ForInStatement', left, right, body, start, end: this.prevEnd }
+    }
+
+    // ---- Modules ----
+
+    /** Parses a module export name: any identifier name (keywords included) or a string literal. */
+    private parseModuleName(): Identifier | Literal {
+        const t = this.tok
+        if (t.type === 'string') {
+            return this.parseModuleSource()
+        }
+        if (t.type !== 'name') {
+            return this.unexpected('expected a name')
+        }
+        this.advance()
+        return { type: 'Identifier', name: t.value, start: t.start, end: t.end }
+    }
+
+    private parseModuleSource(): Literal {
+        const t = this.tok
+        if (t.type !== 'string') {
+            return this.unexpected('expected a string')
+        }
+        this.advance()
+        return {
+            type: 'Literal',
+            value: t.value,
+            raw: this.code.slice(t.start, t.end),
+            start: t.start,
+            end: t.end,
+        }
+    }
+
+    /** Parses an optional `with { type: 'json' }` clause. */
+    private parseImportAttributes(): ImportAttribute[] {
+        const attributes: ImportAttribute[] = []
+        if (!this.eatName('with')) {
+            return attributes
+        }
+        this.expectPunct('{')
+        const seen = new Set<string>()
+        while (!this.isPunct('}')) {
+            if (attributes.length > 0) {
+                this.expectPunct(',')
+                if (this.isPunct('}')) {
+                    break
+                }
+            }
+            const start = this.tok.start
+            const key = this.parseModuleName()
+            const name = key.type === 'Identifier' ? key.name : String(key.value)
+            if (seen.has(name)) {
+                throw new ParseError(`duplicate import attribute "${name}"`, start)
+            }
+            seen.add(name)
+            this.expectPunct(':')
+            const value = this.parseModuleSource()
+            attributes.push({ type: 'ImportAttribute', key, value, start, end: this.prevEnd })
+        }
+        this.expectPunct('}')
+        return attributes
+    }
+
+    private parseImport(): ImportDeclaration {
+        const start = this.tok.start
+        this.sawModule = true
+        this.advance()
+        const specifiers: ImportDeclaration['specifiers'] = []
+        if (this.tok.type !== 'string') {
+            let more = true
+            if (this.tok.type === 'name') {
+                const local = this.parseIdentifier()
+                specifiers.push({
+                    type: 'ImportDefaultSpecifier',
+                    local,
+                    start: local.start,
+                    end: local.end,
+                })
+                more = this.eatPunct(',')
+            }
+            if (more) {
+                this.parseImportBraces(specifiers)
+            }
+            this.expectName('from')
+        }
+        const source = this.parseModuleSource()
+        const attributes = this.parseImportAttributes()
+        this.semicolon()
+        return {
+            type: 'ImportDeclaration',
+            specifiers,
+            source,
+            attributes,
+            start,
+            end: this.prevEnd,
+        }
+    }
+
+    /** Parses `* as ns` or `{ a, b as c }` into import specifiers. */
+    private parseImportBraces(specifiers: ImportDeclaration['specifiers']): void {
+        if (this.isPunct('*')) {
+            const start = this.tok.start
+            this.advance()
+            this.expectName('as')
+            const local = this.parseIdentifier()
+            specifiers.push({ type: 'ImportNamespaceSpecifier', local, start, end: this.prevEnd })
+            return
+        }
+        if (!this.isPunct('{')) {
+            this.unexpected('expected "*" or "{"')
+        }
+        this.advance()
+        while (!this.isPunct('}')) {
+            const start = this.tok.start
+            const imported = this.parseModuleName()
+            let local: Identifier
+            if (this.eatName('as')) {
+                local = this.parseIdentifier()
+            } else if (imported.type === 'Identifier' && !this.isReserved(imported.name)) {
+                local = { ...imported }
+            } else {
+                throw new ParseError('expected "as" after this import name', start)
+            }
+            specifiers.push({ type: 'ImportSpecifier', imported, local, start, end: this.prevEnd })
+            if (!this.isPunct('}')) {
+                this.expectPunct(',')
+            }
+        }
+        this.expectPunct('}')
+    }
+
+    private parseExport(): Statement {
+        const start = this.tok.start
+        this.sawModule = true
+        this.advance()
+        if (this.eatPunct('*')) {
+            const exported = this.eatName('as') ? this.parseModuleName() : null
+            this.expectName('from')
+            const source = this.parseModuleSource()
+            const attributes = this.parseImportAttributes()
+            this.semicolon()
+            return {
+                type: 'ExportAllDeclaration',
+                exported,
+                source,
+                attributes,
+                start,
+                end: this.prevEnd,
+            }
+        }
+        if (this.eatName('default')) {
+            return this.parseExportDefault(start)
+        }
+        if (this.isPunct('{')) {
+            return this.parseExportSpecifiers(start)
+        }
+        const t = this.tok
+        let declaration: FunctionDeclaration | ClassDeclaration | VariableDeclaration
+        if (t.type === 'name' && !t.escaped && t.value === 'function') {
+            declaration = this.parseFunction(t.start, true, false)
+        } else if (t.type === 'name' && !t.escaped && t.value === 'async') {
+            if (!this.peekIsFunctionOnSameLine()) {
+                return this.unexpected()
+            }
+            this.advance()
+            declaration = this.parseFunction(t.start, true, true)
+        } else if (t.type === 'name' && !t.escaped && t.value === 'class') {
+            declaration = this.parseClass(t.start, true)
+        } else if (
+            t.type === 'name' &&
+            !t.escaped &&
+            (t.value === 'var' || t.value === 'let' || t.value === 'const')
+        ) {
+            declaration = this.parseVarStatement()
+        } else {
+            return this.unexpected()
+        }
+        return {
+            type: 'ExportNamedDeclaration',
+            declaration,
+            specifiers: [],
+            source: null,
+            attributes: [],
+            start,
+            end: this.prevEnd,
+        }
+    }
+
+    private parseExportDefault(start: number): Statement {
+        const t = this.tok
+        let declaration: FunctionDeclaration | ClassDeclaration | Expression
+        if (t.type === 'name' && !t.escaped && t.value === 'function') {
+            declaration = this.parseFunction(t.start, true, false, true)
+        } else if (t.type === 'name' && !t.escaped && t.value === 'class') {
+            declaration = this.parseClass(t.start, true, true)
+        } else if (
+            t.type === 'name' &&
+            !t.escaped &&
+            t.value === 'async' &&
+            this.peekIsFunctionOnSameLine()
+        ) {
+            this.advance()
+            declaration = this.parseFunction(t.start, true, true, true)
+        } else {
+            declaration = this.parseMaybeAssign(false, null)
+            this.semicolon()
+        }
+        return { type: 'ExportDefaultDeclaration', declaration, start, end: this.prevEnd }
+    }
+
+    private peekIsFunctionOnSameLine(): boolean {
+        const next = this.peek()
+        return next.type === 'name' && next.value === 'function' && !next.nlBefore
+    }
+
+    private parseExportSpecifiers(start: number): Statement {
+        this.advance()
+        const specifiers: ExportSpecifier[] = []
+        while (!this.isPunct('}')) {
+            const specStart = this.tok.start
+            const local = this.parseModuleName()
+            const exported = this.eatName('as') ? this.parseModuleName() : { ...local }
+            specifiers.push({
+                type: 'ExportSpecifier',
+                local,
+                exported,
+                start: specStart,
+                end: this.prevEnd,
+            })
+            if (!this.isPunct('}')) {
+                this.expectPunct(',')
+            }
+        }
+        this.expectPunct('}')
+        let source: Literal | null = null
+        let attributes: ImportAttribute[] = []
+        if (this.eatName('from')) {
+            source = this.parseModuleSource()
+            attributes = this.parseImportAttributes()
+        } else {
+            for (const specifier of specifiers) {
+                const { local } = specifier
+                if (local.type !== 'Identifier' || this.isReserved(local.name)) {
+                    throw new ParseError('invalid local export name', local.start)
+                }
+            }
+        }
+        this.semicolon()
+        return {
+            type: 'ExportNamedDeclaration',
+            declaration: null,
+            specifiers,
+            source,
+            attributes,
+            start,
+            end: this.prevEnd,
+        }
     }
 
     // ---- Expressions ----
@@ -638,6 +1379,9 @@ class Parser {
             if (unaryKeywords.has(t.value) && isUnaryOperator(t.value)) {
                 this.advance()
                 const argument = this.parseMaybeUnary(null)
+                if (t.value === 'delete' && this.strict && argument.type === 'Identifier') {
+                    throw new ParseError('cannot delete an unqualified name in strict mode', start)
+                }
                 return {
                     type: 'UnaryExpression',
                     operator: t.value,
@@ -736,7 +1480,11 @@ class Parser {
     // ---- Targets ----
 
     private checkSimpleTarget(node: Expression): Pattern {
-        if (node.type === 'Identifier' || node.type === 'MemberExpression') {
+        if (node.type === 'Identifier') {
+            this.checkStrictName(node)
+            return node
+        }
+        if (node.type === 'MemberExpression') {
             return node
         }
         throw new ParseError('invalid assignment target', node.start)
@@ -754,6 +1502,7 @@ class Parser {
                 if (binding && parenthesized) {
                     break
                 }
+                this.checkStrictName(node)
                 return node
             case 'MemberExpression':
                 if (binding) {
@@ -1041,6 +1790,9 @@ class Parser {
         if (t.type !== 'name' || this.isReserved(t.value)) {
             return this.unexpected()
         }
+        if (t.value === 'await' && !this.ctx.inFunction && !this.module) {
+            this.sawTopLevelAwait = true
+        }
         this.advance()
         return { type: 'Identifier', name: t.value, start: t.start, end: t.end }
     }
@@ -1049,6 +1801,7 @@ class Parser {
         const start = this.tok.start
         this.advance()
         if (this.eatPunct('.')) {
+            this.sawModule = true
             const property = this.tok
             if (property.type !== 'name' || property.value !== 'meta' || property.escaped) {
                 this.unexpected('expected "meta"')
@@ -1378,17 +2131,27 @@ class Parser {
     ): ArrowFunctionExpression {
         this.expectPunct('=>')
         const saved = this.ctx
-        this.ctx = { ...saved, inGenerator: false, inAsync: isAsync }
+        const savedStrict = this.strict
+        this.ctx = {
+            ...saved,
+            inGenerator: false,
+            inAsync: isAsync,
+            inFunction: true,
+            labels: [],
+            loops: 0,
+            switches: 0,
+        }
         let body: BlockStatement | Expression
         let expression: boolean
         if (this.isPunct('{')) {
-            body = this.parseBlockBody()
+            body = this.parseBlockBody(true)
             expression = false
         } else {
             body = this.parseMaybeAssign(false, null)
             expression = true
         }
         this.ctx = saved
+        this.strict = savedStrict
         return {
             type: 'ArrowFunctionExpression',
             id: null,
@@ -1411,31 +2174,44 @@ class Parser {
      * @param isAsync - Whether an `async` prefix was consumed.
      */
     private parseFunction(start: number, statement: boolean, isAsync: boolean): FunctionExpression
-    private parseFunction(start: number, statement: true, isAsync: boolean): FunctionDeclaration
+    private parseFunction(
+        start: number,
+        statement: true,
+        isAsync: boolean,
+        nameOptional?: boolean,
+    ): FunctionDeclaration
     private parseFunction(
         start: number,
         statement: boolean,
         isAsync: boolean,
+        nameOptional = false,
     ): FunctionExpression | FunctionDeclaration {
         this.expectName('function')
         const generator = this.eatPunct('*')
         let id: Identifier | null = null
         if (!this.isPunct('(')) {
             id = this.parseIdentifier()
-        } else if (statement) {
+            this.checkStrictName(id)
+        } else if (statement && !nameOptional) {
             this.unexpected('function name required')
         }
         const saved = this.ctx
+        const savedStrict = this.strict
         this.ctx = {
             inGenerator: generator,
             inAsync: isAsync,
             allowNewTarget: true,
             allowSuperProperty: false,
             allowSuperCall: false,
+            inFunction: true,
+            labels: [],
+            loops: 0,
+            switches: 0,
         }
         const params = this.parseParams()
-        const body = this.parseBlockBody()
+        const body = this.parseBlockBody(true)
         this.ctx = saved
+        this.strict = savedStrict
         const common = { id, params, body, generator, async: isAsync, start, end: this.prevEnd }
         return statement
             ? { type: 'FunctionDeclaration', ...common }
@@ -1450,16 +2226,22 @@ class Parser {
     ): FunctionExpression {
         const start = this.tok.start
         const saved = this.ctx
+        const savedStrict = this.strict
         this.ctx = {
             inGenerator: isGenerator,
             inAsync: isAsync,
             allowNewTarget: true,
             allowSuperProperty: true,
             allowSuperCall,
+            inFunction: true,
+            labels: [],
+            loops: 0,
+            switches: 0,
         }
         const params = this.parseParams()
-        const body = this.parseBlockBody()
+        const body = this.parseBlockBody(true)
         this.ctx = saved
+        this.strict = savedStrict
         return {
             type: 'FunctionExpression',
             id: null,
@@ -1563,7 +2345,16 @@ class Parser {
             this.expectPunct('}')
             return { type: 'ObjectPattern', properties, start: t.start, end: this.prevEnd }
         }
-        return this.parseIdentifier()
+        const id = this.parseIdentifier()
+        this.checkStrictName(id)
+        return id
+    }
+
+    /** In strict mode code `eval` and `arguments` can be neither bound nor assigned. */
+    private checkStrictName(id: Identifier): void {
+        if (this.strict && (id.name === 'eval' || id.name === 'arguments')) {
+            throw new ParseError(`cannot bind or assign "${id.name}" in strict mode`, id.start)
+        }
     }
 
     private parseBindingProperty(): Property {
@@ -1926,13 +2717,20 @@ class Parser {
      * @param statement - Declaration (name required) vs expression.
      */
     private parseClass(start: number, statement: boolean): ClassExpression
-    private parseClass(start: number, statement: true): ClassDeclaration
-    private parseClass(start: number, statement: boolean): ClassExpression | ClassDeclaration {
+    private parseClass(start: number, statement: true, nameOptional?: boolean): ClassDeclaration
+    private parseClass(
+        start: number,
+        statement: boolean,
+        nameOptional = false,
+    ): ClassExpression | ClassDeclaration {
         this.expectName('class')
+        // All parts of a class, its name and heritage included, are strict mode code.
+        const savedStrict = this.strict
+        this.strict = true
         let id: Identifier | null = null
         if (this.tok.type === 'name' && !this.isName('extends')) {
             id = this.parseIdentifier()
-        } else if (statement) {
+        } else if (statement && !nameOptional) {
             this.unexpected('class name required')
         }
         let superClass: Expression | null = null
@@ -1941,6 +2739,7 @@ class Parser {
             superClass = this.parseSubscripts(this.parseExprAtom(null), superStart, false)
         }
         const body = this.parseClassBody(superClass !== null)
+        this.strict = savedStrict
         return statement
             ? { type: 'ClassDeclaration', id, superClass, body, start, end: this.prevEnd }
             : { type: 'ClassExpression', id, superClass, body, start, end: this.prevEnd }
@@ -2071,6 +2870,10 @@ class Parser {
                 allowNewTarget: true,
                 allowSuperProperty: true,
                 allowSuperCall: false,
+                inFunction: false,
+                labels: [],
+                loops: 0,
+                switches: 0,
             }
             value = this.parseMaybeAssign(false, null)
             this.ctx = saved
@@ -2097,13 +2900,17 @@ class Parser {
             allowNewTarget: true,
             allowSuperProperty: true,
             allowSuperCall: false,
+            inFunction: false,
+            labels: [],
+            loops: 0,
+            switches: 0,
         }
         const body: Statement[] = []
         while (!this.isPunct('}')) {
             if (this.isEof()) {
                 this.unexpected()
             }
-            body.push(this.parseStatement())
+            body.push(this.parseStatement('list'))
         }
         this.ctx = saved
         this.expectPunct('}')
@@ -2113,11 +2920,46 @@ class Parser {
 
 /**
  * Parses JavaScript source into an ESTree `Program`.
- * Task 1 scope: expression statements only; any other statement throws `ParseError('unsupported', offset)`.
+ *
+ * The source type is detected: a file using `import`/`export`/`import.meta` or a top-level `await` is parsed
+ * as a module (strict mode, `sourceType: 'module'`); anything else is a sloppy-mode script. A script that uses
+ * `await` as a plain identifier at the top level is read as a module when that parses, since top-level
+ * `await` is by far the likelier intent.
  * @param code - Source text.
- * @returns The program AST (`sourceType: 'script'`).
+ * @returns The program AST.
  * @throws {ParseError} On a syntax error, with the offending source offset.
  */
 export function parse(code: string): Program {
-    return new Parser(code).parseProgram()
+    const script = new Parser(code, false)
+    let program: Program
+    try {
+        program = script.parseProgram()
+    } catch (error) {
+        if (!(error instanceof ParseError)) {
+            throw error
+        }
+        // Not a valid script: it may be a module (top-level `await`, `for await`, ...).
+        try {
+            return new Parser(code, true).parseProgram()
+        } catch (moduleError) {
+            if (
+                moduleError instanceof ParseError &&
+                (script.sawModule || moduleError.offset >= error.offset)
+            ) {
+                throw moduleError
+            }
+            throw error
+        }
+    }
+    if (!script.sawModule && !script.sawTopLevelAwait) {
+        return program
+    }
+    try {
+        return new Parser(code, true).parseProgram()
+    } catch (error) {
+        if (script.sawModule || !(error instanceof ParseError)) {
+            throw error
+        }
+        return program
+    }
 }
