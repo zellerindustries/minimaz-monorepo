@@ -52,7 +52,9 @@ import type {
  * Safe literal shortening only: shortest equivalent number and string literals, `true`/`false` as
  * `!0`/`!1`, string keys and `a["b"]` member names that are plain ASCII identifier names written
  * as identifiers, and (when the caller says `undefined` is free) the global `undefined` as
- * `void 0`. Template text, regular expressions and directives are printed verbatim.
+ * `void 0`. String literals and untagged template text are printed ASCII-only (non-ASCII as
+ * escapes, same value). Tagged template text, regular expressions, directives and identifiers are
+ * printed verbatim, so they may still hold non-ASCII characters.
  */
 
 /** Options for {@link print}. */
@@ -199,9 +201,10 @@ export function formatNumber(value: number): string {
 }
 
 /**
- * Quotes a string value with the quote character needing fewer escapes, escaping only what a
- * string literal cannot hold verbatim (plus line separators, lone surrogates and `</script`/`<!--`,
- * which are unsafe in some embeddings).
+ * Quotes a string value with the quote character needing fewer escapes. The result is ASCII-only:
+ * every non-ASCII code unit is escaped (`\xHH` up to U+00FF, `\uHHHH` above, an astral character
+ * as its two surrogates), as are control characters and `</script`/`<!--`, which are unsafe in
+ * some embeddings.
  * @param value - The string value.
  * @returns The string literal text.
  */
@@ -224,16 +227,8 @@ export function quoteString(value: string): string {
             out += `\\${char}`
         } else if (code < 0x20 || code === 0x7f) {
             out += escapeControl(code, value.charCodeAt(i + 1))
-        } else if (code === 0x2028 || code === 0x2029) {
-            out += `\\u${code.toString(16)}`
-        } else if (code >= 0xd800 && code <= 0xdfff) {
-            const next = value.charCodeAt(i + 1)
-            if (code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
-                out += value.slice(i, i + 2)
-                i++
-            } else {
-                out += `\\u${code.toString(16)}`
-            }
+        } else if (code > 0x7f) {
+            out += escapeNonAscii(code)
         } else if (char === '<' && /^<(?:\/script|!--)/i.test(value.slice(i, i + 8))) {
             out += '\\x3c'
         } else {
@@ -241,6 +236,39 @@ export function quoteString(value: string): string {
         }
     }
     return out + quote
+}
+
+/** The shortest escape for a non-ASCII UTF-16 code unit. */
+function escapeNonAscii(code: number): string {
+    return code <= 0xff ? `\\x${code.toString(16)}` : `\\u${code.toString(16).padStart(4, '0')}`
+}
+
+/**
+ * Rewrites the raw text of an untagged template so it is ASCII-only without changing its cooked
+ * value (the only value an untagged template exposes): non-ASCII code units become escapes, a
+ * backslash before a non-ASCII character (a no-op escape) is folded into that escape, and a line
+ * continuation over U+2028/U+2029 (which cooks to nothing) is dropped.
+ */
+function asciiTemplateText(raw: string): string {
+    let out = ''
+    for (let i = 0; i < raw.length; i++) {
+        const code = raw.charCodeAt(i)
+        if (code === 92) {
+            const next = raw.charCodeAt(i + 1)
+            if (next === 0x2028 || next === 0x2029) {
+                i++
+            } else if (next <= 0x7f) {
+                out += raw.slice(i, i + 2)
+                i++
+            }
+            // Otherwise the backslash is dropped and the next iteration escapes the character.
+        } else if (code > 0x7f) {
+            out += escapeNonAscii(code)
+        } else {
+            out += raw.charAt(i)
+        }
+    }
+    return out
 }
 
 function escapeControl(code: number, next: number): string {
@@ -1139,11 +1167,11 @@ class Printer {
                 }
                 return
             case 'TemplateLiteral':
-                this.template(node)
+                this.template(node, false)
                 return
             case 'TaggedTemplateExpression':
                 this.calleeLike(node.tag, noCall)
-                this.template(node.quasi)
+                this.template(node.quasi, true)
                 return
             case 'MemberExpression':
                 this.member(node, noCall)
@@ -1292,11 +1320,12 @@ class Printer {
         }
     }
 
-    private template(node: TemplateLiteral): void {
+    /** Prints a template; a tagged one keeps its raw text verbatim, since the tag can read it. */
+    private template(node: TemplateLiteral, tagged: boolean): void {
         this.emit('`')
         this.allowIn(() => {
             for (const [i, quasi] of node.quasis.entries()) {
-                this.emitRaw(quasi.value.raw)
+                this.emitRaw(tagged ? quasi.value.raw : asciiTemplateText(quasi.value.raw))
                 const expression = node.expressions[i]
                 if (expression !== undefined) {
                     this.emitRaw('${')
