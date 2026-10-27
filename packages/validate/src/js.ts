@@ -1,4 +1,5 @@
 import ts from 'typescript'
+import { transpileDiagnostics } from './diagnostics.js'
 import { ValidationError } from './errors.js'
 
 /**
@@ -27,20 +28,13 @@ export function validateJs(code: string): void {
 
     // A .js fileName makes the parser treat the input as JavaScript, so TS-only
     // syntax (type annotations, interfaces) is reported; the default .ts name accepts it.
-    const result = ts.transpileModule(code, {
-        fileName: 'input.js',
-        compilerOptions: {
-            target: ts.ScriptTarget.ES2022,
-            module: ts.ModuleKind.ESNext,
-            allowJs: true,
-        },
-        reportDiagnostics: true,
+    const errors = transpileDiagnostics(code, 'input.js', {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+        allowJs: true,
     })
 
-    if (result.diagnostics && result.diagnostics.length > 0) {
-        const errors = result.diagnostics.map((diagnostic) =>
-            ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-        )
+    if (errors.length > 0) {
         throw new JsValidationError(errors)
     }
 }
