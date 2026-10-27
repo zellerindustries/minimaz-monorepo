@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
@@ -9,13 +9,14 @@ import { alphaDiff, structuralDiff } from './helpers.js'
 
 /*
  * Real-world corpus: every built `packages/*\/dist/**\/*.js` (the seed templates under
- * `packages/templates/dist/seeds` included) plus up to 30 files from `node_modules` must parse,
- * minify, and parse back to the same tree. These are build outputs, so the suite is skipped
+ * `packages/templates/dist/seeds` included) plus an evenly spread sample of up to 120 mid-sized
+ * files from `node_modules` must parse, minify, and parse back to the same tree. These are build outputs, so the suite is skipped
  * until `npm run build` has run.
  */
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url))
-const nodeModulesSample = 30
+const nodeModulesSample = 120
+const maxSampleBytes = 300_000
 
 /** Every `.js` file below `dir` (relative to the repo root, `/`-separated), sorted. */
 function jsFiles(dir: string, skip: (path: string) => boolean = () => false): string[] {
@@ -40,11 +41,14 @@ function builtFiles(): string[] {
     )
 }
 
+/** An evenly spread, deterministic sample of mid-sized files: the built dist is bundled, so it is a thin corpus. */
 function nodeModulesFiles(): string[] {
-    return [...jsFiles('node_modules/lodash-es'), ...jsFiles('node_modules/vitest/dist')].slice(
-        0,
-        nodeModulesSample,
-    )
+    const files = [
+        ...jsFiles('node_modules/lodash-es'),
+        ...jsFiles('node_modules/vitest/dist'),
+    ].filter((file) => statSync(join(repoRoot, file)).size <= maxSampleBytes)
+    const step = Math.max(1, Math.floor(files.length / nodeModulesSample))
+    return files.filter((_, index) => index % step === 0).slice(0, nodeModulesSample)
 }
 
 const distMissing = !existsSync(join(repoRoot, 'packages/js/dist/index.js'))
