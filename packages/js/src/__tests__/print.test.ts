@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -721,17 +721,23 @@ describe('round-trip property', () => {
 
     const root = fileURLToPath(new URL('../', import.meta.url))
 
-    it.each(['lexer.ts', 'parse.ts', 'scope.ts', 'print.ts', 'minify.ts', 'tokenize.ts'])(
-        'round-trips the transpiled output of %s',
-        (file) => {
-            const source = readFileSync(`${root}${file}`, 'utf8')
-            const code = ts.transpileModule(source, {
-                compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2024 },
-            }).outputText
-            const out = roundTrip(code)
-            expect(out.length).toBeLessThan(code.length)
-        },
-    )
+    // Every source file of the package, so a renamed or added module is covered too.
+    const sourceFiles = readdirSync(root)
+        .filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'))
+        .sort()
+
+    it('finds the package source files', () => {
+        expect(sourceFiles).toEqual(expect.arrayContaining(['minify-tokens.ts', 'parse.ts']))
+    })
+
+    it.each(sourceFiles)('round-trips the transpiled output of %s', (file) => {
+        const source = readFileSync(`${root}${file}`, 'utf8')
+        const code = ts.transpileModule(source, {
+            compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2024 },
+        }).outputText
+        const out = roundTrip(code)
+        expect(out.length).toBeLessThan(code.length)
+    })
 })
 
 describe('structurallyEqual', () => {

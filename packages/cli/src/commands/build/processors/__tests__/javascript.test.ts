@@ -45,7 +45,7 @@ describe('processJs', () => {
         const result = await processJs(file, makeConfig(true))
 
         expect(result).not.toContain('\n\n\n')
-        expect(result).toBe('const x=1;const y=2;')
+        expect(result).toBe('const x=1;const y=2')
     })
 
     it('re-throws an unterminated-literal minify error as a KnownError naming the file', async () => {
@@ -253,8 +253,7 @@ describe('bundling', () => {
 
         const result = await processJs(file, makeConfig(true, true))
 
-        expect(result).toContain("from'./b.js'")
-        expect(result).not.toContain('\n\n\n')
+        expect(result).toBe('import{b as a}from"./b.js";console.log(a)')
     })
 
     it('reports a TypeScript syntax error under bundling as a KnownError naming the file', async () => {
