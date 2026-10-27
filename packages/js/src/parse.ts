@@ -213,6 +213,11 @@ class Parser {
      * Start offset at which an arrow function may begin (set by every assignment-expression parse).
      */
     private arrowStart = -1
+    /**
+     * Start offset of the latest assignment-expression parse that excluded `in` (a for-loop head):
+     * an arrow function starting there must exclude it from a concise body too.
+     */
+    private noInStart = -1
     private readonly parenthesized = new Set<Node>()
     /** Spread elements followed by a comma, which can never be rest elements. */
     private readonly spreadWithComma = new Set<Node>()
@@ -1177,6 +1182,11 @@ class Parser {
         const outerShorthand = cover.shorthandAssign
         cover.shorthandAssign = -1
         this.arrowStart = start
+        if (noIn) {
+            this.noInStart = start
+        } else if (this.noInStart === start) {
+            this.noInStart = -1
+        }
         const left = this.parseMaybeConditional(noIn, cover)
         const t = this.tok
         if (t.type === 'punct' && isAssignmentOperator(t.value)) {
@@ -2165,6 +2175,8 @@ class Parser {
         params: Pattern[],
         isAsync: boolean,
     ): ArrowFunctionExpression {
+        // In a for-loop head, `in` ends a concise body: `for (f = () => a in b;;)` is an error.
+        const noIn = this.noInStart === start
         this.expectPunct('=>')
         const saved = this.ctx
         const savedStrict = this.strict
@@ -2183,7 +2195,7 @@ class Parser {
             body = this.parseBlockBody(true)
             expression = false
         } else {
-            body = this.parseMaybeAssign(false, null)
+            body = this.parseMaybeAssign(noIn, null)
             expression = true
         }
         this.ctx = saved

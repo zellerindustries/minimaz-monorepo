@@ -889,3 +889,27 @@ describe('real code', () => {
         expect(program.body).toHaveLength(4)
     })
 })
+
+describe('regressions found by the differential harness', () => {
+    it.each([
+        "for (let f = () => 'k' in o; ; );",
+        "for (let f = async () => 'k' in o; ; );",
+        "for (let f = async x => 'k' in o; ; );",
+        "for (let f = x => y => 'k' in o; ; );",
+        'for (x => x in y; ; );',
+    ])('rejects `in` in an arrow body inside a for-loop head: %s', (source) => {
+        expect(() => parse(source)).toThrow(ParseError)
+    })
+
+    it.each([
+        "for (let f = () => ('k' in o); ; );",
+        "for (let f = () => { return 'k' in o }; ; );",
+        "for (let f = (x = 'k' in o) => x; ; );",
+        "for (let f = a ? 'k' in o : 0; ; );",
+        "for (let [k = 'k' in o] = []; ; );",
+        "for (let f = [() => 'k' in o]; ; );",
+        "x = () => 'k' in o",
+    ])('still accepts `in` where the grammar allows it: %s', (source) => {
+        expect(() => parse(source)).not.toThrow()
+    })
+})
