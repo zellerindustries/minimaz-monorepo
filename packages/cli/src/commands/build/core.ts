@@ -296,6 +296,32 @@ export async function processFile(
 }
 
 /**
+ * Reads a single source file (only when its extension is processable),
+ * applies `output.replace` to its content, and dispatches it to `processFile`.
+ *
+ * @param {string} src - Source file path
+ * @param {string} dest - Destination file path
+ * @param {MinimazConfig} config - The loaded build configuration
+ * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
+ */
+async function processSourceFile(
+    src: string,
+    dest: string,
+    config: MinimazConfig,
+    cssBundleCache: CssBundleCache,
+): Promise<void> {
+    const ext = extname(src).toLowerCase()
+    let content = ''
+
+    if (processableExtensions.has(ext)) {
+        const raw = await readFile(src, 'utf8')
+        content = applyReplacements(raw, config.output.replace)
+    }
+
+    await processFile({ src, dest, content, ext }, config, cssBundleCache)
+}
+
+/**
  * Processing pass: recursively walks `from`, applying `input.mapping`
  * (redirecting a top-level folder's contents to a different destination
  * under `to`, when `from` is `rootDir`) and `input.exclude` (skipping
@@ -343,15 +369,7 @@ export async function walkFolder(
             continue
         }
 
-        const ext = extname(fromPath).toLowerCase()
-        let content = ''
-
-        if (processableExtensions.has(ext)) {
-            const raw = await readFile(fromPath, 'utf8')
-            content = applyReplacements(raw, config.output.replace)
-        }
-
-        await processFile({ src: fromPath, dest: nextToPath, content, ext }, config, cssBundleCache)
+        await processSourceFile(fromPath, nextToPath, config, cssBundleCache)
     }
 }
 
@@ -404,14 +422,6 @@ export async function processExternals(
             continue
         }
 
-        const ext = extname(fullPath).toLowerCase()
-        let content = ''
-
-        if (processableExtensions.has(ext)) {
-            const raw = await readFile(fullPath, 'utf8')
-            content = applyReplacements(raw, config.output.replace)
-        }
-
-        await processFile({ src: fullPath, dest: targetPath, content, ext }, config, cssBundleCache)
+        await processSourceFile(fullPath, targetPath, config, cssBundleCache)
     }
 }
