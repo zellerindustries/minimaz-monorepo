@@ -76,14 +76,14 @@ describe('bundle.mjs', () => {
         await writeFile(join(pkgDir, 'dist', '__tests__', 'helpers.js'), '// helper', 'utf8')
         await writeFile(join(pkgDir, 'dist', '__tests__', 'helpers.d.ts'), '// helper', 'utf8')
         await writeFile(join(pkgDir, 'dist', 'nested', '__mocks__', 'fs.js'), '// mock', 'utf8')
-        await writeFile(join(pkgDir, 'dist', 'nested', 'kept.js'), '// kept', 'utf8')
+        await writeFile(join(pkgDir, 'dist', 'nested', 'kept.d.ts'), '// kept', 'utf8')
 
         const result = runBundle()
 
         expect(result.status, result.stderr).toBe(0)
         expect(existsSync(join(pkgDir, 'dist', '__tests__'))).toBe(false)
         expect(existsSync(join(pkgDir, 'dist', 'nested', '__mocks__'))).toBe(false)
-        expect(existsSync(join(pkgDir, 'dist', 'nested', 'kept.js'))).toBe(true)
+        expect(existsSync(join(pkgDir, 'dist', 'nested', 'kept.d.ts'))).toBe(true)
     })
 
     it('fails when the repo LICENSE is missing', async () => {
