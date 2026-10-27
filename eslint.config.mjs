@@ -27,6 +27,7 @@ export default defineConfig(
             '**/.tmp/**',
             '**/tmp/**',
             '**/src/seeds/**', // seed templates (user-facing content, not formatted or linted)
+            '**/__tests__/fixtures/**', // test inputs whose exact layout is under test
         ],
     },
 
