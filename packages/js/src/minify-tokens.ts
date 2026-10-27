@@ -142,6 +142,23 @@ function needsSpace(prev: Token, token: Token): boolean {
 }
 
 /**
+ * Tokenizes `code`, turning a stack overflow (template literals nested inside `${}` recurse, once
+ * per level) into a `minifyJs:` error the caller can report, instead of a raw `RangeError`.
+ */
+function tokenizeOrExplain(code: string): ReturnType<typeof tokenize> {
+    try {
+        return tokenize(code)
+    } catch (error) {
+        if (error instanceof RangeError && /call stack|too much recursion/i.test(error.message)) {
+            throw new Error('minifyJs: template literals nested too deeply to minify', {
+                cause: error,
+            })
+        }
+        throw error
+    }
+}
+
+/**
  * Minifies JavaScript by tokenizing it: comments are dropped and whitespace is
  * reduced to the minimum that keeps the token stream identical. A line break
  * is only removed where automatic semicolon insertion provably cannot apply
@@ -158,15 +175,16 @@ function needsSpace(prev: Token, token: Token): boolean {
  *
  * @param {string} code - JavaScript source to minify
  * @returns {string} Minified JavaScript
- * @throws {Error} `minifyJs: …` if `code` is not a string or has an unterminated
- *   string, template literal, regex or block comment
+ * @throws {Error} `minifyJs: …` if `code` is not a string, has an unterminated
+ *   string, template literal, regex or block comment, or nests template literals
+ *   too deeply
  */
 export function minifyTokens(code: string): string {
     if (typeof code !== 'string') {
         throw new Error('minifyJs: code must be a string')
     }
 
-    const { hashbang, tokens, htmlLikeComment } = tokenize(code)
+    const { hashbang, tokens, htmlLikeComment } = tokenizeOrExplain(code)
     if (htmlLikeComment === true) {
         return code
     }

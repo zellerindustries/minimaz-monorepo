@@ -25,8 +25,9 @@ export interface MinifyOptions {
  * @param code - JavaScript source to minify
  * @param options - See {@link MinifyOptions}
  * @returns Minified JavaScript
- * @throws {Error} `minifyJs: …` if `code` is not a string, or if it cannot be parsed and has an
- *   unterminated string, template literal, regex or block comment
+ * @throws {Error} `minifyJs: …` if `code` is not a string, or if it cannot be parsed and the token
+ *   minifier then finds an unterminated string, template literal, regex or block comment (which can
+ *   also be a misread regex-vs-division in valid code) or template literals nested too deeply
  */
 export function minifyJs(code: string, options?: MinifyOptions): string {
     if (typeof code !== 'string') {

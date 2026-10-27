@@ -249,6 +249,20 @@ describe('minifyJs fallback to the token minifier', () => {
         expect(minified).toBe(`${'function f(){'.repeat(depth)}x()${'}'.repeat(depth)}`)
     })
 
+    it('throws a minifyJs: error when templates nest too deeply for either path', () => {
+        const depth = 20000
+        const source = `x = ${'`${'.repeat(depth)}1${'}`'.repeat(depth)}`
+        let thrown: unknown
+        try {
+            minifyJs(source)
+        } catch (error) {
+            thrown = error
+        }
+        expect(thrown).toBeInstanceOf(Error)
+        expect(thrown).not.toBeInstanceOf(RangeError)
+        expect((thrown as Error).message).toMatch(/^minifyJs: /)
+    })
+
     it('uses the token minifier for top-level await without other module syntax', () => {
         expect(minifyJs('const r = await fetch(u)\n')).toBe('const r=await fetch(u)')
     })

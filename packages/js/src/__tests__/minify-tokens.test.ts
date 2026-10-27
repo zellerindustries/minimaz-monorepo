@@ -182,3 +182,12 @@ describe('minifyTokens after a postfix ++/--', () => {
         expect(minifyTokens('i++\n+ 1')).toBe('i++ +1')
     })
 })
+
+describe('minifyTokens on deeply nested templates', () => {
+    it('throws a minifyJs: error, not a RangeError, when nesting overflows the stack', () => {
+        const depth = 20000
+        const source = `x = ${'`${'.repeat(depth)}1${'}`'.repeat(depth)}`
+        expect(() => minifyTokens(source)).toThrow(/^minifyJs: template literals nested too deeply/)
+        expect(minifyTokens('x = `${`${`${1}`}`}`')).toBe('x=`${`${`${1}`}`}`')
+    })
+})
