@@ -65,6 +65,7 @@ function flattenInline(nodes: Inline[], style: Style): Token[] {
     for (const node of nodes) {
         switch (node.type) {
             case 'text':
+            case 'inlineCode':
                 out.push({
                     type: 'text',
                     text: sanitizeText(node.value),
@@ -76,13 +77,6 @@ function flattenInline(nodes: Inline[], style: Style): Token[] {
                 break
             case 'emphasis':
                 out.push(...flattenInline(node.children, combine(style, 'italic')))
-                break
-            case 'inlineCode':
-                out.push({
-                    type: 'text',
-                    text: sanitizeText(node.value),
-                    style,
-                })
                 break
             case 'link':
                 out.push(...flattenInline(node.children, style))
