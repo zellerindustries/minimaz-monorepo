@@ -28,7 +28,7 @@ export interface MinifyOptions {
  * @throws {Error} `minifyJs: …` if `code` is not a string, or if it cannot be parsed and has an
  *   unterminated string, template literal, regex or block comment
  */
-export function minifyJs(code: string, options: MinifyOptions = {}): string {
+export function minifyJs(code: string, options?: MinifyOptions): string {
     if (typeof code !== 'string') {
         throw new Error('minifyJs: code must be a string')
     }
@@ -41,20 +41,23 @@ export function minifyJs(code: string, options: MinifyOptions = {}): string {
         if (program.sourceType === 'module' && !analysis.hasModuleSyntax) {
             return minifyTokens(code)
         }
-        if (options.mangle !== false) {
+        if (options?.mangle !== false) {
             rename(analysis)
         }
         return print(program, { unresolved: analysis.unresolved })
     } catch (error) {
-        // A RangeError is a stack overflow on deeply nested input: parsing, analysis and printing
-        // are recursive.
-        if (
-            error instanceof ParseError ||
-            error instanceof ScopeError ||
-            error instanceof RangeError
-        ) {
+        if (error instanceof ParseError || error instanceof ScopeError || isStackOverflow(error)) {
             return minifyTokens(code)
         }
         throw error
     }
+}
+
+/**
+ * Whether `error` is a stack overflow (V8: "Maximum call stack size exceeded", SpiderMonkey: "too
+ * much recursion"), which deeply nested input causes since parsing, analysis and printing are
+ * recursive. Any other `RangeError` is a bug and must propagate.
+ */
+function isStackOverflow(error: unknown): boolean {
+    return error instanceof RangeError && /call stack|too much recursion/i.test(error.message)
 }
