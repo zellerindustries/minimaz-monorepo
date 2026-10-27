@@ -1,5 +1,6 @@
 import vm from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import type { MinifyOptions } from '../index.js'
 import { minifyJs } from '../minify.js'
 import { minifyTokens } from '../minify-tokens.js'
 
@@ -181,6 +182,13 @@ describe('minifyJs', () => {
         )
         expect(minifyJs(mathTsOutput)).toBe(
             'export function sum(...a){let b=0;for(const c of a){b+=c}return b}',
+        )
+    })
+
+    it('takes its options as the MinifyOptions type exported from the package entry', () => {
+        const options: MinifyOptions = { mangle: false }
+        expect(minifyJs('function f() { const value = 1; return value }', options)).toBe(
+            'function f(){const value=1;return value}',
         )
     })
 
