@@ -70,6 +70,22 @@ describe('bundle.mjs', () => {
         expect(result.stdout).toContain('Bundled @fixture/pkg')
     })
 
+    it('removes whole __tests__ and __mocks__ directories from dist/, helpers included', async () => {
+        await mkdir(join(pkgDir, 'dist', '__tests__'), { recursive: true })
+        await mkdir(join(pkgDir, 'dist', 'nested', '__mocks__'), { recursive: true })
+        await writeFile(join(pkgDir, 'dist', '__tests__', 'helpers.js'), '// helper', 'utf8')
+        await writeFile(join(pkgDir, 'dist', '__tests__', 'helpers.d.ts'), '// helper', 'utf8')
+        await writeFile(join(pkgDir, 'dist', 'nested', '__mocks__', 'fs.js'), '// mock', 'utf8')
+        await writeFile(join(pkgDir, 'dist', 'nested', 'kept.js'), '// kept', 'utf8')
+
+        const result = runBundle()
+
+        expect(result.status, result.stderr).toBe(0)
+        expect(existsSync(join(pkgDir, 'dist', '__tests__'))).toBe(false)
+        expect(existsSync(join(pkgDir, 'dist', 'nested', '__mocks__'))).toBe(false)
+        expect(existsSync(join(pkgDir, 'dist', 'nested', 'kept.js'))).toBe(true)
+    })
+
     it('fails when the repo LICENSE is missing', async () => {
         await rm(join(root, 'LICENSE'))
 

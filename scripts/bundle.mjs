@@ -42,11 +42,15 @@ for (const outfile of outfiles) {
     })
 }
 
-// A plain `tsc -b` (npm run typecheck) also compiles the __tests__ files into dist/ — keep them out of the package.
-const distFiles = await readdir('dist', { recursive: true }).catch(() => [])
-for (const file of distFiles) {
-    if (/\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(file)) {
-        await rm(join('dist', file), { force: true })
+// A plain `tsc -b` (npm run typecheck) also compiles the __tests__ files into dist/ — keep them out of the package:
+// whole __tests__/__mocks__ directories (test helpers included), plus *.test/*.spec files anywhere else.
+const distEntries = await readdir('dist', { recursive: true, withFileTypes: true }).catch(() => [])
+for (const entry of distEntries) {
+    const path = join(entry.parentPath, entry.name)
+    if (entry.isDirectory() && (entry.name === '__tests__' || entry.name === '__mocks__')) {
+        await rm(path, { recursive: true, force: true })
+    } else if (entry.isFile() && /\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(entry.name)) {
+        await rm(path, { force: true })
     }
 }
 

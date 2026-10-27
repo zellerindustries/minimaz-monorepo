@@ -575,9 +575,7 @@ describe('build with output.js.bundling', () => {
         await build(cwd)
 
         const main = await readDist('main.js')
-        expect(main).toContain("'./dep.js'")
-        expect(main).not.toContain('a comment')
-        expect(main).not.toContain("'./dep'")
+        expect(main).toBe('import{x as a}from"./dep.js";console.log(a)')
         expect(await readDist('dep.js')).not.toContain(': number')
     })
 

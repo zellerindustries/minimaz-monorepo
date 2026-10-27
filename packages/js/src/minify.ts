@@ -1,300 +1,64 @@
-const keywordsBeforeRegex = new Set([
-    'return',
-    'typeof',
-    'instanceof',
-    'in',
-    'of',
-    'new',
-    'delete',
-    'void',
-    'throw',
-    'yield',
-    'case',
-    'do',
-    'else',
-    'await',
-    'default',
-])
+import { minifyTokens } from './minify-tokens.js'
+import { parse, ParseError } from './parse.js'
+import { print } from './print.js'
+import { rename } from './rename.js'
+import { analyze, ScopeError } from './scope.js'
 
-function isIdentifierPart(char: string): boolean {
-    return /[A-Za-z0-9_$]/.test(char)
-}
-
-function isIdentifierStart(char: string): boolean {
-    return /[A-Za-z_$]/.test(char)
+/** Options for {@link minifyJs}. */
+export interface MinifyOptions {
+    /** Rename local bindings to short names (default `true`). */
+    mangle?: boolean
 }
 
 /**
- * Minifies JavaScript by stripping comments, deliberately conservative
- * about whitespace: trims each line and collapses consecutive blank lines,
- * but never joins lines or collapses whitespace across a newline — JS's
- * automatic semicolon insertion means removing the newline after `return`
- * (or `break`/`continue`/`throw`/postfix `++`/`--`) can silently change
- * behavior (`return\n{ a: 1 }` returns `undefined`, not the object).
+ * Minifies JavaScript: parses it, renames local bindings to the shortest safe names (unless
+ * `mangle` is `false`) and prints the program with no optional whitespace, `;` only where needed
+ * and minimal parentheses. Comments are dropped; a leading `#!` line is kept. Top-level bindings
+ * are renamed only in files with `import`/`export`/`import.meta` (and never exported ones);
+ * scopes that can see a direct `eval` or a `with` are left as they are.
  *
- * Regex-literal-vs-division disambiguation uses a preceding-token
- * heuristic (regex allowed at start of input, after most punctuators, and
- * after keywords like `return`/`typeof`; division assumed after
- * identifiers, numbers, strings, and `)`/`]`). This is a known-imperfect
- * heuristic — the same approach every non-full-parser JS minifier uses —
- * and can misjudge unusual code, most notably a regex literal immediately
- * after a `)` that closes an `if`/`while`/`for` condition rather than a
- * function call (`if (x) /re/.test(y)` is treated as division, matching
- * the far more common `foo(x) / 2` case instead).
+ * When the source cannot be parsed (a syntax error or an unsupported construct), or uses top-level
+ * `await` without any other module syntax (it might be a sloppy script calling a function named
+ * `await`), or is nested too deeply to process (a stack overflow), the token minifier is used
+ * instead: it only strips comments and whitespace.
  *
- * @param {string} code - JavaScript source to minify
- * @returns {string} Minified JavaScript
+ * @param code - JavaScript source to minify
+ * @param options - See {@link MinifyOptions}
+ * @returns Minified JavaScript
+ * @throws {Error} `minifyJs: …` if `code` is not a string, or if it cannot be parsed and the token
+ *   minifier then finds an unterminated string, template literal, regex or block comment (which can
+ *   also be a misread regex-vs-division in valid code) or template literals nested too deeply
  */
-export function minifyJs(code: string): string {
+export function minifyJs(code: string, options?: MinifyOptions): string {
     if (typeof code !== 'string') {
         throw new Error('minifyJs: code must be a string')
     }
 
-    let result = ''
-    // Offsets in `result` of newlines inside a string or template literal body;
-    // the trim/collapse pass must leave those untouched.
-    const literalNewlines = new Set<number>()
-    const appendLiteral = (text: string): void => {
-        for (let k = text.indexOf('\n'); k !== -1; k = text.indexOf('\n', k + 1)) {
-            literalNewlines.add(result.length + k)
+    try {
+        const program = parse(code)
+        const analysis = analyze(program)
+        // A module reached through `await` alone may really be a sloppy script that calls a
+        // function named `await`: printing `await(x)` as `await x` would break it there.
+        if (program.sourceType === 'module' && !analysis.hasModuleSyntax) {
+            return minifyTokens(code)
         }
-        result += text
+        if (options?.mangle !== false) {
+            rename(analysis)
+        }
+        return print(program, { unresolved: analysis.unresolved })
+    } catch (error) {
+        if (error instanceof ParseError || error instanceof ScopeError || isStackOverflow(error)) {
+            return minifyTokens(code)
+        }
+        throw error
     }
-    let i = 0
-    const len = code.length
+}
 
-    let inString: '"' | "'" | null = null
-    const templateDepths: number[] = []
-    let regexAllowed = true
-
-    while (i < len) {
-        const char = code.charAt(i)
-
-        if (inString !== null) {
-            appendLiteral(char)
-            if (char === '\\' && i + 1 < len) {
-                appendLiteral(code.charAt(i + 1))
-                i += 2
-                continue
-            }
-            if (char === inString) {
-                inString = null
-                regexAllowed = false
-            }
-            i++
-            continue
-        }
-
-        if (templateDepths.length > 0 && templateDepths[templateDepths.length - 1] === 0) {
-            if (char === '\\' && i + 1 < len) {
-                appendLiteral(char + code.charAt(i + 1))
-                i += 2
-                continue
-            }
-            if (char === '`') {
-                templateDepths.pop()
-                result += char
-                regexAllowed = false
-                i++
-                continue
-            }
-            if (char === '$' && code.charAt(i + 1) === '{') {
-                templateDepths[templateDepths.length - 1] = 1
-                result += '${'
-                i += 2
-                regexAllowed = true
-                continue
-            }
-            appendLiteral(char)
-            i++
-            continue
-        }
-
-        if (char === '"' || char === "'") {
-            inString = char
-            result += char
-            i++
-            continue
-        }
-
-        if (char === '`') {
-            templateDepths.push(0)
-            result += char
-            i++
-            continue
-        }
-
-        if (
-            char === '}' &&
-            templateDepths.length > 0 &&
-            (templateDepths[templateDepths.length - 1] ?? 0) > 0
-        ) {
-            const depth = templateDepths[templateDepths.length - 1] ?? 0
-            templateDepths[templateDepths.length - 1] = depth === 1 ? 0 : depth - 1
-            result += char
-            regexAllowed = false
-            i++
-            continue
-        }
-
-        if (
-            char === '{' &&
-            templateDepths.length > 0 &&
-            (templateDepths[templateDepths.length - 1] ?? 0) > 0
-        ) {
-            templateDepths[templateDepths.length - 1] =
-                (templateDepths[templateDepths.length - 1] ?? 0) + 1
-            result += char
-            regexAllowed = true
-            i++
-            continue
-        }
-
-        if (char === '/' && !regexAllowed) {
-            const next = code.charAt(i + 1)
-            if (next === '/') {
-                const end = code.indexOf('\n', i + 2)
-                i = end === -1 ? len : end
-                continue
-            }
-            if (next === '*') {
-                const end = code.indexOf('*/', i + 2)
-                i = end === -1 ? len : end + 2
-                continue
-            }
-            result += char
-            regexAllowed = true
-            i++
-            continue
-        }
-
-        if (char === '/' && regexAllowed) {
-            const next = code.charAt(i + 1)
-            if (next === '/') {
-                const end = code.indexOf('\n', i + 2)
-                i = end === -1 ? len : end
-                continue
-            }
-            if (next === '*') {
-                const end = code.indexOf('*/', i + 2)
-                i = end === -1 ? len : end + 2
-                continue
-            }
-            let j = i + 1
-            let inClass = false
-            while (j < len) {
-                const c = code.charAt(j)
-                if (c === '\\') {
-                    j += 2
-                    continue
-                }
-                if (c === '[') {
-                    inClass = true
-                } else if (c === ']') {
-                    inClass = false
-                } else if (c === '/' && !inClass) {
-                    break
-                } else if (c === '\n') {
-                    break
-                }
-                j++
-            }
-            let flagsEnd = j + 1
-            while (flagsEnd < len && isIdentifierPart(code.charAt(flagsEnd))) {
-                flagsEnd++
-            }
-            result += code.slice(i, Math.min(flagsEnd, len))
-            i = Math.min(flagsEnd, len)
-            regexAllowed = false
-            continue
-        }
-
-        if (/[0-9]/.test(char) || (char === '.' && /[0-9]/.test(code.charAt(i + 1)))) {
-            let j = i
-            if (char === '0' && (code.charAt(i + 1) === 'x' || code.charAt(i + 1) === 'X')) {
-                j += 2
-                while (j < len && /[0-9a-fA-F_]/.test(code.charAt(j))) {
-                    j++
-                }
-            } else if (char === '0' && /[bBoO]/.test(code.charAt(i + 1))) {
-                j += 2
-                while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                    j++
-                }
-            } else {
-                while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                    j++
-                }
-                if (code.charAt(j) === '.') {
-                    j++
-                    while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                        j++
-                    }
-                }
-                if (code.charAt(j) === 'e' || code.charAt(j) === 'E') {
-                    let k = j + 1
-                    if (code.charAt(k) === '+' || code.charAt(k) === '-') {
-                        k++
-                    }
-                    if (/[0-9]/.test(code.charAt(k))) {
-                        j = k
-                        while (j < len && /[0-9_]/.test(code.charAt(j))) {
-                            j++
-                        }
-                    }
-                }
-            }
-            if (code.charAt(j) === 'n') {
-                j++
-            }
-            result += code.slice(i, j)
-            i = j
-            regexAllowed = false
-            continue
-        }
-
-        if (isIdentifierStart(char)) {
-            let j = i
-            while (j < len && isIdentifierPart(code.charAt(j))) {
-                j++
-            }
-            const word = code.slice(i, j)
-            result += word
-            regexAllowed = keywordsBeforeRegex.has(word)
-            i = j
-            continue
-        }
-
-        if (/\s/.test(char)) {
-            result += char
-            i++
-            continue
-        }
-
-        result += char
-        regexAllowed = !(char === ')' || char === ']')
-        i++
-    }
-
-    const lines: string[] = []
-    let lineStart = 0
-    for (let k = result.indexOf('\n'); k !== -1; k = result.indexOf('\n', k + 1)) {
-        if (!literalNewlines.has(k)) {
-            lines.push(result.slice(lineStart, k).trim())
-            lineStart = k + 1
-        }
-    }
-    lines.push(result.slice(lineStart).trim())
-    const collapsed: string[] = []
-    let previousBlank = false
-    for (const line of lines) {
-        const isBlank = line === ''
-        if (isBlank && previousBlank) {
-            continue
-        }
-        collapsed.push(line)
-        previousBlank = isBlank
-    }
-
-    return collapsed.join('\n').trim()
+/**
+ * Whether `error` is a stack overflow (V8: "Maximum call stack size exceeded", SpiderMonkey: "too
+ * much recursion"), which deeply nested input causes since parsing, analysis and printing are
+ * recursive. Any other `RangeError` is a bug and must propagate.
+ */
+function isStackOverflow(error: unknown): boolean {
+    return error instanceof RangeError && /call stack|too much recursion/i.test(error.message)
 }

@@ -35,3 +35,6 @@ pnpm-lock.yaml
 
 # Seed templates (user-facing content, not formatted or linted).
 **/src/seeds/
+
+# Minifier test programs: their exact layout (ASI traps, parentheses, odd spacing) is what they test.
+**/__tests__/fixtures/
