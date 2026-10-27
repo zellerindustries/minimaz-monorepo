@@ -1039,14 +1039,24 @@ class Printer {
     }
 
     private arrayPattern(node: ArrayPattern, binding: boolean): void {
+        this.arrayLike(node.elements, (element) => {
+            this.pattern(element, binding)
+        })
+    }
+
+    /**
+     * Prints `[…]` with holes as empty slots; a trailing hole needs an extra comma, since a single
+     * trailing comma is not an element.
+     */
+    private arrayLike<T>(elements: readonly (T | null)[], each: (element: T) => void): void {
         this.emit('[')
         this.allowIn(() => {
-            this.list(node.elements, (element) => {
+            this.list(elements, (element) => {
                 if (element !== null) {
-                    this.pattern(element, binding)
+                    each(element)
                 }
             })
-            if (node.elements.at(-1) === null) {
+            if (elements.at(-1) === null) {
                 this.emit(',')
             }
         })
@@ -1338,18 +1348,9 @@ class Printer {
     }
 
     private arrayExpression(node: ArrayExpression): void {
-        this.emit('[')
-        this.allowIn(() => {
-            this.list(node.elements, (element) => {
-                if (element !== null) {
-                    this.argument(element)
-                }
-            })
-            if (node.elements.at(-1) === null) {
-                this.emit(',')
-            }
+        this.arrayLike(node.elements, (element) => {
+            this.argument(element)
         })
-        this.emit(']')
     }
 
     private argument(node: Expression | SpreadElement): void {
