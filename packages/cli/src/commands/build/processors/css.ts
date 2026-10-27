@@ -4,6 +4,7 @@ import { bundleCss, minifyCss } from '@minimaz/css'
 import { KnownError } from '@minimaz/logger'
 import type { MinimazConfig } from '@minimaz/config'
 import type { CssBundleCache, File } from '../types.js'
+import { rethrowPrefixedAsKnown } from './errors.js'
 
 /**
  * Runs `bundleCss`, re-throwing its deliberate failures (errors whose message
@@ -29,10 +30,7 @@ export async function bundleCssForBuild(
         }
         // Only bundleCss's own deliberate throws carry this prefix; anything
         // else is an internal bug and must keep its bug-report hint and stack.
-        if (error instanceof Error && error.message.startsWith('bundleCss:')) {
-            throw new KnownError(error.message, { cause: error })
-        }
-        throw error
+        return rethrowPrefixedAsKnown(error, 'bundleCss:')
     }
 }
 
