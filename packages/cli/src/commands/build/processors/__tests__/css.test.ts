@@ -1,10 +1,10 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processCss } from '../css.js'
 
@@ -13,16 +13,13 @@ function makeConfig(overrides: {
     minify: boolean
     replace?: Record<string, string>
 }): MinimazConfig {
-    return {
-        ...defaultConfig,
-        ...defaultBuildConfig,
-        ...defaultServeConfig,
-        output: {
-            ...defaultBuildConfig.output,
+    return makeBuildConfig(
+        {},
+        {
             replace: overrides.replace ?? {},
             css: { bundling: overrides.bundling, minify: overrides.minify },
         },
-    }
+    )
 }
 
 describe('processCss', () => {
