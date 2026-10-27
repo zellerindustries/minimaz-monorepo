@@ -259,3 +259,20 @@ describe('minifyJs fallback to the token minifier', () => {
         )
     })
 })
+
+describe('minifyJs regressions found by the differential harness', () => {
+    it('keeps a renamed `{__proto__}` shorthand an own property', () => {
+        const source = '(function () { const __proto__ = 1; return { __proto__ } })()'
+        const minified = minifyJs(source)
+        expect(minified).toBe('(function(){const a=1;return{["__proto__"]:a}})()')
+        const result = vm.runInNewContext(minified) as Record<string, unknown>
+        expect(Object.keys(result)).toEqual(['__proto__'])
+        expect(minifyJs('x = { __proto__ }')).toBe('x={__proto__}')
+        expect(minifyJs('x = { __proto__: y, "__proto__"() {} }')).toBe(
+            'x={__proto__:y,__proto__(){}}',
+        )
+        expect(minifyJs('(function (o) { const { __proto__ } = o; return __proto__ })')).toBe(
+            '(function(a){const{__proto__:b}=a;return b})',
+        )
+    })
+})

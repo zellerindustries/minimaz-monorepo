@@ -1365,14 +1365,18 @@ class Printer {
             this.functionRest(fn)
             return
         }
-        if (
-            node.shorthand &&
-            node.key.type === 'Identifier' &&
-            value.type === 'Identifier' &&
-            value.name === node.key.name
-        ) {
-            this.name(value.name)
-            return
+        if (node.shorthand && node.key.type === 'Identifier') {
+            if (value.type === 'Identifier' && value.name === node.key.name) {
+                this.name(value.name)
+                return
+            }
+            // `{__proto__}` defines an own property, but `{__proto__: a}` (after renaming) would
+            // set the prototype instead; a computed key keeps it an own property.
+            if (node.key.name === '__proto__') {
+                this.emit('["__proto__"]:')
+                this.expr(value, precAssign)
+                return
+            }
         }
         this.propertyKey(node.key, node.computed)
         this.emit(':')
