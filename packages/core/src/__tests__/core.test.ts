@@ -47,15 +47,16 @@ describe('readJsonFile', () => {
         await expect(readJsonFile(file)).rejects.toThrow(/PARSE ERROR/)
     })
 
-    it('wraps a non-ENOENT read failure (a directory) in a PARSE ERROR with the cause', async () => {
+    it('reports a non-ENOENT read failure (a directory) as a READ ERROR with the cause', async () => {
         const error = await readJsonFile(dir).catch((caught: unknown) => caught)
 
         expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toMatch(/^PARSE ERROR: Failed to parse JSON in ".*" - /)
+        expect((error as Error).message).toMatch(/^READ ERROR: Failed to read "[^"]*" - /)
+        expect((error as Error).message).not.toMatch(/PARSE ERROR/)
         expect((error as Error).cause).toBeInstanceOf(Error)
     })
 
-    it('stringifies a non-Error read failure in the PARSE ERROR message', async () => {
+    it('stringifies a non-Error read failure in the READ ERROR message', async () => {
         vi.doMock('node:fs/promises', async () => {
             const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
             // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- non-Error rejection is the case under test
@@ -67,7 +68,7 @@ describe('readJsonFile', () => {
             const fresh = await import('../core.js')
 
             await expect(fresh.readJsonFile('whatever.json')).rejects.toThrow(
-                'PARSE ERROR: Failed to parse JSON in "whatever.json" - boom',
+                'READ ERROR: Failed to read "whatever.json" - boom',
             )
         } finally {
             vi.doUnmock('node:fs/promises')

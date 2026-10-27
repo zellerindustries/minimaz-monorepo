@@ -53,9 +53,7 @@ export async function readJsonFile<T>(file: string): Promise<T> {
 
         const message = error instanceof Error ? error.message : String(error)
 
-        throw new Error(`PARSE ERROR: Failed to parse JSON in "${file}" - ${message}`, {
-            cause: error,
-        })
+        throw new Error(`READ ERROR: Failed to read "${file}" - ${message}`, { cause: error })
     }
 
     try {
