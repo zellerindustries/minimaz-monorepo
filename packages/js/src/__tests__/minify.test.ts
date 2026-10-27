@@ -171,7 +171,7 @@ describe('minifyJs', () => {
             'import{greet as c}from"./utils/greet.js";import{sum as d}from"./utils/math.js";' +
                 'const e=document.getElementById("title");const a=["ada","linus","grace"];' +
                 'function f(a){return a.map(a=>c(a)).join(", ")}' +
-                'e.textContent=`Hi ${f(a)} — total ${d(1,2,3)}`;const g=/^[a-z]+$/i;' +
+                'e.textContent=`Hi ${f(a)} \\u2014 total ${d(1,2,3)}`;const g=/^[a-z]+$/i;' +
                 'const h=a.length/2;let b=0;b++;console.log(g.test("abc"),h,b)',
         )
     })
@@ -211,6 +211,12 @@ describe('minifyJs', () => {
 
     it('returns an empty string for comment-only input', () => {
         expect(minifyJs('// a\n/* b */')).toBe('')
+    })
+
+    it('prints non-ASCII string and untagged template text as ASCII escapes', () => {
+        expect(minifyJs("log('café', `\u{1F600}${x}`, tag`é`)")).toBe(
+            'log("caf\\xe9",`\\ud83d\\ude00${x}`,tag`é`)',
+        )
     })
 
     it('rejects a non-string input', () => {

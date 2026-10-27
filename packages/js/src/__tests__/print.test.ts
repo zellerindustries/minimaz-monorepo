@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import vm from 'node:vm'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import type { ExpressionStatement, Program } from '../ast.js'
@@ -441,10 +442,16 @@ describe('strings', () => {
         ["'\\u2028\\u2029'", '"\\u2028\\u2029"'],
         ["'\\ud800'", '"\\ud800"'],
         ["'\\udc00x'", '"\\udc00x"'],
-        ["'\\ud83d\\ude00'", '"\u{1F600}"'],
+        ["'\\ud83d\\ude00'", '"\\ud83d\\ude00"'],
         ["'\\x01\\x7f'", '"\\x01\\x7f"'],
         ["'\\\\'", '"\\\\"'],
-        ["'\\u00e9'", '"\u00e9"'],
+        ["'\\u00e9'", '"\\xe9"'],
+        ["'\u00e9'", '"\\xe9"'],
+        ["'\u0085\u00a0\u00ff'", '"\\x85\\xa0\\xff"'],
+        ["'\u0100\u0800\u4e2d\ufeff\uffff'", '"\\u0100\\u0800\\u4e2d\\ufeff\\uffff"'],
+        ["'\u{1F600}'", '"\\ud83d\\ude00"'],
+        ["'\\u{10FFFF}'", '"\\udbff\\udfff"'],
+        ["'\u00e91'", '"\\xe91"'],
         ["'</script>'", '"\\x3c/script>"'],
         ["'<\\/SCRIPT'", '"\\x3c/SCRIPT"'],
         ["'<!--'", '"\\x3c!--"'],
@@ -455,14 +462,65 @@ describe('strings', () => {
     })
 
     it('round-trips arbitrary values', () => {
-        const pieces = ["'", '"', '\\', '\n', '\0', '1', '\u2028', '\ud800', '\udfff', '\x7f', '<']
+        const pieces = [
+            "'",
+            '"',
+            '\\',
+            '\n',
+            '\0',
+            '1',
+            '\u2028',
+            '\ud800',
+            '\udfff',
+            '\x7f',
+            '<',
+            '\u0085',
+            '\u00a0',
+            '\u{1F600}',
+        ]
         for (const a of pieces) {
             for (const b of pieces) {
                 const value = a + b
                 const literal = (parse(`x = ${quoteString(value)}`).body[0] as ExpressionStatement)
                     .expression
                 expect(literal).toMatchObject({ right: { value } })
+                expect(quoteString(value)).toMatch(/^[\x20-\x7e]*$/)
             }
+        }
+    })
+})
+
+describe('ASCII-only output', () => {
+    it('escapes non-ASCII text in untagged templates, keeping the cooked value', () => {
+        expect(roundTrip('x = `é ${a} \u{1F600}\u0085 中`')).toBe(
+            'x=`\\xe9 ${a} \\ud83d\\ude00\\x85\\xa0\\u4e2d`',
+        )
+        expect(roundTrip('x = `\\é\\\\é`')).toBe('x=`\\xe9\\\\\\xe9`')
+        expect(roundTrip('x = `a\\ b\\ c `')).toBe('x=`abc\\u2028`')
+        expect(roundTrip('x = `\\\u{1F600}`')).toBe('x=`\\ud83d\\ude00`')
+    })
+
+    it('keeps tagged templates, regexes and identifiers verbatim', () => {
+        expect(roundTrip('x = String.raw`é\\é${a}`')).toBe('x=String.raw`é\\é${a}`')
+        expect(roundTrip('x = /é[\u{1F600}]/u')).toBe('x=/é[\u{1F600}]/u')
+        expect(roundTrip('é = ü.ö')).toBe('é=ü.ö')
+    })
+
+    it('evaluates to the same values as the source', () => {
+        const sources = [
+            "'é\u0085 ÿĀ中\u{1F600}  '",
+            "'\\ud800x\\udfff\\udc00\\ud800'",
+            "'\\ud83d' + '\\ude00'",
+            '`é${1}\u{1F600}\\é\\ \u0085 \\ud800`',
+            '`\\\u{1F600}\u{10FFFF}`',
+            "({ 'é': 1, '\u{1F600}': 2 })",
+        ]
+        for (const source of sources) {
+            const out = min(`x = ${source}`)
+            expect(out).toMatch(/^[\x20-\x7e]*$/)
+            expect(vm.runInNewContext(`${out};JSON.stringify(x)`)).toBe(
+                vm.runInNewContext(`x = ${source};JSON.stringify(x)`),
+            )
         }
     })
 })
@@ -511,7 +569,7 @@ describe('literal shortening', () => {
             'class A{constructor(){}m(){}static x=1}',
         )
         expect(roundTrip('({"a": b} = c)')).toBe('({a:b}=c)')
-        expect(roundTrip('x = {"é": 1}; a["é"]')).toBe('x={"\u00e9":1};a["\u00e9"]')
+        expect(roundTrip('x = {"é": 1}; a["é"]')).toBe('x={"\\xe9":1};a["\\xe9"]')
     })
 
     it('writes the global undefined as void 0 when it is free', () => {

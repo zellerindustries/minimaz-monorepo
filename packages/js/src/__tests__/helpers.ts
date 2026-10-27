@@ -99,6 +99,20 @@ function canonical(node: NodeRecord, options: StructuralOptions): NodeRecord {
             const properties = node['properties'] as unknown[]
             return { ...node, properties: properties.map(ownProtoProperty) }
         }
+        case 'TemplateLiteral': {
+            // Untagged template text is compared by cooked value: the printer may re-escape it.
+            const quasis = node['quasis'] as NodeRecord[]
+            return {
+                ...node,
+                quasis: quasis.map((quasi) => ({
+                    ...quasi,
+                    value: { cooked: (quasi['value'] as NodeRecord)['cooked'] },
+                })),
+            }
+        }
+        case 'TaggedTemplateExpression':
+            // A tag can read the raw text, so it is compared as is.
+            return { ...node, quasi: { ...(node['quasi'] as NodeRecord), type: 'TaggedQuasi' } }
         case 'Property':
         case 'MethodDefinition':
         case 'PropertyDefinition':

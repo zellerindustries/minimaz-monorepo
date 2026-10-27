@@ -71,6 +71,8 @@ const exact: [string, string][] = [
     ['const é = 1; const 日本 = é', 'const é=1;const 日本=é'],
     ['class A { #p = 1; has(o) { return #p in o } }', 'class A{#p=1;has(o){return #p in o}}'],
     ['var \\u0061 = 1', 'var \\u0061=1'],
+    // non-ASCII source text is never re-escaped
+    ["s = 'é \u0085\u{1F600}' + `中` + /ü/", "s='é \u0085\u{1F600}'+`中`+/ü/"],
     ['async () => { await x }', 'async()=>{await x}'],
     ['a\n/ b / c', 'a/b/c'],
 ]
