@@ -1,3 +1,5 @@
+import { punctuators1, punctuators2, punctuators3, punctuators4 } from './lexicon.js'
+
 /** Thrown for any syntax error; `offset` is the source position the error points at. */
 export class ParseError extends Error {
     readonly offset: number
@@ -35,34 +37,6 @@ export interface LexToken {
     cooked: string | null
     tail: boolean
 }
-
-const punct4 = new Set(['>>>='])
-const punct3 = new Set(['...', '===', '!==', '**=', '<<=', '>>=', '>>>', '&&=', '||=', '??='])
-const punct2 = new Set([
-    '=>',
-    '==',
-    '!=',
-    '<=',
-    '>=',
-    '&&',
-    '||',
-    '??',
-    '?.',
-    '++',
-    '--',
-    '+=',
-    '-=',
-    '*=',
-    '/=',
-    '%=',
-    '&=',
-    '|=',
-    '^=',
-    '<<',
-    '>>',
-    '**',
-])
-const punct1 = new Set('{}()[];,<>+-*/%&|^!~?:=.'.split(''))
 
 const idStartRe = /^[$_\p{ID_Start}]$/u
 const idPartRe = /^(?:[$\p{ID_Continue}]|‌|‍)$/u
@@ -692,10 +666,10 @@ export class Lexer {
         const start = this.pos
         const code = this.code
         for (const [len, set] of [
-            [4, punct4],
-            [3, punct3],
-            [2, punct2],
-            [1, punct1],
+            [4, punctuators4],
+            [3, punctuators3],
+            [2, punctuators2],
+            [1, punctuators1],
         ] as const) {
             const text = code.slice(start, start + len)
             if (text.length === len && set.has(text)) {
