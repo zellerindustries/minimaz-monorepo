@@ -171,6 +171,53 @@ describe('runCli dispatch', () => {
         expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', options, process.cwd())
     })
 
+    it.each([
+        [['-l'], { list: true }],
+        [['--list=yes'], { list: false }],
+        [['-d'], { list: false }],
+        [['--delete=a', '-d', 'b'], { list: false, delete: 'a' }],
+        [['-u'], { list: false, update: true }],
+        [['-u', 'site'], { list: false, update: 'site' }],
+        [['--update', '-u', 'site'], { list: false, update: 'site' }],
+        [['--update=a', '-u', 'b'], { list: false, update: 'a' }],
+    ])('resolves template alias flags %j to %j', async (flags, options) => {
+        await run('template', ...flags)
+
+        expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', options, process.cwd())
+    })
+
+    it.each([
+        [['-t'], 'default'],
+        [['-t', 'blog'], 'blog'],
+        [['--template=blog', '-t', 'docs'], 'blog'],
+        [['--template', '-t', 'docs'], 'docs'],
+    ])('resolves init template alias flags %j to %j', async (flags, templateName) => {
+        await run('init', ...flags)
+
+        expect(init).toHaveBeenCalledWith(
+            'minimaz-project',
+            { template: templateName },
+            resolve(process.cwd(), 'minimaz-project'),
+            'TEMPLATES',
+        )
+    })
+
+    it('passes an empty path to validate for a bare --path flag', async () => {
+        await run('validate', '--path')
+
+        expect(validate).toHaveBeenCalledWith('')
+    })
+
+    it('shows help for -h and sets VERBOSE for -v', async () => {
+        await run('build', '-h')
+        expect(help).toHaveBeenCalledWith(undefined)
+        expect(build).not.toHaveBeenCalled()
+
+        await run('build', '-v')
+        expect(process.env['VERBOSE']).toBe('true')
+        expect(build).toHaveBeenCalledOnce()
+    })
+
     it('passes --overwrite to config', async () => {
         await run('config', '--overwrite')
         await run('config')
