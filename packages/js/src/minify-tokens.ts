@@ -84,6 +84,17 @@ function canJoin(tokens: readonly Token[], index: number): boolean {
     if (token.type === 'punct' && (token.value === '++' || token.value === '--')) {
         return false
     }
+    // `i++` cannot be called, indexed or tagged, so ASI ends the statement before `(`, `[` or a
+    // template on the next line; joined, `i++(…)` would be a syntax error. After a prefix
+    // `++`/`--` the kept line break is harmless.
+    if (
+        prev.type === 'punct' &&
+        (prev.value === '++' || prev.value === '--') &&
+        (token.type === 'template' ||
+            (token.type === 'punct' && (token.value === '(' || token.value === '[')))
+    ) {
+        return false
+    }
     const prevIsKeyword = prev.type === 'word' && !isMemberName(tokens, index - 1)
     if (prevIsKeyword && neverJoinAfterWords.has(prev.value)) {
         return false

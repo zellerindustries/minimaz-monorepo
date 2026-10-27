@@ -161,3 +161,24 @@ describe('minifyTokens with HTML-like comments', () => {
         expect(minifyTokens('x = a --> b')).toBe('x=a-->b')
     })
 })
+
+describe('minifyTokens after a postfix ++/--', () => {
+    it.each([
+        ['let i = 0\ni++\n(function () { log(i) })()', 'let i=0\ni++\n(function(){log(i)})()'],
+        ['let i = 2\ni--\n[1, 2].forEach(log)', 'let i=2\ni--\n[1,2].forEach(log)'],
+        ['let i = 0\ni++\n`x`', 'let i=0\ni++\n`x`'],
+    ])('keeps the line break before ( [ or a template in %j', (source, expected) => {
+        const minified = minifyTokens(source)
+        expect(minified).toBe(expected)
+        const run = (code: string): unknown[] => {
+            const logged: unknown[] = []
+            vm.runInNewContext(code, { log: (value: unknown) => logged.push(value) })
+            return logged
+        }
+        expect(run(minified)).toEqual(run(source))
+    })
+
+    it('still joins other tokens after ++/--', () => {
+        expect(minifyTokens('i++\n+ 1')).toBe('i++ +1')
+    })
+})
