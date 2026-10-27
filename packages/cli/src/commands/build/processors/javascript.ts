@@ -4,6 +4,7 @@ import { minifyJs } from '@minimaz/js'
 import { KnownError } from '@minimaz/logger'
 import { transpileTs } from '@minimaz/ts'
 import type { File } from '../types.js'
+import { rethrowPrefixedAsKnown } from './errors.js'
 
 /**
  * Re-throws a `transpileTs` syntax-diagnostics error (message starting with
@@ -18,10 +19,7 @@ import type { File } from '../types.js'
  * @throws {KnownError} If `error` is a `transpileTs` syntax error
  */
 function rethrowTsSyntaxError(error: unknown, filePath: string): never {
-    if (error instanceof Error && error.message.startsWith('transpileTs: syntax error')) {
-        throw new KnownError(`${filePath}: ${error.message}`, { cause: error })
-    }
-    throw error
+    return rethrowPrefixedAsKnown(error, 'transpileTs: syntax error', filePath)
 }
 
 /**
@@ -39,10 +37,7 @@ function minifyForBuild(content: string, filePath: string): string {
     try {
         return minifyJs(content)
     } catch (error: unknown) {
-        if (error instanceof Error && error.message.startsWith('minifyJs:')) {
-            throw new KnownError(`${filePath}: ${error.message}`, { cause: error })
-        }
-        throw error
+        return rethrowPrefixedAsKnown(error, 'minifyJs:', filePath)
     }
 }
 

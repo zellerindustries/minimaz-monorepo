@@ -1,23 +1,18 @@
+import { defaultBuildConfig } from '@minimaz/config'
+import type { BuildConfig } from '@minimaz/config'
 import { copy, join, outputFile, pathExists } from '@minimaz/core'
 import { KnownError, log } from '@minimaz/logger'
 import { getTemplatePath } from '@minimaz/templates'
-import { askQuestion } from '../../cli/index.js'
+import { askYesNo } from '../prompts.js'
 import { initGit, initNpm } from './core.js'
 import type { InitCommandOptions } from './types.js'
 
-const minimazConfigTemplate = {
+// The build defaults, with `mapping` prefilled so a new project sees the folders it can remap.
+const minimazConfigTemplate: BuildConfig = {
+    ...defaultBuildConfig,
     input: {
-        dir: './src',
+        ...defaultBuildConfig.input,
         mapping: { pages: '', scripts: '', styles: '', public: '' },
-        externals: {},
-        exclude: [],
-    },
-    output: {
-        dir: './dist',
-        replace: {},
-        css: { bundling: true, minify: true },
-        html: { minify: true },
-        js: { bundling: false, minify: true },
     },
 }
 
@@ -54,16 +49,12 @@ export async function init(
     }
 
     try {
-        const useNpm =
-            options.npm ??
-            (await askQuestion('Init NPM? [Y/n]:', 'y')).toLowerCase().startsWith('y')
+        const useNpm = options.npm ?? (await askYesNo('Init NPM? [Y/n]:', 'y'))
         if (useNpm) {
             await initNpm(targetDir, projectName)
         }
 
-        const useGit =
-            options.git ??
-            (await askQuestion('Init Git repository? [Y/n]:', 'y')).toLowerCase().startsWith('y')
+        const useGit = options.git ?? (await askYesNo('Init Git repository? [Y/n]:', 'y'))
         if (useGit) {
             await initGit(projectName, targetDir, options.gitprovider)
         }

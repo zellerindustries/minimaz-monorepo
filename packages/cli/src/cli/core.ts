@@ -150,6 +150,35 @@ export async function executeCommand(command: string, args: string[], cwd: strin
 }
 
 /**
+ * Returns the string value of the first of `names` given with a value
+ * (`--name=value` or `--name value`); a bare boolean flag is skipped.
+ *
+ * @param {Args} args - Parsed CLI arguments
+ * @param {...string} names - Flag names (e.g. long form, then alias) in priority order
+ * @returns {string | undefined} The first string value found, or `undefined`
+ */
+export function stringFlag(args: Args, ...names: string[]): string | undefined {
+    for (const name of names) {
+        const value = args[name]
+        if (typeof value === 'string') {
+            return value
+        }
+    }
+    return undefined
+}
+
+/**
+ * True when any of `names` was given as a bare flag (`--name`/`-n` with no value).
+ *
+ * @param {Args} args - Parsed CLI arguments
+ * @param {...string} names - Flag names (e.g. long form and alias)
+ * @returns {boolean}
+ */
+export function boolFlag(args: Args, ...names: string[]): boolean {
+    return names.some((name) => args[name] === true)
+}
+
+/**
  * Normalizes a raw CLI flag value into a boolean, or `undefined` when the
  * flag wasn't provided at all (distinct from an explicit false) — callers
  * use `undefined` to know they should fall back to an interactive prompt.

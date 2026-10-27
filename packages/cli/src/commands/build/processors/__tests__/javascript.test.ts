@@ -2,11 +2,11 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { BundlerError } from '@minimaz/bundler'
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { applyReplacements } from '@minimaz/core'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processJs, processTs } from '../javascript.js'
 
@@ -15,16 +15,7 @@ function makeConfig(
     bundling = false,
     replace: Record<string, string> = {},
 ): MinimazConfig {
-    return {
-        ...defaultConfig,
-        ...defaultBuildConfig,
-        ...defaultServeConfig,
-        output: {
-            ...defaultBuildConfig.output,
-            js: { bundling, minify },
-            replace,
-        },
-    }
+    return makeBuildConfig({}, { js: { bundling, minify }, replace })
 }
 
 describe('processJs', () => {

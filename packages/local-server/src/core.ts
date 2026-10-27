@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { createLogger, KnownError } from '@minimaz/logger'
+import { writeText } from './http.js'
 import { createLiveReload, injectReloadScript } from './live-reload.js'
 import { resolveMimeType } from './mime.js'
 import { renderDirectoryListing, resolveRequest } from './static-handler.js'
@@ -130,8 +131,7 @@ async function handleRequest(
     try {
         pathname = decodeURIComponent(rawPathname)
     } catch {
-        res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Bad Request')
+        writeText(res, 400, 'Bad Request')
         return
     }
 
@@ -142,14 +142,12 @@ async function handleRequest(
     })
 
     if (resolution.kind === 'forbidden') {
-        res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Forbidden')
+        writeText(res, 403, 'Forbidden')
         return
     }
 
     if (resolution.kind === 'notFound') {
-        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Not Found')
+        writeText(res, 404, 'Not Found')
         return
     }
 
@@ -186,12 +184,9 @@ async function handleRequest(
             fileStats !== undefined &&
             cached?.mtimeMs === fileStats.mtimeMs &&
             cached.size === fileStats.size &&
-            req.headers['if-none-match'] === cached.etag
+            req.headers['if-none-match'] === cached.etag &&
+            applyCacheHeaders(req, res, cached.etag)
         ) {
-            res.setHeader('etag', cached.etag)
-            res.setHeader('cache-control', 'no-cache')
-            res.writeHead(304)
-            res.end()
             return
         }
     }
@@ -202,8 +197,7 @@ async function handleRequest(
     } catch (error: unknown) {
         const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined
         if (code === 'ENOENT') {
-            res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-            res.end('Not Found')
+            writeText(res, 404, 'Not Found')
             return
         }
         throw error

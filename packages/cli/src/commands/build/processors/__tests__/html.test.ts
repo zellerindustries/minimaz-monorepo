@@ -1,19 +1,11 @@
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
 import type { MinimazConfig } from '@minimaz/config'
 import { describe, expect, it } from 'vitest'
+import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processHtml } from '../html.js'
 
 function makeConfig(minify: boolean): MinimazConfig {
-    return {
-        ...defaultConfig,
-        ...defaultBuildConfig,
-        ...defaultServeConfig,
-        output: {
-            ...defaultBuildConfig.output,
-            html: { minify },
-        },
-    }
+    return makeBuildConfig({}, { html: { minify } })
 }
 
 describe('processHtml', () => {

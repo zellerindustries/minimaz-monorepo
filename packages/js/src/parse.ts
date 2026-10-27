@@ -35,6 +35,7 @@ import type {
     VariableDeclarator,
 } from './ast.js'
 import { Lexer, ParseError, type LexToken } from './lexer.js'
+import { reservedWords, strictReservedWords } from './lexicon.js'
 
 export { ParseError } from './lexer.js'
 
@@ -120,58 +121,6 @@ const assignmentOperators: ReadonlySet<string> = new Set([
     '&&=',
     '||=',
     '??=',
-])
-
-const reservedWords: ReadonlySet<string> = new Set([
-    'break',
-    'case',
-    'catch',
-    'class',
-    'const',
-    'continue',
-    'debugger',
-    'default',
-    'delete',
-    'do',
-    'else',
-    'enum',
-    'export',
-    'extends',
-    'false',
-    'finally',
-    'for',
-    'function',
-    'if',
-    'import',
-    'in',
-    'instanceof',
-    'new',
-    'null',
-    'return',
-    'super',
-    'switch',
-    'this',
-    'throw',
-    'true',
-    'try',
-    'typeof',
-    'var',
-    'void',
-    'while',
-    'with',
-])
-
-/** Reserved only in strict mode code. */
-const strictReservedWords: ReadonlySet<string> = new Set([
-    'implements',
-    'interface',
-    'let',
-    'package',
-    'private',
-    'protected',
-    'public',
-    'static',
-    'yield',
 ])
 
 const unaryPunctuators: ReadonlySet<string> = new Set(['!', '~', '+', '-'])

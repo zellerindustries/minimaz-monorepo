@@ -1,8 +1,6 @@
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
-import type { MinimazConfig } from '@minimaz/config'
 import { pathExists } from '@minimaz/core'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -17,19 +15,7 @@ import {
     walkFolder,
 } from '../core.js'
 import type { File } from '../types.js'
-
-function makeConfig(
-    overrides: Partial<MinimazConfig['input']> = {},
-    outputOverrides: Partial<MinimazConfig['output']> = {},
-): MinimazConfig {
-    return {
-        ...defaultConfig,
-        ...defaultBuildConfig,
-        ...defaultServeConfig,
-        input: { ...defaultBuildConfig.input, ...overrides },
-        output: { ...defaultBuildConfig.output, ...outputOverrides },
-    }
-}
+import { makeBuildConfig } from './helpers.js'
 
 describe('reCreateOutDir', () => {
     let dir: string
@@ -285,7 +271,7 @@ describe('runDiscovery', () => {
         const ignoredFiles = new Set<string>()
         await runDiscovery(
             dir,
-            makeConfig({}, { css: { bundling: true, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: true, minify: false } }),
             ignoredFiles,
             new Map(),
         )
@@ -305,7 +291,7 @@ describe('runDiscovery', () => {
         const ignoredFiles = new Set<string>()
         await runDiscovery(
             dir,
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             ignoredFiles,
             new Map(),
         )
@@ -320,7 +306,7 @@ describe('runDiscovery', () => {
         const ignoredFiles = new Set<string>()
         await runDiscovery(
             dir,
-            makeConfig({}, { js: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
             ignoredFiles,
             new Map(),
         )
@@ -335,7 +321,10 @@ describe('runDiscovery', () => {
         const ignoredFiles = new Set<string>()
         await runDiscovery(
             dir,
-            makeConfig({ exclude: ['node_modules'] }, { css: { bundling: true, minify: false } }),
+            makeBuildConfig(
+                { exclude: ['node_modules'] },
+                { css: { bundling: true, minify: false } },
+            ),
             ignoredFiles,
             new Map(),
         )
@@ -363,7 +352,7 @@ describe('processFile', () => {
         const file: File = { src, dest, content: 'body { color: red; }', ext: '.css' }
         await processFile(
             file,
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             new Map(),
         )
 
@@ -377,7 +366,7 @@ describe('processFile', () => {
 
         await processFile(
             file,
-            makeConfig({}, { js: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
             new Map(),
         )
 
@@ -394,7 +383,7 @@ describe('processFile', () => {
         await writeFile(src, 'binary-ish-content', 'utf8')
 
         const file: File = { src, dest, content: '', ext: '.png' }
-        await processFile(file, makeConfig(), new Map())
+        await processFile(file, makeBuildConfig(), new Map())
 
         expect(await readFile(dest, 'utf8')).toBe('binary-ish-content')
     })
@@ -421,7 +410,7 @@ describe('walkFolder', () => {
         await walkFolder(
             inDir,
             outDir,
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
             inDir,
             new Map(),
@@ -441,7 +430,7 @@ describe('walkFolder', () => {
         await walkFolder(
             inDir,
             outDir,
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             ignoredFiles,
             inDir,
             new Map(),
@@ -459,7 +448,7 @@ describe('walkFolder', () => {
         await walkFolder(
             inDir,
             outDir,
-            makeConfig({ mapping: { pages: '' } }, { html: { minify: false } }),
+            makeBuildConfig({ mapping: { pages: '' } }, { html: { minify: false } }),
             new Set(),
             inDir,
             new Map(),
@@ -477,7 +466,7 @@ describe('walkFolder', () => {
         await walkFolder(
             inDir,
             outDir,
-            makeConfig({ exclude: ['node_modules'] }),
+            makeBuildConfig({ exclude: ['node_modules'] }),
             new Set(),
             inDir,
             new Map(),
@@ -510,7 +499,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { 'vendor/lib.css': 'assets/lib.css' },
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
             new Map(),
         )
@@ -527,7 +516,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { 'https://example.com/lib.css': 'assets/lib.css' },
-            makeConfig(),
+            makeBuildConfig(),
             new Set(),
             new Map(),
         )
@@ -547,7 +536,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { 'httpdocs/lib.css': 'assets/lib.css' },
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             new Set(),
             new Map(),
         )
@@ -567,7 +556,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { 'vendor/lib.css': 'assets/lib.css' },
-            makeConfig({}, { css: { bundling: false, minify: false } }),
+            makeBuildConfig({}, { css: { bundling: false, minify: false } }),
             new Set([externalSrc]),
             new Map(),
         )
@@ -587,7 +576,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { vendor: 'assets/vendor' },
-            makeConfig(),
+            makeBuildConfig(),
             new Set(),
             new Map(),
         )
@@ -610,7 +599,7 @@ describe('processExternals', () => {
             dir,
             outDir,
             { 'vendor/logo.bin': 'logo.bin' },
-            makeConfig(),
+            makeBuildConfig(),
             new Set(),
             new Map(),
         )
@@ -628,7 +617,7 @@ describe('processExternals', () => {
                 dir,
                 outDir,
                 { 'missing.css': 'assets/missing.css' },
-                makeConfig(),
+                makeBuildConfig(),
                 new Set(),
                 new Map(),
             ),

@@ -1,12 +1,11 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
-import type { MinimazConfig } from '@minimaz/config'
 import { bundleCss } from '@minimaz/css'
 import type * as MinimazCss from '@minimaz/css'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { runDiscovery } from '../../core.js'
 import { processCss } from '../css.js'
@@ -16,16 +15,7 @@ vi.mock('@minimaz/css', async (importOriginal) => ({
     bundleCss: vi.fn(),
 }))
 
-const config: MinimazConfig = {
-    ...defaultConfig,
-    ...defaultBuildConfig,
-    ...defaultServeConfig,
-    output: {
-        ...defaultBuildConfig.output,
-        replace: {},
-        css: { bundling: true, minify: false },
-    },
-}
+const config = makeBuildConfig({}, { replace: {}, css: { bundling: true, minify: false } })
 
 describe('bundleCss failure classification', () => {
     let dir: string

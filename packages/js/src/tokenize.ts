@@ -1,3 +1,5 @@
+import { punctuators2, punctuators3, punctuators4 } from './lexicon.js'
+
 /** Kind of a lexical token. A template literal (including its `${}` expressions) is one token. */
 export type TokenType = 'word' | 'number' | 'string' | 'template' | 'regex' | 'punct'
 
@@ -45,33 +47,6 @@ const keywordsBeforeRegex = new Set([
 ])
 
 const parenHeaderKeywords = new Set(['if', 'while', 'for', 'with'])
-
-const punctuators4 = new Set(['>>>='])
-const punctuators3 = new Set(['...', '===', '!==', '**=', '<<=', '>>=', '>>>', '&&=', '||=', '??='])
-const punctuators2 = new Set([
-    '=>',
-    '==',
-    '!=',
-    '<=',
-    '>=',
-    '&&',
-    '||',
-    '??',
-    '?.',
-    '++',
-    '--',
-    '+=',
-    '-=',
-    '*=',
-    '/=',
-    '%=',
-    '&=',
-    '|=',
-    '^=',
-    '<<',
-    '>>',
-    '**',
-])
 
 const hexNumber = /0[xX][0-9a-fA-F_]*n?/y
 const binOctNumber = /0[bBoO][0-9_]*n?/y

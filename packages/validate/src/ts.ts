@@ -1,4 +1,5 @@
 import ts from 'typescript'
+import { transpileDiagnostics } from './diagnostics.js'
 import { ValidationError } from './errors.js'
 
 /**
@@ -38,15 +39,10 @@ export function validateTs(code: string, options?: { jsx?: boolean }): void {
         ...(options?.jsx === true ? { jsx: ts.JsxEmit.React } : {}),
     }
 
-    const result = ts.transpileModule(code, {
-        compilerOptions,
-        reportDiagnostics: true,
-    })
+    // No fileName: transpileModule defaults to module.ts, or module.tsx when jsx is set.
+    const errors = transpileDiagnostics(code, undefined, compilerOptions)
 
-    if (result.diagnostics && result.diagnostics.length > 0) {
-        const errors = result.diagnostics.map((diagnostic) =>
-            ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-        )
+    if (errors.length > 0) {
         throw new TsValidationError(errors)
     }
 }
