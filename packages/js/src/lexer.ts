@@ -120,15 +120,24 @@ export class Lexer {
      */
     pos = 0
     private readonly code: string
+    private readonly htmlComments: boolean
+    /** Where the first token may start (after a `#!` line): `-->` there opens a comment too. */
+    private readonly inputStart: number
 
-    /** @param code - Source text. */
-    constructor(code: string) {
+    /**
+     * @param code - Source text.
+     * @param htmlComments - Whether `<!--` and a `-->` that starts a line open single-line
+     *   comments, as in scripts (Annex B); in modules they are operators.
+     */
+    constructor(code: string, htmlComments = false) {
         this.code = code
+        this.htmlComments = htmlComments
         if (code.startsWith('#!')) {
             while (this.pos < code.length && !isLineTerminator(code.charCodeAt(this.pos))) {
                 this.pos++
             }
         }
+        this.inputStart = this.pos
     }
 
     /**
@@ -233,6 +242,8 @@ export class Lexer {
     private skipSpace(): boolean {
         const code = this.code
         let nl = false
+        // Only whitespace and comments have been skipped since the start of the input.
+        const atInputStart = this.pos === this.inputStart
         for (;;) {
             const c = code.charCodeAt(this.pos)
             if (c === 32 || c === 9 || c === 11 || c === 12 || c === 0xa0 || c === 0xfeff) {
@@ -240,6 +251,14 @@ export class Lexer {
             } else if (isLineTerminator(c)) {
                 nl = true
                 this.pos++
+            } else if (
+                this.htmlComments &&
+                (code.startsWith('<!--', this.pos) ||
+                    ((nl || atInputStart) && code.startsWith('-->', this.pos)))
+            ) {
+                while (this.pos < code.length && !isLineTerminator(code.charCodeAt(this.pos))) {
+                    this.pos++
+                }
             } else if (c === 47) {
                 const n = code.charCodeAt(this.pos + 1)
                 if (n === 47) {

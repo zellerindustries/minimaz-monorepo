@@ -45,6 +45,8 @@ const readable = minifyJs(jsSource, { mangle: false }) // keep every name
     whitespace-only minification: comments are dropped and whitespace is reduced to the minimum that keeps the
     token sequence identical, with line breaks kept wherever automatic semicolon insertion could apply. Nothing
     is renamed in that case, and invalid code passes through as it is (errors surface at runtime, not here).
+    A fallback source with an HTML-like comment (`<!--`, or `-->` at the start of a line) is returned unchanged,
+    since without parsing it can't tell a comment (in a script) from operators (in a module).
 
     Throws an `Error` whose message starts with `minifyJs:` when `code` is not a string, or when the source
     can't be parsed and has an unterminated string, template literal, regex or block comment (with the offset).

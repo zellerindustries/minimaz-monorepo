@@ -912,4 +912,24 @@ describe('regressions found by the differential harness', () => {
     ])('still accepts `in` where the grammar allows it: %s', (source) => {
         expect(() => parse(source)).not.toThrow()
     })
+
+    it('reads HTML-like comments in scripts (Annex B)', () => {
+        const program = parse('x = a <!-- b\n--> c\ny = 1\n/*\n*/ --> d\n')
+        expect(program.sourceType).toBe('script')
+        expect(program.body.map((s) => s.type)).toEqual([
+            'ExpressionStatement',
+            'ExpressionStatement',
+        ])
+        expect(parse('--> only a comment\nz').body).toHaveLength(1)
+        expect(parse('  /* c */ --> only a comment\nz').body).toHaveLength(1)
+    })
+
+    it('keeps `<!--` and `-->` as operators in modules and `-->` mid-line', () => {
+        const module = parse('export {}\nx = a <!--b')
+        expect(module.sourceType).toBe('module')
+        expect(module.body).toHaveLength(2)
+        const midLine = parse('x = a-->b')
+        expect(midLine.body).toHaveLength(1)
+        expect(JSON.stringify(midLine)).toContain('"operator":">"')
+    })
 })

@@ -15,7 +15,16 @@ export interface TokenizeResult {
     /** The `#!…` first line without its line terminator, or `''`. */
     hashbang: string
     tokens: Token[]
+    /**
+     * Set (with no tokens) when the source has `<!--`, or `-->` at the start of a line, outside a
+     * literal or comment: a comment in a script but operators in a module, so it cannot be
+     * tokenized without knowing which one the source is.
+     */
+    htmlLikeComment?: true
 }
+
+/** Thrown by `scan` when it meets an HTML-like comment opener (see `TokenizeResult`). */
+class HtmlLikeComment extends Error {}
 
 const keywordsBeforeRegex = new Set([
     'return',
@@ -338,6 +347,12 @@ function scan(code: string, start: number, out: Token[], untilBrace: boolean): n
             continue
         }
 
+        if (
+            code.startsWith('<!--', i) ||
+            ((newlineBefore || out.length === 0) && code.startsWith('-->', i))
+        ) {
+            throw new HtmlLikeComment()
+        }
         const value = scanPunct(code, i)
         if (value === '(') {
             const prev = out[out.length - 1]
@@ -381,6 +396,13 @@ export function tokenize(code: string): TokenizeResult {
         hashbang = code.slice(0, start)
     }
     const tokens: Token[] = []
-    scan(code, start, tokens, false)
+    try {
+        scan(code, start, tokens, false)
+    } catch (error) {
+        if (error instanceof HtmlLikeComment) {
+            return { hashbang, tokens: [], htmlLikeComment: true }
+        }
+        throw error
+    }
     return { hashbang, tokens }
 }

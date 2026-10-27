@@ -138,7 +138,9 @@ function needsSpace(prev: Token, token: Token): boolean {
  * everywhere else, including after `return`/`break`/`continue`/`throw` and
  * before `++`/`--`, it is kept. Strings, templates and regexes are copied
  * verbatim. Nothing is renamed, reordered or removed besides whitespace and
- * comments; a leading `#!` line is preserved.
+ * comments; a leading `#!` line is preserved. Source with an HTML-like comment
+ * (`<!--`, or `-->` starting a line) is returned unchanged: it is a comment in a
+ * script but operators in a module, and tokens alone cannot tell which.
  *
  * Regex-vs-division is decided from the preceding token (a heuristic, not a
  * parser), which is right for all ordinary code.
@@ -153,7 +155,10 @@ export function minifyTokens(code: string): string {
         throw new Error('minifyJs: code must be a string')
     }
 
-    const { hashbang, tokens } = tokenize(code)
+    const { hashbang, tokens, htmlLikeComment } = tokenize(code)
+    if (htmlLikeComment === true) {
+        return code
+    }
     let body = ''
     for (const [index, token] of tokens.entries()) {
         const prev = tokens[index - 1]

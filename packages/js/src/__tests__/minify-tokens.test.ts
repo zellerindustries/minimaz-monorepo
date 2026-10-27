@@ -142,3 +142,22 @@ describe('minifyTokens', () => {
         )
     })
 })
+
+describe('minifyTokens with HTML-like comments', () => {
+    it.each([
+        'x = a <!-- b\ny()',
+        'x = 1\n--> note\ny()',
+        'x = 1 /*\n*/ --> note\ny()',
+        '--> top\nx()',
+        'x = `${a\n--> b\n}`',
+    ])(
+        'returns %j unchanged: a script reads a comment where a module reads operators',
+        (source) => {
+            expect(minifyTokens(source)).toBe(source)
+        },
+    )
+
+    it('still minifies `-->` in the middle of a line', () => {
+        expect(minifyTokens('x = a --> b')).toBe('x=a-->b')
+    })
+})

@@ -275,4 +275,11 @@ describe('minifyJs regressions found by the differential harness', () => {
             '(function(a){const{__proto__:b}=a;return b})',
         )
     })
+
+    it('drops HTML-like comments in scripts', () => {
+        const source = 'var b = 2\nvar x = 1 <!--b\n--> comment\nvar y = x'
+        const minified = minifyJs(source)
+        expect(minified).toBe('var b=2;var x=1;var y=x')
+        expect(vm.runInNewContext(`${minified};y`)).toBe(vm.runInNewContext(`${source};y`))
+    })
 })

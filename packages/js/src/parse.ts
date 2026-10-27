@@ -237,7 +237,7 @@ class Parser {
             loops: 0,
             switches: 0,
         }
-        this.lexer = new Lexer(code)
+        this.lexer = new Lexer(code, !module)
         this.tok = this.lexer.next(false)
     }
 
