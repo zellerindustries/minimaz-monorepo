@@ -1,7 +1,7 @@
 import { copy, join, outputFile, pathExists } from '@minimaz/core'
 import { KnownError, log } from '@minimaz/logger'
 import { getTemplatePath } from '@minimaz/templates'
-import { askQuestion } from '../../cli/index.js'
+import { askYesNo } from '../prompts.js'
 import { initGit, initNpm } from './core.js'
 import type { InitCommandOptions } from './types.js'
 
@@ -54,16 +54,12 @@ export async function init(
     }
 
     try {
-        const useNpm =
-            options.npm ??
-            (await askQuestion('Init NPM? [Y/n]:', 'y')).toLowerCase().startsWith('y')
+        const useNpm = options.npm ?? (await askYesNo('Init NPM? [Y/n]:', 'y'))
         if (useNpm) {
             await initNpm(targetDir, projectName)
         }
 
-        const useGit =
-            options.git ??
-            (await askQuestion('Init Git repository? [Y/n]:', 'y')).toLowerCase().startsWith('y')
+        const useGit = options.git ?? (await askYesNo('Init Git repository? [Y/n]:', 'y'))
         if (useGit) {
             await initGit(projectName, targetDir, options.gitprovider)
         }
