@@ -1,5 +1,11 @@
 # @minimaz/bundler
 
+## 0.3.0
+
+### Minor Changes
+
+- [`2c5d45a`](https://github.com/zellerindustries/minimaz-monorepo/commit/2c5d45a31b84e85578891784595cd8aeaac9ad16) Thanks [@zeller-dev](https://github.com/zeller-dev)! - Add `resolveFileImports(filePath, source?)`, which transpiles a single JS/TS file and rewrites its relative imports to emitted `.js` paths; an optional `source` string is used instead of reading the file from disk. `.TS`/`.TSX` (uppercase extensions) are now transpiled, and `BundlerError` is thrown on an unresolvable relative import or relative dynamic import.
+
 ## 0.2.1
 
 ### Patch Changes

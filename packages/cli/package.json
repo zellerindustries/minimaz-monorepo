@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/cli",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Command implementations for the minimaz/mz CLI. Not published as a bin itself — see @minimaz/sitekit.",
     "type": "module",
     "main": "./dist/index.js",
@@ -38,7 +38,7 @@
     },
     "homepage": "https://github.com/zellerindustries/minimaz-monorepo/tree/main/packages/cli#readme",
     "dependencies": {
-        "@minimaz/bundler": "^0.2.1",
+        "@minimaz/bundler": "^0.3.0",
         "@minimaz/config": "^0.3.0",
         "@minimaz/core": "^0.3.0",
         "@minimaz/css": "^0.1.2",
