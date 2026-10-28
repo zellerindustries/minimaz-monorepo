@@ -1,5 +1,17 @@
 # @minimaz/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [`2c5d45a`](https://github.com/zellerindustries/minimaz-monorepo/commit/2c5d45a31b84e85578891784595cd8aeaac9ad16) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `build` now supports `output.js.bundling: true` instead of throwing. Relative imports in JS/TS are rewritten to the emitted `.js` paths and output is native ES modules, one file per source file (no single-file concatenation), so HTML must load scripts with `<script type="module">`. npm/bare specifiers are left untouched; an unresolvable relative import is reported as a `KnownError`. TypeScript syntax errors in `.ts`/`.tsx` sources are now reported as build errors (naming the file) instead of "this looks like a bug".
+
+### Patch Changes
+
+- [`8e9cd82`](https://github.com/zellerindustries/minimaz-monorepo/commit/8e9cd8221578a9cbc5f13fd3a624a52ccac9be19) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `init` no longer accepts `--gitremote`. It was parsed but never used; pass the remote URL to `--gitprovider` instead (`--gitprovider=<url>`).
+- Updated dependencies [[`2c5d45a`](https://github.com/zellerindustries/minimaz-monorepo/commit/2c5d45a31b84e85578891784595cd8aeaac9ad16)]:
+    - @minimaz/bundler@0.3.0
+
 ## 0.3.0
 
 ### Minor Changes
