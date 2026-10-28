@@ -433,6 +433,24 @@ describe('error paths', () => {
 })
 
 describe('cacheControl edge cases', () => {
+    it('sends no etag or cache-control on a 404 when the file vanishes after the stat and If-None-Match is stale', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+        await fetch(`${handle.url}/style.css`)
+        // The cached entry still matches the file's stat, so only the etag comparison keeps the
+        // fast path from setting headers on a response that then turns into a 404.
+        vi.mocked(readFile).mockRejectedValueOnce(
+            Object.assign(new Error('gone'), { code: 'ENOENT' }),
+        )
+
+        const response = await fetch(`${handle.url}/style.css`, {
+            headers: { 'if-none-match': 'W/"stale"' },
+        })
+
+        expect(response.status).toBe(404)
+        expect(response.headers.get('etag')).toBeNull()
+        expect(response.headers.get('cache-control')).toBeNull()
+    })
+
     it('serves the file with 200 when the pre-read stat fails', async () => {
         handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
         await rejectStatAfter(1)

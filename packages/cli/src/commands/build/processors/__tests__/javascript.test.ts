@@ -2,7 +2,6 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { BundlerError } from '@minimaz/bundler'
-import type { MinimazConfig } from '@minimaz/config'
 import { applyReplacements } from '@minimaz/core'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -10,19 +9,13 @@ import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processJs, processTs } from '../javascript.js'
 
-function makeConfig(
-    minify: boolean,
-    bundling = false,
-    replace: Record<string, string> = {},
-): MinimazConfig {
-    return makeBuildConfig({}, { js: { bundling, minify }, replace })
-}
-
 describe('processJs', () => {
     it('passes through raw content when minify is disabled', async () => {
         const file: File = { src: 'a.js', dest: 'a.js', content: 'const x = 1;', ext: '.js' }
 
-        expect(await processJs(file, makeConfig(false))).toBe('const x = 1;')
+        expect(
+            await processJs(file, makeBuildConfig({}, { js: { bundling: false, minify: false } })),
+        ).toBe('const x = 1;')
     })
 
     it('minifies when minify is enabled', async () => {
@@ -33,7 +26,10 @@ describe('processJs', () => {
             ext: '.js',
         }
 
-        const result = await processJs(file, makeConfig(true))
+        const result = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: true } }),
+        )
 
         expect(result).not.toContain('\n\n\n')
         expect(result).toBe('const x=1;const y=2')
@@ -42,7 +38,10 @@ describe('processJs', () => {
     it('re-throws an unterminated-literal minify error as a KnownError naming the file', async () => {
         const file: File = { src: 'bad.js', dest: 'bad.js', content: 'const s = "abc', ext: '.js' }
 
-        const error: unknown = await processJs(file, makeConfig(true)).catch((e: unknown) => e)
+        const error: unknown = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: true } }),
+        ).catch((e: unknown) => e)
 
         expect(error).toBeInstanceOf(KnownError)
         expect((error as KnownError).message).toBe(
@@ -54,7 +53,9 @@ describe('processJs', () => {
     it('does not minify (and so does not throw) when minify is disabled', async () => {
         const file: File = { src: 'bad.js', dest: 'bad.js', content: 'const s = "abc', ext: '.js' }
 
-        expect(await processJs(file, makeConfig(false))).toBe('const s = "abc')
+        expect(
+            await processJs(file, makeBuildConfig({}, { js: { bundling: false, minify: false } })),
+        ).toBe('const s = "abc')
     })
 })
 
@@ -67,7 +68,10 @@ describe('processTs', () => {
             ext: '.ts',
         }
 
-        const result = await processTs(file, makeConfig(false))
+        const result = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        )
 
         expect(result).not.toContain(': number')
         expect(result).toContain('const x = 1;')
@@ -81,7 +85,10 @@ describe('processTs', () => {
             ext: '.tsx',
         }
 
-        const result = await processTs(file, makeConfig(false))
+        const result = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        )
 
         expect(result).not.toContain('<div')
     })
@@ -94,7 +101,10 @@ describe('processTs', () => {
             ext: '.ts',
         }
 
-        const result = await processTs(file, makeConfig(true))
+        const result = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: true } }),
+        )
 
         expect(result).not.toContain('\n\n\n')
     })
@@ -127,7 +137,10 @@ describe('bundling', () => {
         await writeFile(path.join(dir, 'b.ts'), 'export const b = 1', 'utf8')
         const file = await makeFile('a.js', "import { b } from './b'\nconsole.log(b)\n", '.js')
 
-        const result = await processJs(file, makeConfig(false, true))
+        const result = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: false } }),
+        )
 
         expect(result).toContain("from './b.js'")
     })
@@ -140,7 +153,10 @@ describe('bundling', () => {
             '.ts',
         )
 
-        const result = await processTs(file, makeConfig(false, true))
+        const result = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: false } }),
+        )
 
         expect(result).not.toContain(': number')
         expect(result).toContain("from './b.js'")
@@ -150,7 +166,10 @@ describe('bundling', () => {
         await writeFile(path.join(dir, 'b.ts'), 'export const b = 1', 'utf8')
         const file = await makeFile('a.js', "import { b } from './b'\nconsole.log(b)\n", '.js')
 
-        const result = await processJs(file, makeConfig(false, false))
+        const result = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        )
 
         expect(result).toContain("from './b'")
         expect(result).not.toContain("from './b.js'")
@@ -159,8 +178,14 @@ describe('bundling', () => {
     it('bundling: true on a file with no imports equals bundling: false output', async () => {
         const file = await makeFile('a.js', 'const x = 1;\nconsole.log(x);\n', '.js')
 
-        const bundled = await processJs(file, makeConfig(false, true))
-        const plain = await processJs(file, makeConfig(false, false))
+        const bundled = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: false } }),
+        )
+        const plain = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        )
 
         expect(bundled).toBe(plain)
     })
@@ -170,7 +195,13 @@ describe('bundling', () => {
             '@@NAME@@': 'hello',
         })
 
-        const result = await processJs(file, makeConfig(false, true, { '@@NAME@@': 'hello' }))
+        const result = await processJs(
+            file,
+            makeBuildConfig(
+                {},
+                { js: { bundling: true, minify: false }, replace: { '@@NAME@@': 'hello' } },
+            ),
+        )
 
         expect(result).toContain('hello')
         expect(result).not.toContain('@@NAME@@')
@@ -181,7 +212,13 @@ describe('bundling', () => {
             '@@NAME@@': 'hello',
         })
 
-        const result = await processTs(file, makeConfig(false, true, { '@@NAME@@': 'hello' }))
+        const result = await processTs(
+            file,
+            makeBuildConfig(
+                {},
+                { js: { bundling: true, minify: false }, replace: { '@@NAME@@': 'hello' } },
+            ),
+        )
 
         expect(result).toContain('hello')
         expect(result).not.toContain('@@NAME@@')
@@ -195,7 +232,13 @@ describe('bundling', () => {
             '@@DIR@@': 'lib',
         })
 
-        const result = await processJs(file, makeConfig(false, true, { '@@DIR@@': 'lib' }))
+        const result = await processJs(
+            file,
+            makeBuildConfig(
+                {},
+                { js: { bundling: true, minify: false }, replace: { '@@DIR@@': 'lib' } },
+            ),
+        )
 
         expect(result).toContain("from './lib/x.js'")
     })
@@ -210,7 +253,13 @@ describe('bundling', () => {
             { '@@DIR@@': 'lib' },
         )
 
-        const result = await processTs(file, makeConfig(false, true, { '@@DIR@@': 'lib' }))
+        const result = await processTs(
+            file,
+            makeBuildConfig(
+                {},
+                { js: { bundling: true, minify: false }, replace: { '@@DIR@@': 'lib' } },
+            ),
+        )
 
         expect(result).toContain("from './lib/x.js'")
     })
@@ -220,7 +269,13 @@ describe('bundling', () => {
             '@@VALUE@@': '42',
         })
 
-        const result = await processTs(file, makeConfig(false, true, { '@@VALUE@@': '42' }))
+        const result = await processTs(
+            file,
+            makeBuildConfig(
+                {},
+                { js: { bundling: true, minify: false }, replace: { '@@VALUE@@': '42' } },
+            ),
+        )
 
         expect(result).toContain('const n = 42')
     })
@@ -230,11 +285,27 @@ describe('bundling', () => {
         const js = await makeFile('a.js', "console.log('@@NAME@@');\n", '.js', replace)
         const ts = await makeFile('b.ts', "const n: string = '@@NAME@@';\n", '.ts', replace)
 
-        expect(await processJs(js, makeConfig(false, true, replace))).toBe(
-            await processJs(js, makeConfig(false, false, replace)),
+        expect(
+            await processJs(
+                js,
+                makeBuildConfig({}, { js: { bundling: true, minify: false }, replace }),
+            ),
+        ).toBe(
+            await processJs(
+                js,
+                makeBuildConfig({}, { js: { bundling: false, minify: false }, replace }),
+            ),
         )
-        expect(await processTs(ts, makeConfig(false, true, replace))).toBe(
-            await processTs(ts, makeConfig(false, false, replace)),
+        expect(
+            await processTs(
+                ts,
+                makeBuildConfig({}, { js: { bundling: true, minify: false }, replace }),
+            ),
+        ).toBe(
+            await processTs(
+                ts,
+                makeBuildConfig({}, { js: { bundling: false, minify: false }, replace }),
+            ),
         )
     })
 
@@ -242,7 +313,10 @@ describe('bundling', () => {
         await writeFile(path.join(dir, 'b.ts'), 'export const b = 1', 'utf8')
         const file = await makeFile('a.js', "import { b } from './b'\n\n\nconsole.log(b)\n", '.js')
 
-        const result = await processJs(file, makeConfig(true, true))
+        const result = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: true } }),
+        )
 
         expect(result).toBe('import{b as a}from"./b.js";console.log(a)')
     })
@@ -250,26 +324,28 @@ describe('bundling', () => {
     it('reports a TypeScript syntax error under bundling as a KnownError naming the file', async () => {
         const file = await makeFile('a.ts', 'const = ;\n', '.ts')
 
-        const error: unknown = await processTs(file, makeConfig(false, true)).catch(
-            (caught: unknown) => caught,
-        )
+        const error: unknown = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: false } }),
+        ).catch((caught: unknown) => caught)
 
         expect(error).toBeInstanceOf(KnownError)
         expect((error as KnownError).message).toContain(file.src)
-        expect((error as KnownError).message).toContain('syntax error')
+        expect((error as KnownError).message).toContain('transpileTs: syntax error')
         expect((error as KnownError).cause).toBeInstanceOf(Error)
     })
 
     it('reports a TypeScript syntax error without bundling as a KnownError naming the file', async () => {
         const file = await makeFile('a.ts', 'const = ;\n', '.ts')
 
-        const error: unknown = await processTs(file, makeConfig(false, false)).catch(
-            (caught: unknown) => caught,
-        )
+        const error: unknown = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        ).catch((caught: unknown) => caught)
 
         expect(error).toBeInstanceOf(KnownError)
         expect((error as KnownError).message).toContain(file.src)
-        expect((error as KnownError).message).toContain('syntax error')
+        expect((error as KnownError).message).toContain('transpileTs: syntax error')
         expect((error as KnownError).cause).toBeInstanceOf(Error)
     })
 
@@ -281,9 +357,10 @@ describe('bundling', () => {
             ext: '.ts',
         }
 
-        const error: unknown = await processTs(file, makeConfig(false, false)).catch(
-            (caught: unknown) => caught,
-        )
+        const error: unknown = await processTs(
+            file,
+            makeBuildConfig({}, { js: { bundling: false, minify: false } }),
+        ).catch((caught: unknown) => caught)
 
         expect(error).toBeInstanceOf(Error)
         expect(error).not.toBeInstanceOf(KnownError)
@@ -298,22 +375,24 @@ describe('bundling', () => {
             await writeFile(src, raw, 'utf8')
             const file: File = { src, dest: src, content: raw, ext: '.tsx' }
 
-            const error: unknown = await processTs(file, makeConfig(false, bundling)).catch(
-                (caught: unknown) => caught,
-            )
+            const error: unknown = await processTs(
+                file,
+                makeBuildConfig({}, { js: { bundling, minify: false } }),
+            ).catch((caught: unknown) => caught)
 
             expect(error).toBeInstanceOf(KnownError)
             expect((error as KnownError).message).toContain(src)
-            expect((error as KnownError).message).toContain('syntax error')
+            expect((error as KnownError).message).toContain('transpileTs: syntax error')
         },
     )
 
     it('unresolvable import rejects with KnownError caused by BundlerError', async () => {
         const file = await makeFile('a.js', "import './missing'\n", '.js')
 
-        const error: unknown = await processJs(file, makeConfig(false, true)).catch(
-            (caught: unknown) => caught,
-        )
+        const error: unknown = await processJs(
+            file,
+            makeBuildConfig({}, { js: { bundling: true, minify: false } }),
+        ).catch((caught: unknown) => caught)
 
         expect(error).toBeInstanceOf(KnownError)
         expect((error as KnownError).cause).toBeInstanceOf(BundlerError)

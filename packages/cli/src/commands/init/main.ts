@@ -1,4 +1,3 @@
-import { defaultBuildConfig } from '@minimaz/config'
 import type { BuildConfig } from '@minimaz/config'
 import { copy, join, outputFile, pathExists } from '@minimaz/core'
 import { KnownError, log } from '@minimaz/logger'
@@ -7,12 +6,20 @@ import { askYesNo } from '../prompts.js'
 import { initGit, initNpm } from './core.js'
 import type { InitCommandOptions } from './types.js'
 
-// The build defaults, with `mapping` prefilled so a new project sees the folders it can remap.
+// Fixed on purpose: the scaffolded file must not change when the runtime defaults do.
 const minimazConfigTemplate: BuildConfig = {
-    ...defaultBuildConfig,
     input: {
-        ...defaultBuildConfig.input,
+        dir: './src',
         mapping: { pages: '', scripts: '', styles: '', public: '' },
+        externals: {},
+        exclude: [],
+    },
+    output: {
+        dir: './dist',
+        replace: {},
+        css: { bundling: true, minify: true },
+        html: { minify: true },
+        js: { bundling: false, minify: true },
     },
 }
 

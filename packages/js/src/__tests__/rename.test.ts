@@ -1,5 +1,6 @@
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import { reservedWords, strictReservedWords } from '../lexicon.js'
 import { parse } from '../parse.js'
 import { print } from '../print.js'
 import { candidateName, rename } from '../rename.js'
@@ -229,6 +230,18 @@ describe('rename', () => {
         expect(output).toMatch(/^function f\(\)\{var a,b,c,/)
         expect(output).not.toMatch(/\b(do|if|in|of|as)\b/)
         expect(() => parse(output)).not.toThrow()
+    })
+
+    it('never emits a word from the reserved lists as a binding name', () => {
+        const names = Array.from({ length: 5000 }, (_, index) => `v${String(index)}`)
+        const output = mangle(`function f() { var ${names.join(', ')}; return [${names.join()}] }`)
+        const declared = /^function f\(\)\{var ([^;]*);/.exec(output)?.[1]?.split(',') ?? []
+
+        expect(declared).toHaveLength(5000)
+        for (const name of declared) {
+            expect(reservedWords.has(name) || strictReservedWords.has(name)).toBe(false)
+            expect(['arguments', 'eval', 'undefined', 'NaN', 'Infinity']).not.toContain(name)
+        }
     })
 
     it('is deterministic', () => {

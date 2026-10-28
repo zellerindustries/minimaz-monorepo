@@ -7,22 +7,6 @@ import type { File } from '../types.js'
 import { rethrowPrefixedAsKnown } from './errors.js'
 
 /**
- * Re-throws a `transpileTs` syntax-diagnostics error (message starting with
- * `transpileTs: syntax error`) as a `KnownError` naming the source file, with
- * the original error as `cause` — a mistake in the user's TypeScript, not a
- * bug. Anything else (including `transpileTs`'s own misuse errors) is rethrown
- * unchanged.
- *
- * @param {unknown} error - The caught value
- * @param {string} filePath - Path to the source file that was being transpiled
- * @returns {never} Always throws
- * @throws {KnownError} If `error` is a `transpileTs` syntax error
- */
-function rethrowTsSyntaxError(error: unknown, filePath: string): never {
-    return rethrowPrefixedAsKnown(error, 'transpileTs: syntax error', filePath)
-}
-
-/**
  * Runs `minifyJs`, re-throwing its `minifyJs: …` errors (an unterminated
  * string, template literal, regex or block comment — a mistake in the user's
  * source, not a bug) as a `KnownError` naming the source file, with the
@@ -66,7 +50,7 @@ export async function resolveFileImportsForBuild(
         if (error instanceof BundlerError) {
             throw new KnownError(error.message, { cause: error })
         }
-        return rethrowTsSyntaxError(error, filePath)
+        return rethrowPrefixedAsKnown(error, 'transpileTs: syntax error', filePath)
     }
 }
 
@@ -112,7 +96,7 @@ export async function processTs(file: File, config: MinimazConfig): Promise<stri
         try {
             content = transpileTs(file.content, { jsx: file.ext === '.tsx' })
         } catch (error: unknown) {
-            return rethrowTsSyntaxError(error, file.src)
+            return rethrowPrefixedAsKnown(error, 'transpileTs: syntax error', file.src)
         }
     }
 

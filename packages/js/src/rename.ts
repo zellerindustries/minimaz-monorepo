@@ -1,4 +1,3 @@
-import { reservedWords, strictReservedWords } from './lexicon.js'
 import type { Analysis, Binding, Scope } from './scope.js'
 
 /*
@@ -27,11 +26,12 @@ const firstChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$'
 const laterChars = `${firstChars}0123456789`
 
 /** Names a renamed binding never gets: reserved words, contextual keywords and global values. */
-const reservedNames: ReadonlySet<string> = new Set([
-    ...reservedWords,
-    ...strictReservedWords,
-    ...'arguments as async await eval from get Infinity NaN of set undefined'.split(' '),
-])
+const reservedNames: ReadonlySet<string> = new Set(
+    (
+        'break case catch class const continue debugger default delete do else enum export extends false finally for function if import in instanceof new null return super switch this throw true try typeof var void while with implements interface let package private protected public static yield ' +
+        'arguments as async await eval from get Infinity NaN of set undefined'
+    ).split(' '),
+)
 
 /** Binding names that are never renamed: their meaning depends on the name itself. */
 const keptNames = new Set(['arguments', 'eval'])

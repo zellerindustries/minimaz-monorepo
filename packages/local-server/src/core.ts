@@ -67,13 +67,24 @@ function applyCacheHeaders(req: IncomingMessage, res: ServerResponse, etag: stri
     res.setHeader('etag', etag)
     res.setHeader('cache-control', 'no-cache')
 
-    if (req.headers['if-none-match'] === etag) {
+    if (isNotModified(req, etag)) {
         res.writeHead(304)
         res.end()
         return true
     }
 
     return false
+}
+
+/**
+ * Whether `req`'s `if-none-match` header matches `etag` exactly.
+ *
+ * @param {IncomingMessage} req - The incoming request
+ * @param {string} etag - The ETag to compare against
+ * @returns {boolean} Whether the client's cached copy is current
+ */
+function isNotModified(req: IncomingMessage, etag: string): boolean {
+    return req.headers['if-none-match'] === etag
 }
 
 /**
@@ -184,7 +195,7 @@ async function handleRequest(
             fileStats !== undefined &&
             cached?.mtimeMs === fileStats.mtimeMs &&
             cached.size === fileStats.size &&
-            req.headers['if-none-match'] === cached.etag &&
+            isNotModified(req, cached.etag) &&
             applyCacheHeaders(req, res, cached.etag)
         ) {
             return

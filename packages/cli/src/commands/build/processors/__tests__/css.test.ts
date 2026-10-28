@@ -1,26 +1,11 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { MinimazConfig } from '@minimaz/config'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processCss } from '../css.js'
-
-function makeConfig(overrides: {
-    bundling: boolean
-    minify: boolean
-    replace?: Record<string, string>
-}): MinimazConfig {
-    return makeBuildConfig(
-        {},
-        {
-            replace: overrides.replace ?? {},
-            css: { bundling: overrides.bundling, minify: overrides.minify },
-        },
-    )
-}
 
 describe('processCss', () => {
     let dir: string
@@ -46,7 +31,7 @@ describe('processCss', () => {
 
         const result = await processCss(
             file,
-            makeConfig({ bundling: false, minify: false }),
+            makeBuildConfig({}, { replace: {}, css: { bundling: false, minify: false } }),
             new Map(),
         )
 
@@ -67,7 +52,7 @@ describe('processCss', () => {
 
         const result = await processCss(
             file,
-            makeConfig({ bundling: false, minify: true }),
+            makeBuildConfig({}, { replace: {}, css: { bundling: false, minify: true } }),
             new Map(),
         )
 
@@ -87,7 +72,7 @@ describe('processCss', () => {
 
         const error: unknown = await processCss(
             file,
-            makeConfig({ bundling: true, minify: false }),
+            makeBuildConfig({}, { replace: {}, css: { bundling: true, minify: false } }),
             new Map(),
         ).catch((caught: unknown) => caught)
 
@@ -112,7 +97,7 @@ describe('processCss', () => {
 
         const result = await processCss(
             file,
-            makeConfig({ bundling: true, minify: false }),
+            makeBuildConfig({}, { replace: {}, css: { bundling: true, minify: false } }),
             new Map(),
         )
 
@@ -134,7 +119,10 @@ describe('processCss', () => {
 
         const result = await processCss(
             file,
-            makeConfig({ bundling: true, minify: false, replace: { __COLOR__: 'green' } }),
+            makeBuildConfig(
+                {},
+                { replace: { __COLOR__: 'green' }, css: { bundling: true, minify: false } },
+            ),
             new Map(),
         )
 
@@ -159,7 +147,11 @@ describe('processCss', () => {
             [path.resolve(entryPath), { code: 'h1 { color: cached; }', inputs: [entryPath] }],
         ])
 
-        const result = await processCss(file, makeConfig({ bundling: true, minify: false }), cache)
+        const result = await processCss(
+            file,
+            makeBuildConfig({}, { replace: {}, css: { bundling: true, minify: false } }),
+            cache,
+        )
 
         expect(result).toBe('h1 { color: cached; }')
     })

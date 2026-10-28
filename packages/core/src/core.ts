@@ -32,14 +32,15 @@ export async function pathExists(path: string): Promise<boolean> {
 /**
  * Reads and parses a JSON file.
  *
- * Provides:
- * - existence validation
- * - UTF-8 decoding
- * - normalized parse errors
+ * Provides UTF-8 decoding and normalized errors, each with a distinct message prefix:
+ * - `NOT FOUND` → the file does not exist
+ * - `READ ERROR` → the file exists but can't be read (e.g. permission denied, a directory)
+ * - `PARSE ERROR` → the content is not valid JSON
  *
  * @template T
  * @param {string} file - Path to JSON file
  * @returns {Promise<T>}
+ * @throws {Error} With a `NOT FOUND`, `READ ERROR` or `PARSE ERROR` message
  */
 export async function readJsonFile<T>(file: string): Promise<T> {
     let content: string
