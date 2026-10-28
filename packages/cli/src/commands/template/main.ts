@@ -7,7 +7,7 @@ import {
     seedDefaults,
     updateTemplateFrom,
 } from '@minimaz/templates'
-import { askQuestion } from '../../cli/index.js'
+import { askYesNo } from '../prompts.js'
 import type { TemplateCommandOptions } from './types.js'
 
 /**
@@ -42,9 +42,7 @@ export async function template(
 
     if (options.delete !== undefined && options.delete !== '') {
         const name = options.delete
-        const confirmed = (await askQuestion(`Confirm delete "${name}"? [y/N]:`, 'n'))
-            .toLowerCase()
-            .startsWith('y')
+        const confirmed = await askYesNo(`Confirm delete "${name}"? [y/N]:`, 'n')
 
         if (!confirmed) {
             log.info('Delete cancelled')
@@ -58,11 +56,7 @@ export async function template(
     if (options.update !== undefined && options.update !== false && options.update !== '') {
         if (typeof options.update === 'string' && options.update.trim() !== '') {
             const name = options.update.trim()
-            const confirmed = (
-                await askQuestion(`Update "${name}" with current directory? [Y/n]:`, 'y')
-            )
-                .toLowerCase()
-                .startsWith('y')
+            const confirmed = await askYesNo(`Update "${name}" with current directory? [Y/n]:`, 'y')
 
             if (!confirmed) {
                 log.info('Update cancelled')
@@ -73,11 +67,10 @@ export async function template(
             return
         }
 
-        const confirmed = (
-            await askQuestion('Update local templates, overwriting them with defaults? [Y/n]:', 'y')
+        const confirmed = await askYesNo(
+            'Update local templates, overwriting them with defaults? [Y/n]:',
+            'y',
         )
-            .toLowerCase()
-            .startsWith('y')
 
         if (!confirmed) {
             log.info('Update cancelled')
@@ -93,9 +86,7 @@ export async function template(
 
     if (!(await pathExists(source))) {
         log.warn(`Not found: ${source}`)
-        const useCwd = (await askQuestion('Use current directory? [Y/n]:', 'y'))
-            .toLowerCase()
-            .startsWith('y')
+        const useCwd = await askYesNo('Use current directory? [Y/n]:', 'y')
 
         if (!useCwd) {
             throw new KnownError('Operation cancelled')
@@ -109,9 +100,7 @@ export async function template(
     let overwrite = true
 
     if (await pathExists(dest)) {
-        overwrite = (await askQuestion(`Template "${name}" exists. Overwrite? [y/N]:`, 'n'))
-            .toLowerCase()
-            .startsWith('y')
+        overwrite = await askYesNo(`Template "${name}" exists. Overwrite? [y/N]:`, 'n')
 
         if (!overwrite) {
             log.info('Save cancelled')

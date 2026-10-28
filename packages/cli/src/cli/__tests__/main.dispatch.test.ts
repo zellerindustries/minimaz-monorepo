@@ -1,7 +1,20 @@
 import { resolve } from 'node:path'
 import { log } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { build, clear, config, help, init, template, validate } from '../../commands/index.js'
+import {
+    build,
+    buildDocs,
+    clear,
+    config,
+    docsInit,
+    help,
+    init,
+    resolveDocsCommand,
+    serve,
+    template,
+    validate,
+    version,
+} from '../../commands/index.js'
 import { runCli } from '../main.js'
 
 vi.mock('../../commands/index.js', () => ({
@@ -13,6 +26,7 @@ vi.mock('../../commands/index.js', () => ({
     help: vi.fn(),
     init: vi.fn(() => Promise.resolve()),
     resolveDocsCommand: vi.fn(() => 'build'),
+    serve: vi.fn(() => Promise.resolve()),
     template: vi.fn(() => Promise.resolve()),
     validate: vi.fn(() => Promise.resolve()),
     version: vi.fn(() => Promise.resolve()),
@@ -157,6 +171,53 @@ describe('runCli dispatch', () => {
         expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', options, process.cwd())
     })
 
+    it.each([
+        [['-l'], { list: true }],
+        [['--list=yes'], { list: false }],
+        [['-d'], { list: false }],
+        [['--delete=a', '-d', 'b'], { list: false, delete: 'a' }],
+        [['-u'], { list: false, update: true }],
+        [['-u', 'site'], { list: false, update: 'site' }],
+        [['--update', '-u', 'site'], { list: false, update: 'site' }],
+        [['--update=a', '-u', 'b'], { list: false, update: 'a' }],
+    ])('resolves template alias flags %j to %j', async (flags, options) => {
+        await run('template', ...flags)
+
+        expect(template).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', options, process.cwd())
+    })
+
+    it.each([
+        [['-t'], 'default'],
+        [['-t', 'blog'], 'blog'],
+        [['--template=blog', '-t', 'docs'], 'blog'],
+        [['--template', '-t', 'docs'], 'docs'],
+    ])('resolves init template alias flags %j to %j', async (flags, templateName) => {
+        await run('init', ...flags)
+
+        expect(init).toHaveBeenCalledWith(
+            'minimaz-project',
+            { template: templateName },
+            resolve(process.cwd(), 'minimaz-project'),
+            'TEMPLATES',
+        )
+    })
+
+    it('passes an empty path to validate for a bare --path flag', async () => {
+        await run('validate', '--path')
+
+        expect(validate).toHaveBeenCalledWith('')
+    })
+
+    it('shows help for -h and sets VERBOSE for -v', async () => {
+        await run('build', '-h')
+        expect(help).toHaveBeenCalledWith(undefined)
+        expect(build).not.toHaveBeenCalled()
+
+        await run('build', '-v')
+        expect(process.env['VERBOSE']).toBe('true')
+        expect(build).toHaveBeenCalledOnce()
+    })
+
     it('passes --overwrite to config', async () => {
         await run('config', '--overwrite')
         await run('config')
@@ -214,6 +275,102 @@ describe('runCli dispatch', () => {
         )
     })
 
+    it.each(['version', 'v'])('passes the package path to version for "%s"', async (name) => {
+        await run(name)
+
+        expect(version).toHaveBeenCalledWith('package.json')
+    })
+
+    it('shows general help for the "h" command', async () => {
+        await run('h')
+
+        expect(help).toHaveBeenCalledWith()
+        expect(process.exitCode).not.toBe(1)
+    })
+
+    it('serves the working directory', async () => {
+        await run('serve')
+
+        expect(serve).toHaveBeenCalledWith(process.cwd())
+    })
+
+    it('runs docsInit for "docs init" and buildDocs otherwise', async () => {
+        vi.mocked(resolveDocsCommand).mockReturnValueOnce('init')
+        await run('docs', 'init')
+
+        expect(resolveDocsCommand).toHaveBeenCalledWith('init')
+        expect(docsInit).toHaveBeenCalledWith(process.cwd())
+        expect(buildDocs).not.toHaveBeenCalled()
+
+        await run('docs', 'build')
+
+        expect(resolveDocsCommand).toHaveBeenLastCalledWith('build')
+        expect(docsInit).toHaveBeenCalledOnce()
+        expect(buildDocs).toHaveBeenCalledOnce()
+        expect(buildDocs).toHaveBeenCalledWith(process.cwd())
+    })
+
+    it('passes --gitprovider through to init', async () => {
+        await run('init', 'site', '--git', '--gitprovider=github')
+
+        expect(init).toHaveBeenCalledWith(
+            'site',
+            { template: 'default', git: true, gitprovider: 'github' },
+            resolve(process.cwd(), 'site'),
+            'TEMPLATES',
+        )
+    })
+
+    it('resolves the template source path from the positional argument', async () => {
+        await run('template', 'my-template', '--delete=old', '-u', 'site')
+
+        expect(template).toHaveBeenCalledWith(
+            'GLOBAL',
+            'TEMPLATES',
+            { list: false, delete: 'old', update: 'site' },
+            resolve(process.cwd(), 'my-template'),
+        )
+    })
+
+    it('sets VERBOSE for --verbose and clears it otherwise', async () => {
+        await run('build', '--verbose')
+        expect(process.env['VERBOSE']).toBe('true')
+
+        await run('build')
+        expect(process.env['VERBOSE']).toBe('false')
+    })
+
+    it.each([
+        ['a string', 'plain failure', 'plain failure'],
+        ['a number', 42, '42'],
+        ['an object', { code: 7 }, '[object Object]'],
+    ])(
+        'exits non-zero and logs the message when a handler rejects with %s',
+        async (_label, rejection, message) => {
+            delete process.env['DEBUG']
+            const errorSpy = vi.spyOn(log, 'error').mockImplementation(() => undefined)
+            vi.mocked(build).mockRejectedValueOnce(rejection)
+
+            await run('build')
+
+            expect(errorSpy).toHaveBeenCalledWith([
+                message,
+                'This looks like a bug — please report it.',
+            ])
+            expect(process.exitCode).toBe(1)
+        },
+    )
+
+    it('exits non-zero when the version handler rejects with a non-Error', async () => {
+        const errorSpy = vi.spyOn(log, 'error').mockImplementation(() => undefined)
+        vi.mocked(version).mockRejectedValueOnce('nope')
+
+        await run('version')
+
+        expect(errorSpy).toHaveBeenCalledWith(['nope', 'This looks like a bug — please report it.'])
+        expect(process.exitCode).toBe(1)
+    })
+
     describe('npm postinstall', () => {
         beforeEach(() => {
             process.env['npm_lifecycle_event'] = 'postinstall'
@@ -233,6 +390,16 @@ describe('runCli dispatch', () => {
 
             expect(process.exitCode).not.toBe(1)
             expect(String(warnSpy.mock.calls[0]?.[0])).toContain('Post install skipped: EACCES')
+        })
+
+        it('stringifies a non-Error bootstrap failure in the skip warning', async () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+            vi.mocked(config).mockRejectedValueOnce('disk full')
+
+            await expect(run()).resolves.toBeUndefined()
+
+            expect(process.exitCode).not.toBe(1)
+            expect(String(warnSpy.mock.calls[0]?.[0])).toContain('Post install skipped: disk full')
         })
 
         it('runs a normal command when arguments are given', async () => {

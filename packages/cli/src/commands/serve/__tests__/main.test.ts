@@ -76,4 +76,58 @@ describe('serve', () => {
             cacheControl: true,
         })
     })
+
+    describe('keepAlive', () => {
+        /** Starts `serve` with mocked process signal registration and returns the captured handlers. */
+        async function startKeepAlive(close: () => Promise<void>): Promise<{
+            done: Promise<void>
+            handlers: Map<string, () => void>
+        }> {
+            await mkdir(path.join(cwd, 'dist'), { recursive: true })
+            await writeFile(
+                path.join(cwd, configFileName),
+                JSON.stringify({ output: { dir: './dist' } }),
+            )
+            vi.mocked(localServer.startLocalServer).mockResolvedValue({
+                url: 'http://localhost:3000',
+                port: 3000,
+                close,
+            })
+
+            const handlers = new Map<string, () => void>()
+            vi.spyOn(process, 'once').mockImplementation(((event: string, handler: () => void) => {
+                handlers.set(event, handler)
+                return process
+            }) as never)
+
+            const done = serve(cwd)
+            await vi.waitFor(() => {
+                expect(handlers.size).toBe(2)
+            })
+            return { done, handlers }
+        }
+
+        afterEach(() => {
+            vi.restoreAllMocks()
+        })
+
+        it.each(['SIGINT', 'SIGTERM'])('closes the server and resolves on %s', async (signal) => {
+            const close = vi.fn().mockResolvedValue(undefined)
+            const { done, handlers } = await startKeepAlive(close)
+
+            handlers.get(signal)?.()
+
+            await expect(done).resolves.toBeUndefined()
+            expect(close).toHaveBeenCalledOnce()
+        })
+
+        it('still resolves when closing the server fails', async () => {
+            const close = vi.fn().mockRejectedValue(new Error('boom'))
+            const { done, handlers } = await startKeepAlive(close)
+
+            handlers.get('SIGINT')?.()
+
+            await expect(done).resolves.toBeUndefined()
+        })
+    })
 })

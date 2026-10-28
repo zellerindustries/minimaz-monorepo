@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,11 +11,41 @@ import type { LocalServerHandle } from '../types.js'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
     const actual = await importOriginal<typeof FsPromises>()
-    return { ...actual, readFile: vi.fn(actual.readFile) }
+    return { ...actual, readFile: vi.fn(actual.readFile), stat: vi.fn(actual.stat) }
 })
 
 let dir: string
 let handle: LocalServerHandle | undefined
+
+/**
+ * Makes the next `stat` calls pass through, then reject once, so a test can
+ * fail one specific call in `handleRequest`'s fixed stat sequence.
+ *
+ * @param {number} passes - How many calls to let through before the rejection
+ * @returns {Promise<void>}
+ */
+async function rejectStatAfter(passes: number): Promise<void> {
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    for (let index = 0; index < passes; index++) {
+        vi.mocked(stat).mockImplementationOnce(actual.stat)
+    }
+    vi.mocked(stat).mockRejectedValueOnce(new Error('stat failed'))
+}
+
+/**
+ * Captures the `http.Server` that `startLocalServer` creates, by observing
+ * the `address()` call it makes right after listening.
+ *
+ * @param {boolean} returnNull - Whether `address()` should report `null`
+ * @returns {{ get: () => Server | undefined }} Accessor for the captured server
+ */
+function captureServer(returnNull: boolean): { get: () => Server | undefined } {
+    const spy = vi.spyOn(Server.prototype, 'address')
+    if (returnNull) {
+        spy.mockReturnValueOnce(null)
+    }
+    return { get: () => spy.mock.contexts[0] as Server | undefined }
+}
 
 beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'minimaz-local-server-'))
@@ -317,5 +348,219 @@ describe('cacheControl', () => {
 
         expect(second.status).toBe(200)
         expect(second.headers.get('etag')).not.toBe(firstEtag)
+    })
+})
+
+describe('error paths', () => {
+    it('throws a KnownError when the path is a file, not a directory', async () => {
+        await expect(startLocalServer({ dir: join(dir, 'style.css') })).rejects.toThrow(
+            'not a directory',
+        )
+    })
+
+    it('returns 500 and logs when reading the file fails with a non-ENOENT error', async () => {
+        const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        handle = await startLocalServer({ dir, liveReload: false })
+        vi.mocked(readFile).mockRejectedValueOnce(
+            Object.assign(new Error('permission denied'), { code: 'EACCES' }),
+        )
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.status).toBe(500)
+        expect(await response.text()).toBe('Internal Server Error')
+        expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('permission denied'))
+    })
+
+    it('returns 500 and logs a stringified value when a non-Error is thrown', async () => {
+        const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        handle = await startLocalServer({ dir, liveReload: false })
+        vi.mocked(readFile).mockRejectedValueOnce('plain string failure')
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.status).toBe(500)
+        expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('plain string failure'))
+    })
+
+    it('rejects with the raw error when the listen failure is not EADDRINUSE', async () => {
+        await expect(
+            startLocalServer({ dir, liveReload: false, host: '203.0.113.1' }),
+        ).rejects.toMatchObject({ code: 'EADDRNOTAVAIL' })
+    })
+
+    it('rejects with a KnownError when the port is already in use', async () => {
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        await expect(
+            startLocalServer({ dir, liveReload: false, port: handle.port }),
+        ).rejects.toThrow(KnownError)
+    })
+
+    it('throws and closes live reload when the server address cannot be resolved', async () => {
+        const capture = captureServer(true)
+
+        await expect(startLocalServer({ dir, liveReload: true })).rejects.toThrow(
+            'Failed to resolve local server address',
+        )
+
+        vi.restoreAllMocks()
+        const server = capture.get()
+        await new Promise<void>((resolveClose) => {
+            server?.close(() => {
+                resolveClose()
+            })
+        })
+    })
+
+    it('logs runtime server errors instead of crashing', async () => {
+        const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const capture = captureServer(false)
+        handle = await startLocalServer({ dir, liveReload: false })
+
+        expect(() => capture.get()?.emit('error', new Error('socket exploded'))).not.toThrow()
+
+        expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('socket exploded'))
+    })
+
+    it('rejects close() when the underlying server is already stopped', async () => {
+        const capture = captureServer(false)
+        handle = await startLocalServer({ dir, liveReload: false })
+        capture.get()?.close()
+
+        await expect(handle.close()).rejects.toThrow()
+    })
+})
+
+describe('cacheControl edge cases', () => {
+    it('sends no etag or cache-control on a 404 when the file vanishes after the stat and If-None-Match is stale', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+        await fetch(`${handle.url}/style.css`)
+        // The cached entry still matches the file's stat, so only the etag comparison keeps the
+        // fast path from setting headers on a response that then turns into a 404.
+        vi.mocked(readFile).mockRejectedValueOnce(
+            Object.assign(new Error('gone'), { code: 'ENOENT' }),
+        )
+
+        const response = await fetch(`${handle.url}/style.css`, {
+            headers: { 'if-none-match': 'W/"stale"' },
+        })
+
+        expect(response.status).toBe(404)
+        expect(response.headers.get('etag')).toBeNull()
+        expect(response.headers.get('cache-control')).toBeNull()
+    })
+
+    it('serves the file with 200 when the pre-read stat fails', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+        await rejectStatAfter(1)
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('body { color: red; }')
+        expect(response.headers.get('etag')).toMatch(/^W\//)
+    })
+
+    it('does not cache the ETag when the post-read stat fails', async () => {
+        handle = await startLocalServer({ dir, liveReload: false, cacheControl: true })
+        await rejectStatAfter(2)
+
+        const readsOfStyle = (): number =>
+            vi
+                .mocked(readFile)
+                .mock.calls.filter(([path]) => (path as string).endsWith('style.css')).length
+
+        const first = await fetch(`${handle.url}/style.css`)
+        const etag = first.headers.get('etag') ?? ''
+        const readsAfterFirst = readsOfStyle()
+        const second = await fetch(`${handle.url}/style.css`, {
+            headers: { 'if-none-match': etag },
+        })
+
+        expect(first.status).toBe(200)
+        expect(second.status).toBe(304)
+        // A cached ETag would let the second request skip the read entirely.
+        expect(readsAfterFirst).toBe(1)
+        expect(readsOfStyle()).toBe(2)
+    })
+
+    it('returns 304 for an unchanged directory listing when If-None-Match matches', async () => {
+        await mkdir(join(dir, 'no-index'))
+        await writeFile(join(dir, 'no-index', 'file.txt'), 'hi')
+        handle = await startLocalServer({
+            dir,
+            liveReload: false,
+            directoryListing: true,
+            cacheControl: true,
+        })
+
+        const first = await fetch(`${handle.url}/no-index/`)
+        const etag = first.headers.get('etag') ?? ''
+        const second = await fetch(`${handle.url}/no-index/`, {
+            headers: { 'if-none-match': etag },
+        })
+
+        expect(etag).toMatch(/^W\//)
+        expect(second.status).toBe(304)
+        expect(await second.text()).toBe('')
+    })
+
+    it('serves the listing with 200 when If-None-Match does not match', async () => {
+        await mkdir(join(dir, 'no-index'))
+        handle = await startLocalServer({
+            dir,
+            liveReload: false,
+            directoryListing: true,
+            cacheControl: true,
+        })
+
+        const response = await fetch(`${handle.url}/no-index/`, {
+            headers: { 'if-none-match': 'W/"stale"' },
+        })
+
+        expect(response.status).toBe(200)
+    })
+})
+
+describe('resilience', () => {
+    it('keeps serving after a client aborts an in-flight request', async () => {
+        handle = await startLocalServer({ dir, liveReload: true })
+        const controller = new AbortController()
+        const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+        let signalEntered: () => void = () => undefined
+        const entered = new Promise<void>((resolveEntered) => {
+            signalEntered = resolveEntered
+        })
+        let releaseRead: () => void = () => undefined
+        const gate = new Promise<void>((resolveGate) => {
+            releaseRead = resolveGate
+        })
+        vi.mocked(readFile).mockImplementationOnce(async (...args) => {
+            signalEntered()
+            await gate
+            return actual.readFile(...args)
+        })
+
+        const aborted = fetch(`${handle.url}/index.html`, { signal: controller.signal })
+        await entered
+        controller.abort()
+        await expect(aborted).rejects.toThrow()
+        releaseRead()
+
+        const response = await fetch(`${handle.url}/style.css`)
+        expect(response.status).toBe(200)
+    })
+
+    it('responds 404 and stays up when the served directory is deleted mid-run', async () => {
+        handle = await startLocalServer({ dir, liveReload: false })
+        await rm(dir, { recursive: true, force: true })
+
+        const response = await fetch(`${handle.url}/style.css`)
+
+        expect(response.status).toBe(404)
+        await mkdir(dir)
+        await writeFile(join(dir, 'style.css'), 'back')
+        expect(await (await fetch(`${handle.url}/style.css`)).text()).toBe('back')
     })
 })

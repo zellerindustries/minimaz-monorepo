@@ -19,7 +19,7 @@ import {
 import type { InitCommandOptions } from '../commands/init/types.js'
 import type { TemplateCommandOptions } from '../commands/template/types.js'
 import type { CommandFn } from './types.js'
-import { initEnv, parseArgs, parseBooleanFlag } from './core.js'
+import { boolFlag, initEnv, parseArgs, parseBooleanFlag, stringFlag } from './core.js'
 
 /**
  * Best-effort `~/.minimaz` bootstrap, run when `npm_lifecycle_event` is
@@ -58,9 +58,9 @@ export async function runCli(pkgPath: string): Promise<void> {
     const cmd = args._[0] ?? ''
     const subArg = args._[1]
 
-    initEnv(args['v'] === true || args['verbose'] === true)
+    initEnv(boolFlag(args, 'v', 'verbose'))
 
-    if (cmd === 'help' || args['help'] === true || args['h'] === true) {
+    if (cmd === 'help' || boolFlag(args, 'help', 'h')) {
         help(typeof subArg === 'string' ? subArg : undefined)
         return
     }
@@ -77,15 +77,8 @@ export async function runCli(pkgPath: string): Promise<void> {
     }
     const initHandler: CommandFn = async () => {
         const projectName = typeof subArg === 'string' ? subArg : 'minimaz-project'
-        const templateFlag =
-            typeof args['template'] === 'string'
-                ? args['template']
-                : typeof args['t'] === 'string'
-                  ? args['t']
-                  : 'default'
-        const gitproviderFlag =
-            typeof args['gitprovider'] === 'string' ? args['gitprovider'] : undefined
-        const gitremoteFlag = typeof args['gitremote'] === 'string' ? args['gitremote'] : undefined
+        const templateFlag = stringFlag(args, 'template', 't') ?? 'default'
+        const gitproviderFlag = stringFlag(args, 'gitprovider')
         const npmFlag = parseBooleanFlag(args['npm'] as string | boolean | undefined)
         const gitFlag = parseBooleanFlag(args['git'] as string | boolean | undefined)
 
@@ -94,30 +87,18 @@ export async function runCli(pkgPath: string): Promise<void> {
             ...(npmFlag !== undefined ? { npm: npmFlag } : {}),
             ...(gitFlag !== undefined ? { git: gitFlag } : {}),
             ...(gitproviderFlag !== undefined ? { gitprovider: gitproviderFlag } : {}),
-            ...(gitremoteFlag !== undefined ? { gitremote: gitremoteFlag } : {}),
         }
 
         await init(projectName, options, resolve(cwd, projectName), templatesDir)
     }
 
     const templateHandler: CommandFn = async () => {
-        const deleteFlag =
-            typeof args['delete'] === 'string'
-                ? args['delete']
-                : typeof args['d'] === 'string'
-                  ? args['d']
-                  : undefined
+        const deleteFlag = stringFlag(args, 'delete', 'd')
         const updateFlag =
-            typeof args['update'] === 'string'
-                ? args['update']
-                : typeof args['u'] === 'string'
-                  ? args['u']
-                  : args['update'] === true || args['u'] === true
-                    ? true
-                    : undefined
+            stringFlag(args, 'update', 'u') ?? (boolFlag(args, 'update', 'u') ? true : undefined)
 
         const options: TemplateCommandOptions = {
-            list: args['list'] === true || args['l'] === true,
+            list: boolFlag(args, 'list', 'l'),
             ...(deleteFlag !== undefined ? { delete: deleteFlag } : {}),
             ...(updateFlag !== undefined ? { update: updateFlag } : {}),
         }
@@ -132,7 +113,7 @@ export async function runCli(pkgPath: string): Promise<void> {
         },
         version: async () => version(pkgPath),
         v: async () => version(pkgPath),
-        validate: async () => validate(typeof args['path'] === 'string' ? args['path'] : ''),
+        validate: async () => validate(stringFlag(args, 'path') ?? ''),
         build: buildHandler,
         b: buildHandler,
         clear: clearHandler,

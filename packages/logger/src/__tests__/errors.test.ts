@@ -68,6 +68,17 @@ describe('handleCliError', () => {
         expect(process.exitCode).toBe(1)
     })
 
+    it('falls back to the message when a verbose Error has no stack', () => {
+        process.env['DEBUG'] = 'true'
+        const error = new Error('boom')
+        delete error.stack
+
+        handleCliError(error)
+
+        expect(errorSpy).toHaveBeenCalledWith(['boom', 'This looks like a bug — please report it.'])
+        expect(process.exitCode).toBe(1)
+    })
+
     it('logs the stack trace when VERBOSE=true', () => {
         process.env['VERBOSE'] = 'true'
         const error = new Error('boom')

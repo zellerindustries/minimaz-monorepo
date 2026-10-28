@@ -3,7 +3,7 @@
 //
 // Each `main`/`bin` path in package.json (`dist/<name>.js`) is bundled from `src/<name>.ts`. Dependencies and Node
 // built-ins stay external, so cross-package `@minimaz/*` imports still resolve through the workspace at runtime.
-import { readdir, readFile, rm } from 'node:fs/promises'
+import { copyFile, readdir, readFile, rm } from 'node:fs/promises'
 import { builtinModules } from 'node:module'
 import { join } from 'node:path'
 import { build } from 'esbuild'
@@ -42,12 +42,29 @@ for (const outfile of outfiles) {
     })
 }
 
-// A plain `tsc -b` (npm run typecheck) also compiles the __tests__ files into dist/ — keep them out of the package.
-const distFiles = await readdir('dist', { recursive: true }).catch(() => [])
-for (const file of distFiles) {
-    if (/\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(file)) {
-        await rm(join('dist', file), { force: true })
+// Keep dist/ to the bundled entry points plus declarations. `tsc` also emits one unbundled .js per source file
+// (redundant once bundled; nothing deep-imports them — no package has an `exports` map) and, on a plain `tsc -b`
+// (npm run typecheck), compiled __tests__ files — drop both. Whole __tests__/__mocks__ directories go (test
+// helpers included), plus *.test/*.spec files anywhere else.
+const distEntries = await readdir('dist', { recursive: true, withFileTypes: true }).catch(() => [])
+for (const entry of distEntries) {
+    const path = join(entry.parentPath, entry.name)
+    if (entry.isDirectory() && (entry.name === '__tests__' || entry.name === '__mocks__')) {
+        await rm(path, { recursive: true, force: true })
+        continue
+    }
+    if (!entry.isFile()) {
+        continue
+    }
+    const entryPath = path.replaceAll('\\', '/').replace(/\.map$/, '')
+    const isEmittedJs = /\.js(\.map)?$/.test(entry.name) && !outfiles.has(entryPath)
+    const isTestOutput = /\.(test|spec)\.(js|d\.ts)(\.map)?$/.test(entry.name)
+    if (isEmittedJs || isTestOutput) {
+        await rm(path, { force: true })
     }
 }
+
+// npm only auto-includes a LICENSE found in the package root, so ship the repo's one with every package.
+await copyFile('../../LICENSE', 'LICENSE')
 
 console.log(`Bundled ${pkg.name}`)

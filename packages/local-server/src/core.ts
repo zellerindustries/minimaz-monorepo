@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { createLogger, KnownError } from '@minimaz/logger'
+import { writeText } from './http.js'
 import { createLiveReload, injectReloadScript } from './live-reload.js'
 import { resolveMimeType } from './mime.js'
 import { renderDirectoryListing, resolveRequest } from './static-handler.js'
@@ -66,13 +67,24 @@ function applyCacheHeaders(req: IncomingMessage, res: ServerResponse, etag: stri
     res.setHeader('etag', etag)
     res.setHeader('cache-control', 'no-cache')
 
-    if (req.headers['if-none-match'] === etag) {
+    if (isNotModified(req, etag)) {
         res.writeHead(304)
         res.end()
         return true
     }
 
     return false
+}
+
+/**
+ * Whether `req`'s `if-none-match` header matches `etag` exactly.
+ *
+ * @param {IncomingMessage} req - The incoming request
+ * @param {string} etag - The ETag to compare against
+ * @returns {boolean} Whether the client's cached copy is current
+ */
+function isNotModified(req: IncomingMessage, etag: string): boolean {
+    return req.headers['if-none-match'] === etag
 }
 
 /**
@@ -130,8 +142,7 @@ async function handleRequest(
     try {
         pathname = decodeURIComponent(rawPathname)
     } catch {
-        res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Bad Request')
+        writeText(res, 400, 'Bad Request')
         return
     }
 
@@ -142,14 +153,12 @@ async function handleRequest(
     })
 
     if (resolution.kind === 'forbidden') {
-        res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Forbidden')
+        writeText(res, 403, 'Forbidden')
         return
     }
 
     if (resolution.kind === 'notFound') {
-        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end('Not Found')
+        writeText(res, 404, 'Not Found')
         return
     }
 
@@ -186,12 +195,9 @@ async function handleRequest(
             fileStats !== undefined &&
             cached?.mtimeMs === fileStats.mtimeMs &&
             cached.size === fileStats.size &&
-            req.headers['if-none-match'] === cached.etag
+            isNotModified(req, cached.etag) &&
+            applyCacheHeaders(req, res, cached.etag)
         ) {
-            res.setHeader('etag', cached.etag)
-            res.setHeader('cache-control', 'no-cache')
-            res.writeHead(304)
-            res.end()
             return
         }
     }
@@ -202,8 +208,7 @@ async function handleRequest(
     } catch (error: unknown) {
         const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined
         if (code === 'ENOENT') {
-            res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-            res.end('Not Found')
+            writeText(res, 404, 'Not Found')
             return
         }
         throw error

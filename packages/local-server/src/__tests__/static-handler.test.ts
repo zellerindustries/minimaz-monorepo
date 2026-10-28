@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderDirectoryListing, resolveRequest } from '../static-handler.js'
+import type { Stats } from 'node:fs'
 import type * as FsPromises from 'node:fs/promises'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -121,7 +122,42 @@ describe('resolveRequest', () => {
         expect(result).toEqual({ kind: 'forbidden' })
     })
 
+    it('returns forbidden when the directory index.html lookup fails with a permission error', async () => {
+        const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+        vi.mocked(stat)
+            .mockResolvedValueOnce({
+                isDirectory: () => true,
+                isFile: () => false,
+            } as Stats)
+            .mockRejectedValueOnce(eacces)
+
+        const result = await resolveRequest(dir, '/empty-dir', allOff)
+
+        expect(result).toEqual({ kind: 'forbidden' })
+    })
+
+    it('returns notFound when the path is neither a file nor a directory', async () => {
+        vi.mocked(stat).mockResolvedValueOnce({
+            isDirectory: () => false,
+            isFile: () => false,
+        } as Stats)
+
+        const result = await resolveRequest(dir, '/assets/site.css', allOff)
+
+        expect(result).toEqual({ kind: 'notFound' })
+    })
+
     describe('cleanUrls', () => {
+        it('returns forbidden when the <path>.html lookup fails with a permission error', async () => {
+            const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+            const eacces = Object.assign(new Error('EACCES'), { code: 'EACCES' })
+            vi.mocked(stat).mockRejectedValueOnce(enoent).mockRejectedValueOnce(eacces)
+
+            const result = await resolveRequest(dir, '/about', { ...allOff, cleanUrls: true })
+
+            expect(result).toEqual({ kind: 'forbidden' })
+        })
+
         it('falls back to <path>.html when the exact path has no extension and no exact match', async () => {
             const result = await resolveRequest(dir, '/about', { ...allOff, cleanUrls: true })
             expect(result).toEqual({ kind: 'file', filePath: join(dir, 'about.html') })
@@ -201,6 +237,28 @@ describe('resolveRequest', () => {
                 { name: 'nested', isDirectory: true },
                 { name: 'notes.txt', isDirectory: false },
             ])
+        })
+
+        it('sorts same-kind entries alphabetically, directories before files', async () => {
+            await writeFile(join(dir, 'empty-dir', 'b.txt'), 'b')
+            await writeFile(join(dir, 'empty-dir', 'a.txt'), 'a')
+            await mkdir(join(dir, 'empty-dir', 'z-dir'))
+            await mkdir(join(dir, 'empty-dir', 'y-dir'))
+
+            const result = await resolveRequest(dir, '/empty-dir/', {
+                ...allOff,
+                directoryListing: true,
+            })
+
+            expect(result).toEqual({
+                kind: 'listing',
+                entries: [
+                    { name: 'y-dir', isDirectory: true },
+                    { name: 'z-dir', isDirectory: true },
+                    { name: 'a.txt', isDirectory: false },
+                    { name: 'b.txt', isDirectory: false },
+                ],
+            })
         })
 
         it('does not list a directory that has an index.html', async () => {
@@ -293,6 +351,21 @@ describe('resolveRequest', () => {
             })
         })
 
+        it('returns notFound when there is no root index.html to fall back to', async () => {
+            const noIndexDir = await mkdtemp(join(tmpdir(), 'minimaz-local-server-nospa-'))
+
+            try {
+                const result = await resolveRequest(noIndexDir, '/some/client/route', {
+                    ...allOff,
+                    singlePageApp: true,
+                })
+
+                expect(result).toEqual({ kind: 'notFound' })
+            } finally {
+                await rm(noIndexDir, { recursive: true, force: true })
+            }
+        })
+
         it('does nothing when singlePageApp is off', async () => {
             const result = await resolveRequest(dir, '/some/client/route', allOff)
             expect(result).toEqual({ kind: 'notFound' })
@@ -313,6 +386,12 @@ describe('renderDirectoryListing', () => {
     it('includes a parent-directory link for a nested path', () => {
         const html = renderDirectoryListing('/docs/guides', [])
         expect(html).toContain('href="..')
+    })
+
+    it('treats an empty pathname as the served root', () => {
+        const html = renderDirectoryListing('', [])
+        expect(html).toContain('<h1>Index of /</h1>')
+        expect(html).not.toContain('href="..')
     })
 
     it('omits a parent-directory link at the served root', () => {

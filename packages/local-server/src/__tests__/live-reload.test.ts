@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { watch } from 'node:fs'
+import { statSync, watch } from 'node:fs'
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { createServer, get } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -20,6 +20,7 @@ vi.mock('node:fs', async (importOriginal) => {
     const actual = await importOriginal<typeof Fs>()
     return {
         ...actual,
+        statSync: vi.fn(actual.statSync),
         watch: vi.fn((...args: Parameters<typeof actual.watch>): FSWatcher => {
             const watcher = actual.watch(...args)
             watcherState.created.push(watcher)
@@ -199,6 +200,57 @@ describe('createLiveReload', () => {
         }
     })
 
+    it('drops a client that disconnects and keeps broadcasting to the others without throwing', async () => {
+        const dir = await mkdtemp(join(tmpdir(), 'minimaz-local-server-disconnect-'))
+        const server = createServer((_req, res) => {
+            capturedRes = res
+            controller?.handleSseRequest(res)
+        })
+        let capturedRes: ServerResponse | undefined
+
+        try {
+            controller = createLiveReload(dir)
+            await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+            const address = server.address()
+            if (address === null || typeof address === 'string') {
+                throw new Error('Expected a bound address')
+            }
+
+            const request = get(`http://127.0.0.1:${String(address.port)}/`)
+            await new Promise<void>((resolve) => {
+                request.on('response', (response) => {
+                    response.on('data', () => undefined)
+                    resolve()
+                })
+            })
+            if (capturedRes === undefined) {
+                throw new Error('Expected the server to have captured a response')
+            }
+            const disconnected = capturedRes
+            const closed = new Promise<void>((resolve) => disconnected.on('close', resolve))
+            const writeSpy = vi.spyOn(disconnected, 'write')
+
+            request.destroy()
+            await closed
+
+            const other = new FakeSseResponse()
+            controller.handleSseRequest(other as unknown as ServerResponse)
+            await writeFile(join(dir, 'changed.txt'), 'x')
+            await waitForReload(other, 0)
+
+            expect(writeSpy).not.toHaveBeenCalled()
+            expect(() => controller?.close()).not.toThrow()
+        } finally {
+            server.closeAllConnections()
+            await new Promise<void>((resolve) => {
+                server.close(() => {
+                    resolve()
+                })
+            })
+            await rm(dir, { recursive: true, force: true })
+        }
+    })
+
     describe('re-arming after the watched directory is replaced', () => {
         let root: string | undefined
 
@@ -260,6 +312,172 @@ describe('createLiveReload', () => {
             await writeFile(join(served, 'changed.txt'), 'x')
 
             await waitForReload(res, before)
+        })
+
+        it('keeps retrying while the directory does not exist yet, then reloads once it appears', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-late-'))
+            const served = join(root, 'out')
+
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+            await sleep(150)
+
+            await mkdir(served)
+
+            await waitForReload(res, 0)
+        })
+
+        it('does not treat a plain file at the watched path as a directory', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-file-'))
+            const served = join(root, 'out')
+            await writeFile(served, 'not a dir')
+
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+            controller = createLiveReload(served)
+            await sleep(250)
+
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore)
+        })
+
+        it('re-arms and reloads after the watcher emits an error', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-error-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            const createdBefore = watcherState.created.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+
+            const first = watcherState.created[createdBefore] as FSWatcher
+            first.emit('error', new Error('EPERM'))
+
+            await waitForReload(res, 0)
+            expect(watcherState.closed.has(first)).toBe(true)
+            expect(watcherState.created.length).toBeGreaterThan(createdBefore + 1)
+        })
+
+        it('retries and reloads when statting the directory throws', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-statfail-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            vi.mocked(statSync).mockImplementationOnce(() => {
+                throw new Error('EIO')
+            })
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore)
+            await waitForReload(res, 0)
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore + 1)
+        })
+
+        it('retries and reloads when watch() throws an Error', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-watchfail-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            vi.mocked(watch).mockImplementationOnce(() => {
+                throw new Error('EMFILE')
+            })
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+
+            await waitForReload(res, 0)
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore + 2)
+        })
+
+        it('retries and reloads when watch() throws a non-Error value', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-watchstr-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            vi.mocked(watch).mockImplementationOnce(() => {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error
+                throw 'no watchers left'
+            })
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+
+            await waitForReload(res, 0)
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore + 2)
+        })
+
+        it('ignores an error from a watcher that was already replaced', async () => {
+            root = await mkdtemp(join(tmpdir(), 'minimaz-local-server-stale-'))
+            const served = join(root, 'out')
+            await mkdir(served)
+
+            const createdBefore = watcherState.created.length
+            controller = createLiveReload(served)
+            const res = new FakeSseResponse()
+            controller.handleSseRequest(res as unknown as ServerResponse)
+            const first = watcherState.created[createdBefore] as FSWatcher
+
+            first.emit('error', new Error('EPERM'))
+            await waitForReload(res, 0)
+
+            const second = watcherState.created[watcherState.created.length - 1] as FSWatcher
+            expect(second).not.toBe(first)
+            const closeSpy = vi.spyOn(second, 'close')
+            const watchCallsBefore = vi.mocked(watch).mock.calls.length
+
+            first.emit('error', new Error('stale EPERM'))
+
+            expect(closeSpy).not.toHaveBeenCalled()
+            expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore)
+        })
+
+        describe('with fake timers', () => {
+            afterEach(() => {
+                vi.useRealTimers()
+            })
+
+            it('does not re-arm when close() happens while a re-arm check is running', () => {
+                vi.useFakeTimers()
+                const served = join(tmpdir(), 'minimaz-local-server-never-exists-a')
+                const watchCallsBefore = vi.mocked(watch).mock.calls.length
+
+                controller = createLiveReload(served)
+                const statCallsBefore = vi.mocked(statSync).mock.calls.length
+                vi.mocked(statSync).mockImplementationOnce(() => {
+                    controller?.close()
+                    return undefined
+                })
+
+                vi.advanceTimersByTime(150)
+                const statCallsAfterCheck = vi.mocked(statSync).mock.calls.length
+                vi.advanceTimersByTime(20_000)
+
+                expect(statCallsAfterCheck).toBe(statCallsBefore + 1)
+                expect(vi.mocked(statSync).mock.calls.length).toBe(statCallsAfterCheck)
+                expect(vi.mocked(watch).mock.calls.length).toBe(watchCallsBefore)
+            })
+
+            it('ignores a check that fires after close()', () => {
+                vi.useFakeTimers()
+                const served = join(tmpdir(), 'minimaz-local-server-never-exists-b')
+                // Keep the pending check alive so it fires after close().
+                const clearSpy = vi
+                    .spyOn(globalThis, 'clearTimeout')
+                    .mockImplementation(() => undefined)
+
+                controller = createLiveReload(served)
+                const statCallsAfterCreate = vi.mocked(statSync).mock.calls.length
+                controller.close()
+                vi.advanceTimersByTime(20_000)
+                clearSpy.mockRestore()
+
+                expect(vi.mocked(statSync).mock.calls.length).toBe(statCallsAfterCreate)
+            })
         })
 
         it('closes every watcher it created and arms no new one after close()', async () => {

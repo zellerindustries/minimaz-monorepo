@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../parser.js'
 import { renderHtml } from '../html.js'
+import type { Document } from '../types.js'
 
 function toHtml(markdown: string, options?: Parameters<typeof renderHtml>[1]): string {
     const { document } = parseMarkdown(markdown)
@@ -46,6 +47,12 @@ describe('renderHtml', () => {
         )
     })
 
+    it('uses the default title for a full page without one', () => {
+        const out = toHtml('hi', { full: true })
+        expect(out).toContain('<!DOCTYPE html>')
+        expect(out).toContain('<title>Document</title>')
+    })
+
     it('renders block mode by default (no document shell)', () => {
         expect(toHtml('hi')).not.toContain('<!DOCTYPE html>')
     })
@@ -65,6 +72,96 @@ describe('renderHtml', () => {
         ['data', '[click](data:text/html;base64,PHNjcmlwdD4=)'],
     ])('renders a %s: link as plain text, with no href', (_name, markdown) => {
         expect(toHtml(markdown)).toBe('<p>click</p>')
+    })
+
+    describe('nodes rendered from a hand-built AST', () => {
+        function render(...children: Document['children']): string {
+            return renderHtml({ type: 'document', children })
+        }
+
+        it('renders inline code with escaped content', () => {
+            expect(
+                render({
+                    type: 'paragraph',
+                    children: [{ type: 'inlineCode', value: 'a<b' }],
+                }),
+            ).toBe('<p><code>a&lt;b</code></p>')
+        })
+
+        it('renders an image with escaped alt and an optional title', () => {
+            expect(
+                render({
+                    type: 'paragraph',
+                    children: [
+                        { type: 'image', url: 'a.png', alt: 'say "hi"', title: 'T' },
+                        { type: 'image', url: 'b.png', alt: 'b', title: undefined },
+                    ],
+                }),
+            ).toBe(
+                '<p><img src="a.png" alt="say &quot;hi&quot;" title="T" /><img src="b.png" alt="b" /></p>',
+            )
+        })
+
+        it('renders a link title, escaped', () => {
+            expect(
+                render({
+                    type: 'paragraph',
+                    children: [
+                        {
+                            type: 'link',
+                            url: '/x',
+                            title: 'a&b',
+                            children: [{ type: 'text', value: 'x' }],
+                        },
+                    ],
+                }),
+            ).toBe('<p><a href="/x" title="a&amp;b">x</a></p>')
+        })
+
+        it('renders a hard break', () => {
+            expect(
+                render({
+                    type: 'paragraph',
+                    children: [{ type: 'text', value: 'a' }, { type: 'break' }],
+                }),
+            ).toBe('<p>a<br />\n</p>')
+        })
+
+        it('renders a code block without a language class', () => {
+            expect(render({ type: 'code', lang: undefined, content: '<x>' })).toBe(
+                '<pre><code>&lt;x&gt;</code></pre>',
+            )
+        })
+
+        it('renders a blockquote and a thematic break', () => {
+            expect(
+                render(
+                    {
+                        type: 'blockquote',
+                        children: [{ type: 'paragraph', children: [{ type: 'text', value: 'q' }] }],
+                    },
+                    { type: 'thematicBreak' },
+                ),
+            ).toBe('<blockquote>\n<p>q</p>\n</blockquote>\n<hr />')
+        })
+
+        it('renders a list item with several blocks loosely, wrapped in <p>', () => {
+            expect(
+                render({
+                    type: 'list',
+                    ordered: true,
+                    start: 1,
+                    items: [
+                        {
+                            children: [
+                                { type: 'paragraph', children: [{ type: 'text', value: 'a' }] },
+                                { type: 'paragraph', children: [{ type: 'text', value: 'b' }] },
+                            ],
+                        },
+                    ],
+                }),
+            ).toBe('<ol>\n<li><p>a</p>\n<p>b</p></li>\n</ol>')
+        })
     })
 
     it('keeps ordinary link schemes and relative URLs clickable', () => {

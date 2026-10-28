@@ -1,27 +1,14 @@
-import { defaultBuildConfig, defaultConfig, defaultServeConfig } from '@minimaz/config'
-import type { MinimazConfig } from '@minimaz/config'
 import { describe, expect, it } from 'vitest'
+import { makeBuildConfig } from '../../__tests__/helpers.js'
 import type { File } from '../../types.js'
 import { processHtml } from '../html.js'
-
-function makeConfig(minify: boolean): MinimazConfig {
-    return {
-        ...defaultConfig,
-        ...defaultBuildConfig,
-        ...defaultServeConfig,
-        output: {
-            ...defaultBuildConfig.output,
-            html: { minify },
-        },
-    }
-}
 
 describe('processHtml', () => {
     it('passes through raw content when minify is disabled', async () => {
         const raw = '<html>\n    <body>Hi</body>\n</html>'
         const file: File = { src: 'a.html', dest: 'a.html', content: raw, ext: '.html' }
 
-        const result = await processHtml(file, makeConfig(false))
+        const result = await processHtml(file, makeBuildConfig({}, { html: { minify: false } }))
 
         expect(result).toBe(raw)
     })
@@ -30,7 +17,7 @@ describe('processHtml', () => {
         const raw = '<html>\n    <body>   Hi   </body>\n</html>'
         const file: File = { src: 'a.html', dest: 'a.html', content: raw, ext: '.html' }
 
-        const result = await processHtml(file, makeConfig(true))
+        const result = await processHtml(file, makeBuildConfig({}, { html: { minify: true } }))
 
         expect(result).not.toContain('\n')
         expect(result).toContain('Hi')

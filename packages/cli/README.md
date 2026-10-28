@@ -46,8 +46,10 @@ Single-letter aliases: `h` (help), `v` (version), `i` (init), `t` (template), `b
   unterminated code fence), listing each as `<file>: <error>`; bundled files are separated by a horizontal rule.
 - `build` — build `input.dir` into `output.dir` per `minimaz.config.json`, minifying/bundling CSS, JS, TS and HTML.
   Refuses to run (without deleting anything) when `output.dir` isn't inside the project, when it overlaps
-  `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. JS/TS import-graph
-  bundling (`output.js.bundling: true`) isn't supported yet and throws. The build is written to a sibling
+  `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. With
+  `output.js.bundling: true`, relative JS/TS imports are rewritten to the emitted `.js` paths (native ES modules,
+  one output file per source file, not concatenated, so HTML must use `<script type="module">`; npm/bare
+  specifiers are left untouched, and an unresolvable relative import is an error). The build is written to a sibling
   `<output.dir>.minimaz-tmp` directory first. `output.dir` is only replaced once the build succeeds: the previous output
   is moved aside to `<output.dir>.minimaz-old`, the new build is moved in, and the backup is deleted. A failed build
   leaves the previous output untouched. If the final swap fails, the previous output is restored and the error names
@@ -63,4 +65,4 @@ known gaps (e.g. `validate` is currently single-file only, unlike the original's
 Depends on [`@minimaz/config`](../config), [`@minimaz/core`](../core),
 [`@minimaz/logger`](../logger), [`@minimaz/markdown`](../markdown), [`@minimaz/templates`](../templates),
 [`@minimaz/validate`](../validate), [`@minimaz/css`](../css), [`@minimaz/js`](../js), [`@minimaz/html`](../html),
-[`@minimaz/ts`](../ts), [`@minimaz/local-server`](../local-server), and `cross-spawn`.
+[`@minimaz/ts`](../ts), [`@minimaz/bundler`](../bundler), [`@minimaz/local-server`](../local-server), and `cross-spawn`.

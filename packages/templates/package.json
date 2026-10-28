@@ -9,7 +9,7 @@
         "dist"
     ],
     "scripts": {
-        "build": "tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs && node scripts/copy-seeds.mjs",
+        "build": "tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs && node ../../scripts/copy-seeds.mjs",
         "clean": "rimraf ./dist ./node_modules/.cache/tsc",
         "typecheck": "tsc -b",
         "typecheck:watch": "tsc -p tsconfig.json --watch",

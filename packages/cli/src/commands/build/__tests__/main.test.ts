@@ -67,15 +67,36 @@ describe('build', () => {
         }
     })
 
-    it('throws when output.js.bundling is true', async () => {
+    it('writes rewritten imports for both files when output.js.bundling is true', async () => {
         await writeConfig({
             input: { dir: 'src' },
             output: { dir: 'dist', js: { bundling: true, minify: false } },
         })
         await mkdir(path.join(cwd, 'src'), { recursive: true })
-        await writeFile(path.join(cwd, 'src', 'a.js'), 'const x = 1;', 'utf8')
+        await writeFile(path.join(cwd, 'src', 'sibling.ts'), 'export const x: number = 1', 'utf8')
+        await writeFile(
+            path.join(cwd, 'src', 'entry.js'),
+            "import { x } from './sibling'\nconsole.log(x)\n",
+            'utf8',
+        )
 
-        await expect(build(cwd)).rejects.toThrow(/js\.bundling/)
+        await build(cwd)
+
+        const entryOut = await readFile(path.join(cwd, 'dist', 'entry.js'), 'utf8')
+        expect(entryOut).toContain('./sibling.js')
+        const siblingOut = await readFile(path.join(cwd, 'dist', 'sibling.js'), 'utf8')
+        expect(siblingOut).not.toContain(': number')
+    })
+
+    it('reports an unresolvable import as a KnownError', async () => {
+        await writeConfig({
+            input: { dir: 'src' },
+            output: { dir: 'dist', js: { bundling: true, minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'a.js'), "import './missing'\n", 'utf8')
+
+        await expect(build(cwd)).rejects.toBeInstanceOf(KnownError)
     })
 
     it('excludes a CSS partial pulled in via @import from standalone output when bundling', async () => {
@@ -192,6 +213,79 @@ describe('build', () => {
         await expect(build(cwd)).rejects.toThrow(/overlaps external/)
         expect(await pathExists(path.join(cwd, 'dist', 'vendor', 'lib.js'))).toBe(true)
     })
+
+    it('builds local externals into the output and skips remote ones', async () => {
+        await writeConfig({
+            input: {
+                dir: 'src',
+                externals: { 'https://cdn.example.com/lib.js': 'lib.js', vendor: 'assets/vendor' },
+            },
+            output: { dir: 'dist', html: { minify: false } },
+        })
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+        await mkdir(path.join(cwd, 'vendor'), { recursive: true })
+        await writeFile(path.join(cwd, 'vendor', 'notes.txt'), 'vendored', 'utf8')
+
+        await build(cwd)
+
+        expect(
+            await readFile(path.join(cwd, 'dist', 'assets', 'vendor', 'notes.txt'), 'utf8'),
+        ).toBe('vendored')
+        expect((await readdir(path.join(cwd, 'dist'))).sort()).toEqual(['assets', 'index.html'])
+        expect((await readdir(cwd)).sort()).toEqual([
+            'dist',
+            'minimaz.config.json',
+            'src',
+            'vendor',
+        ])
+    })
+
+    it.each([
+        ['input.dir', { input: { dir: 'src' }, output: { dir: 'src/dist' } }],
+        [
+            'a local external',
+            {
+                input: { dir: 'src', externals: { './dist/vendor': 'vendor' } },
+                output: { dir: 'dist' },
+            },
+        ],
+        [
+            'a local external alongside a remote one',
+            {
+                input: {
+                    dir: 'src',
+                    externals: {
+                        'https://cdn.example.com/a.js': 'a.js',
+                        './dist/vendor': 'vendor',
+                    },
+                },
+                output: { dir: 'dist' },
+            },
+        ],
+    ])(
+        'refuses an output overlapping %s before touching the stale temp dir or the sources',
+        async (_label, config) => {
+            await writeConfig(config)
+            await mkdir(path.join(cwd, 'src'), { recursive: true })
+            await writeFile(path.join(cwd, 'src', 'a.html'), '<html></html>', 'utf8')
+            await mkdir(path.join(cwd, 'dist', 'vendor'), { recursive: true })
+            await writeFile(path.join(cwd, 'dist', 'vendor', 'lib.js'), 'export {}', 'utf8')
+            const tempDir = path.join(cwd, getBuildTempDirName('dist'))
+            await mkdir(tempDir, { recursive: true })
+            await writeFile(path.join(tempDir, 'stale.txt'), 'stale', 'utf8')
+
+            const result = build(cwd)
+
+            await expect(result).rejects.toBeInstanceOf(KnownError)
+            await expect(result).rejects.toThrow(/refusing output directory that overlaps/)
+            expect(await readFile(path.join(tempDir, 'stale.txt'), 'utf8')).toBe('stale')
+            expect(await readdir(tempDir)).toEqual(['stale.txt'])
+            expect(await pathExists(path.join(cwd, 'src', 'a.html'))).toBe(true)
+            expect(await pathExists(path.join(cwd, 'dist', 'vendor', 'lib.js'))).toBe(true)
+            expect(await pathExists(path.join(cwd, getBuildOldDirName('dist')))).toBe(false)
+        },
+    )
 
     it('accepts a relative cwd', async () => {
         await writeConfig({
@@ -355,5 +449,254 @@ describe('build', () => {
 
         await expect(build(cwd)).rejects.toThrow(/temp directory that overlaps external/)
         expect(await pathExists(path.join(cwd, tempName, 'vendor', 'lib.js'))).toBe(true)
+    })
+})
+
+describe('build with output.js.bundling', () => {
+    let cwd: string
+
+    beforeEach(async () => {
+        cwd = await mkdtemp(path.join(tmpdir(), 'cli-build-bundling-'))
+    })
+
+    afterEach(async () => {
+        await rm(cwd, { recursive: true, force: true })
+    })
+
+    async function writeConfig(
+        bundling: boolean,
+        extra: { minify?: boolean; exclude?: string[]; replace?: Record<string, string> } = {},
+    ): Promise<void> {
+        const config = {
+            input: { dir: 'src', exclude: extra.exclude ?? [] },
+            output: {
+                dir: 'dist',
+                js: { bundling, minify: extra.minify ?? false },
+                replace: extra.replace ?? {},
+            },
+        }
+        await writeFile(path.join(cwd, 'minimaz.config.json'), JSON.stringify(config), 'utf8')
+    }
+
+    async function writeSrc(files: Record<string, string>): Promise<void> {
+        for (const [name, content] of Object.entries(files)) {
+            const full = path.join(cwd, 'src', name)
+            await mkdir(path.dirname(full), { recursive: true })
+            await writeFile(full, content, 'utf8')
+        }
+    }
+
+    async function readDist(name: string): Promise<string> {
+        return readFile(path.join(cwd, 'dist', name), 'utf8')
+    }
+
+    it('rewrites ../ imports between nested directories', async () => {
+        await writeConfig(true)
+        await writeSrc({
+            'a/b/deep.js': "import { u } from '../util'\nimport { r } from '../../root'\n",
+            'a/util.ts': 'export const u: number = 1\n',
+            'root.js': 'export const r = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('a/b/deep.js')).toBe(
+            "import { u } from '../util.js'\nimport { r } from '../../root.js'\n",
+        )
+        expect(await pathExists(path.join(cwd, 'dist', 'a', 'util.js'))).toBe(true)
+    })
+
+    it('rewrites a directory import ./lib to ./lib/index.js', async () => {
+        await writeConfig(true)
+        await writeSrc({
+            'main.js': "import { l } from './lib'\n",
+            'lib/index.ts': 'export const l: number = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe("import { l } from './lib/index.js'\n")
+        expect(await readDist('lib/index.js')).toContain('export const l = 1')
+    })
+
+    it('transpiles a .tsx entry to .js and rewrites its imports', async () => {
+        await writeConfig(true)
+        await writeSrc({
+            'app.tsx': "import { B } from './button'\nexport const App = () => <B />\n",
+            'button.tsx': 'export const B = () => <b />\n',
+        })
+
+        await build(cwd)
+
+        const app = await readDist('app.js')
+        expect(app).toContain("from './button.js'")
+        expect(app).not.toContain('<B')
+        expect(await pathExists(path.join(cwd, 'dist', 'app.tsx'))).toBe(false)
+        expect(await pathExists(path.join(cwd, 'dist', 'button.js'))).toBe(true)
+    })
+
+    it('rewrites side-effect imports and export-from re-exports', async () => {
+        await writeConfig(true)
+        await writeSrc({
+            'main.js': "import './polyfill'\nexport * from './x'\nexport { a } from './x'\n",
+            'polyfill.ts': 'globalThis.p = 1\n',
+            'x.ts': 'export const a: number = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe(
+            "import './polyfill.js'\nexport * from './x.js'\nexport { a } from './x.js'\n",
+        )
+        expect(await pathExists(path.join(cwd, 'dist', 'polyfill.js'))).toBe(true)
+        expect(await pathExists(path.join(cwd, 'dist', 'x.js'))).toBe(true)
+    })
+
+    it('builds circular imports without hanging, rewriting both sides', async () => {
+        await writeConfig(true)
+        await writeSrc({
+            'a.js': "import './b'\nexport const a = 1\n",
+            'b.js': "import './a'\nexport const b = 1\n",
+        })
+
+        await build(cwd)
+
+        expect(await readDist('a.js')).toBe("import './b.js'\nexport const a = 1\n")
+        expect(await readDist('b.js')).toBe("import './a.js'\nexport const b = 1\n")
+    })
+
+    it('still rewrites imports when minify is also enabled', async () => {
+        await writeConfig(true, { minify: true })
+        await writeSrc({
+            'main.js': "import { x } from './dep'\n\n// a comment\nconsole.log( x )\n",
+            'dep.ts': 'export const x: number = 1\n',
+        })
+
+        await build(cwd)
+
+        const main = await readDist('main.js')
+        expect(main).toBe('import{x as a}from"./dep.js";console.log(a)')
+        expect(await readDist('dep.js')).not.toContain(': number')
+    })
+
+    it('emits a standalone file byte-identical to the bundling:false output', async () => {
+        await writeSrc({
+            'plain.js': "const a = 'x'\nconsole.log(a)\n",
+            'typed.ts': 'export const t: string = "y"\n',
+        })
+        await writeConfig(false)
+        await build(cwd)
+        const plain = await readDist('plain.js')
+        const typed = await readDist('typed.js')
+
+        await writeConfig(true)
+        await build(cwd)
+
+        expect(await readDist('plain.js')).toBe(plain)
+        expect(await readDist('typed.js')).toBe(typed)
+    })
+
+    it('leaves specifiers untouched when bundling is false (regression)', async () => {
+        await writeConfig(false)
+        await writeSrc({
+            'main.js': "import { x } from './dep'\n",
+            'dep.js': 'export const x = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe("import { x } from './dep'\n")
+    })
+
+    it('leaves bare specifiers and ./data.json untouched', async () => {
+        await writeConfig(true)
+        const source = "import 'lodash'\nimport d from './data.json'\nconsole.log(d)\n"
+        await writeSrc({ 'main.js': source, 'data.json': '{}' })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe(source)
+        expect(await readDist('data.json')).toBe('{}')
+    })
+
+    it('applies output.replace before rewriting imports', async () => {
+        await writeConfig(true, { replace: { '@@DEP@@': './dep' } })
+        await writeSrc({
+            'main.js': "import { x } from '@@DEP@@'\nconsole.log('@@DEP@@')\n",
+            'dep.js': 'export const x = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe(
+            "import { x } from './dep.js'\nconsole.log('./dep')\n",
+        )
+    })
+
+    it('fails with a KnownError on a relative dynamic import and keeps the previous dist', async () => {
+        await writeConfig(true)
+        await writeSrc({ 'main.js': "const m = import('./x')\n", 'x.js': 'export {}\n' })
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
+
+        const result = build(cwd)
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/Dynamic import\("\.\/x"\)/)
+        expect(await readDist('old.txt')).toBe('last good build')
+        expect((await readdir(path.join(cwd, 'dist'))).sort()).toEqual(['old.txt'])
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('names the missing specifier in a KnownError and keeps the previous dist', async () => {
+        await writeConfig(true)
+        await writeSrc({ 'main.js': "import './missing'\n" })
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
+
+        const result = build(cwd)
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/Cannot resolve "\.\/missing"/)
+        expect(await readDist('old.txt')).toBe('last good build')
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('fails with a KnownError on a TypeScript syntax error and keeps the previous dist', async () => {
+        await writeConfig(true)
+        await writeSrc({ 'main.ts': 'const = ;\n' })
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
+
+        const result = build(cwd)
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/main\.ts.*syntax error/s)
+        expect(await readDist('old.txt')).toBe('last good build')
+        expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('pins current behavior: an import of an input.exclude file is rewritten but the target is not emitted', async () => {
+        await writeConfig(true, { exclude: ['legacy.js'] })
+        await writeSrc({
+            'main.js': "import './legacy'\n",
+            'legacy.js': 'export const l = 1\n',
+        })
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe("import './legacy.js'\n")
+        expect(await pathExists(path.join(cwd, 'dist', 'legacy.js'))).toBe(false)
+    })
+
+    it('pins current behavior: an import resolving outside input.dir is rewritten to a ../ path and not emitted', async () => {
+        await writeConfig(true)
+        await writeSrc({ 'main.js': "import '../shared'\n" })
+        await writeFile(path.join(cwd, 'shared.js'), 'export const s = 1\n', 'utf8')
+
+        await build(cwd)
+
+        expect(await readDist('main.js')).toBe("import '../shared.js'\n")
+        expect(await pathExists(path.join(cwd, 'dist', 'shared.js'))).toBe(false)
     })
 })

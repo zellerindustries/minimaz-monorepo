@@ -34,7 +34,7 @@
         "format:check": "prettier . --check",
         "validate": "npm run lint && npm run format:check && npm run typecheck",
         "verify": "npm run validate && npm run build && npm test",
-        "verify:release": "npm run verify && changeset status --since=main && npm pack --dry-run --workspaces --silent",
+        "verify:release": "npm run verify && changeset status --since=main && npm pack --dry-run --workspaces --silent && node scripts/verify-packages.mjs",
         "prerelease": "npm run verify:release",
         "test": "npm run test --workspaces --if-present && npm run test:scripts",
         "test:scripts": "vitest run --project scripts",

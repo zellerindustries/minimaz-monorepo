@@ -206,7 +206,7 @@ export async function reCreateOutDir(path: string): Promise<void> {
  * `bundleCss` and adds every non-entry input path to `ignoredFiles` — so
  * the processing pass (`walkFolder`) skips them instead of emitting them
  * as standalone output files. JS/TS files are never added, since JS/TS
- * bundling isn't supported. The bundle result is cached by resolved entry
+ * bundling keeps one output file per source file. The bundle result is cached by resolved entry
  * path in `cssBundleCache`, so the processing pass's `processCss` can
  * reuse it instead of re-resolving the same `@import` graph from disk.
  *
@@ -273,13 +273,13 @@ export async function processFile(
             break
         }
         case '.js': {
-            const content = processJs(file, config)
+            const content = await processJs(file, config)
             await outputFile(file.dest, content)
             break
         }
         case '.ts':
         case '.tsx': {
-            const content = processTs(file, config)
+            const content = await processTs(file, config)
             const jsDest = file.dest.replace(/\.(ts|tsx)$/i, '.js')
             await outputFile(jsDest, content)
             break
@@ -293,6 +293,32 @@ export async function processFile(
             await ensureDir(dirname(file.dest))
             await copy(file.src, file.dest)
     }
+}
+
+/**
+ * Reads a single source file (only when its extension is processable),
+ * applies `output.replace` to its content, and dispatches it to `processFile`.
+ *
+ * @param {string} src - Source file path
+ * @param {string} dest - Destination file path
+ * @param {MinimazConfig} config - The loaded build configuration
+ * @param {CssBundleCache} cssBundleCache - Discovery pass's cached `bundleCss` results, keyed by resolved entry path
+ */
+async function processSourceFile(
+    src: string,
+    dest: string,
+    config: MinimazConfig,
+    cssBundleCache: CssBundleCache,
+): Promise<void> {
+    const ext = extname(src).toLowerCase()
+    let content = ''
+
+    if (processableExtensions.has(ext)) {
+        const raw = await readFile(src, 'utf8')
+        content = applyReplacements(raw, config.output.replace)
+    }
+
+    await processFile({ src, dest, content, ext }, config, cssBundleCache)
 }
 
 /**
@@ -343,15 +369,7 @@ export async function walkFolder(
             continue
         }
 
-        const ext = extname(fromPath).toLowerCase()
-        let content = ''
-
-        if (processableExtensions.has(ext)) {
-            const raw = await readFile(fromPath, 'utf8')
-            content = applyReplacements(raw, config.output.replace)
-        }
-
-        await processFile({ src: fromPath, dest: nextToPath, content, ext }, config, cssBundleCache)
+        await processSourceFile(fromPath, nextToPath, config, cssBundleCache)
     }
 }
 
@@ -404,14 +422,6 @@ export async function processExternals(
             continue
         }
 
-        const ext = extname(fullPath).toLowerCase()
-        let content = ''
-
-        if (processableExtensions.has(ext)) {
-            const raw = await readFile(fullPath, 'utf8')
-            content = applyReplacements(raw, config.output.replace)
-        }
-
-        await processFile({ src: fullPath, dest: targetPath, content, ext }, config, cssBundleCache)
+        await processSourceFile(fullPath, targetPath, config, cssBundleCache)
     }
 }

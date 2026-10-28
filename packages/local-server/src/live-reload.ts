@@ -1,5 +1,6 @@
 import { statSync, watch } from 'node:fs'
 import { createLogger } from '@minimaz/logger'
+import { writeText } from './http.js'
 
 import type { FSWatcher } from 'node:fs'
 import type { ServerResponse } from 'node:http'
@@ -197,8 +198,7 @@ export function createLiveReload(dir: string): LiveReloadController {
     return {
         handleSseRequest(res: ServerResponse): void {
             if (closed) {
-                res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' })
-                res.end('Live reload is shutting down')
+                writeText(res, 503, 'Live reload is shutting down')
                 return
             }
 

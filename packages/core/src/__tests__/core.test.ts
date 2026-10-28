@@ -2,6 +2,7 @@ import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as FsPromises from 'node:fs/promises'
@@ -9,6 +10,7 @@ import type * as FsPromises from 'node:fs/promises'
 import {
     applyReplacements,
     getDirElements,
+    getFileContent,
     isPathInside,
     pathsOverlap,
     readJsonFile,
@@ -43,6 +45,35 @@ describe('readJsonFile', () => {
         await writeFile(file, '{not valid json', 'utf8')
 
         await expect(readJsonFile(file)).rejects.toThrow(/PARSE ERROR/)
+    })
+
+    it('reports a non-ENOENT read failure (a directory) as a READ ERROR with the cause', async () => {
+        const error = await readJsonFile(dir).catch((caught: unknown) => caught)
+
+        expect(error).toBeInstanceOf(Error)
+        expect((error as Error).message).toMatch(/^READ ERROR: Failed to read "[^"]*" - /)
+        expect((error as Error).message).not.toMatch(/PARSE ERROR/)
+        expect((error as Error).cause).toBeInstanceOf(Error)
+    })
+
+    it('stringifies a non-Error read failure in the READ ERROR message', async () => {
+        vi.doMock('node:fs/promises', async () => {
+            const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- non-Error rejection is the case under test
+            return { ...actual, readFile: vi.fn(() => Promise.reject('boom')) }
+        })
+        vi.resetModules()
+
+        try {
+            const fresh = await import('../core.js')
+
+            await expect(fresh.readJsonFile('whatever.json')).rejects.toThrow(
+                'READ ERROR: Failed to read "whatever.json" - boom',
+            )
+        } finally {
+            vi.doUnmock('node:fs/promises')
+            vi.resetModules()
+        }
     })
 
     it('reads the file without a separate stat() existence check', async () => {
@@ -107,6 +138,66 @@ describe('getDirElements', () => {
 
         vi.doUnmock('node:fs/promises')
         vi.resetModules()
+    })
+})
+
+describe('getFileContent', () => {
+    let dir: string
+
+    beforeEach(async () => {
+        dir = await mkdtemp(path.join(tmpdir(), 'core-filecontent-'))
+    })
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true })
+    })
+
+    it('returns the UTF-8 content of a file', async () => {
+        const file = path.join(dir, 'a.txt')
+        await writeFile(file, 'héllo', 'utf8')
+
+        await expect(getFileContent(file)).resolves.toBe('héllo')
+    })
+
+    it('returns an empty string for a genuinely empty file', async () => {
+        const file = path.join(dir, 'empty.txt')
+        await writeFile(file, '', 'utf8')
+
+        await expect(getFileContent(file)).resolves.toBe('')
+    })
+
+    it('rejects with a KnownError naming the path and keeping the cause when missing', async () => {
+        const file = path.join(dir, 'missing.txt')
+
+        const error = await getFileContent(file).catch((caught: unknown) => caught)
+
+        expect(error).toBeInstanceOf(KnownError)
+        expect((error as KnownError).message).toContain(`Failed to read file at "${file}":`)
+        expect((error as KnownError).cause).toBeInstanceOf(Error)
+    })
+
+    it('rejects with a KnownError when the path is a directory', async () => {
+        await expect(getFileContent(dir)).rejects.toBeInstanceOf(KnownError)
+    })
+
+    it('stringifies a non-Error read failure', async () => {
+        vi.doMock('node:fs/promises', async () => {
+            const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- non-Error rejection is the case under test
+            return { ...actual, readFile: vi.fn(() => Promise.reject('boom')) }
+        })
+        vi.resetModules()
+
+        try {
+            const fresh = await import('../core.js')
+
+            await expect(fresh.getFileContent('x.txt')).rejects.toThrow(
+                'Failed to read file at "x.txt": boom',
+            )
+        } finally {
+            vi.doUnmock('node:fs/promises')
+            vi.resetModules()
+        }
     })
 })
 
@@ -187,4 +278,50 @@ describe('pathsOverlap', () => {
             expect(pathsOverlap(path.join(root, 'Src'), path.join(root, 'src'))).toBe(true)
         },
     )
+
+    describe('platform case sensitivity', () => {
+        const realPlatform = process.platform
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', { value: realPlatform })
+        })
+
+        // Only the process.platform flag is faked; the path functions stay the host's, so the
+        // inputs are built from path.join and only differ in case.
+        it.each(['win32', 'darwin'])('ignores case when the platform is %s', (platform) => {
+            Object.defineProperty(process, 'platform', { value: platform })
+
+            expect(pathsOverlap(path.join(root, 'Src'), path.join(root, 'src'))).toBe(true)
+            expect(pathsOverlap(path.join(root, 'SRC', 'a'), path.join(root, 'src'))).toBe(true)
+        })
+
+        // path.relative is itself case-insensitive on a win32 host, so this only holds elsewhere.
+        it.runIf(process.platform !== 'win32')(
+            'keeps paths that differ only in case distinct on a case-sensitive platform',
+            () => {
+                Object.defineProperty(process, 'platform', { value: 'linux' })
+
+                expect(pathsOverlap(path.join(root, 'Src'), path.join(root, 'src'))).toBe(false)
+                expect(pathsOverlap(path.join(root, 'SRC', 'a'), path.join(root, 'src'))).toBe(
+                    false,
+                )
+            },
+        )
+
+        it('still detects an exact match on a case-sensitive platform', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' })
+
+            expect(pathsOverlap(path.join(root, 'src'), path.join(root, 'src'))).toBe(true)
+        })
+    })
+
+    it('is false for paths on different roots (relative() yields an absolute path)', () => {
+        // On Windows a different drive makes path.relative return an absolute path; on POSIX the
+        // two unrelated trees only produce ../ segments. Either way they must not overlap.
+        const a = path.resolve(path.parse(process.cwd()).root, 'one', 'tree')
+        const other =
+            process.platform === 'win32' ? (a.startsWith('C:') ? 'D:\\x' : 'C:\\x') : '/zzz'
+
+        expect(pathsOverlap(a, other)).toBe(false)
+    })
 })

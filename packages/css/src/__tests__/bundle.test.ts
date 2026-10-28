@@ -58,6 +58,25 @@ describe('bundleCss', () => {
         expect(code).toContain('url(./partials/icon.png)')
     })
 
+    it('prefixes ./ to a url that resolves beside the entry file', async () => {
+        const entry = await write('main.css', '@import "./partials/_a.css";')
+        await write('partials/_a.css', 'a { background: url("../logo.png"); }')
+
+        const result = await bundleCss(entry)
+
+        expect(result.code).toBe('a { background: url("./logo.png"); }')
+    })
+
+    it('keeps the leading ../ of a url that resolves above the entry directory', async () => {
+        await mkdir(join(dir, 'partials', 'sub'), { recursive: true })
+        const entry = await write('partials/main.css', '@import "./sub/_a.css";')
+        await write('partials/sub/_a.css', 'a { background: url("../../logo.png"); }')
+
+        const result = await bundleCss(entry)
+
+        expect(result.code).toBe('a { background: url("../logo.png"); }')
+    })
+
     it('leaves absolute, remote, data and fragment urls untouched', async () => {
         const css = [
             'a { b: url(https://example.com/x.png) }',

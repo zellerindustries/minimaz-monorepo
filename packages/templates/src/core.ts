@@ -255,12 +255,7 @@ export async function saveTemplate(
  * @throws {TemplateNotFoundError} If the template doesn't exist
  */
 export async function deleteTemplate(templatesDir: string, name: string): Promise<void> {
-    assertValidTemplateName(name)
-    const target = join(templatesDir, name)
-
-    if (!(await pathExists(target))) {
-        throw new TemplateNotFoundError(name)
-    }
+    const target = await getTemplatePath(templatesDir, name)
 
     await remove(target)
     log.success(`Template "${name}" deleted`)
@@ -279,12 +274,7 @@ export async function updateTemplateFrom(
     name: string,
     sourceDir: string,
 ): Promise<void> {
-    assertValidTemplateName(name)
-    const target = join(templatesDir, name)
-
-    if (!(await pathExists(target))) {
-        throw new TemplateNotFoundError(name)
-    }
+    const target = await getTemplatePath(templatesDir, name)
 
     await copy(sourceDir, target, true)
     log.success(`Template "${name}" updated`)
