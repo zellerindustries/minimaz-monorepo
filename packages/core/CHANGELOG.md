@@ -1,5 +1,11 @@
 # @minimaz/core
 
+## 0.3.1
+
+### Patch Changes
+
+- [`717d888`](https://github.com/zellerindustries/minimaz-monorepo/commit/717d888b09daf685e83803af13a2ea40043c442f) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `readJsonFile` now reports a file that exists but cannot be read (permission denied, or the path is a directory) as `READ ERROR: Failed to read "<file>" - <reason>` instead of the misleading `PARSE ERROR: Failed to parse JSON`. Invalid JSON content still reports `PARSE ERROR`.
+
 ## 0.3.0
 
 ### Minor Changes
