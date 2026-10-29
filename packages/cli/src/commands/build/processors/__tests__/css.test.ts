@@ -129,6 +129,39 @@ describe('processCss', () => {
         expect(result).toBe('body { color: green; }')
     })
 
+    it('applies output.replace to imported files before url() rebasing', async () => {
+        await mkdir(path.join(dir, 'styles'), { recursive: true })
+        await writeFile(
+            path.join(dir, 'styles', 'icons.css'),
+            "@font-face { src: url('../node_modules/x/a.woff2'); }",
+            'utf8',
+        )
+        const entryPath = path.join(dir, 'main.css')
+        const entryRaw = "@import './styles/icons.css';"
+        await writeFile(entryPath, entryRaw, 'utf8')
+
+        const file: File = {
+            src: entryPath,
+            dest: path.join(dir, 'out.css'),
+            content: entryRaw,
+            ext: '.css',
+        }
+
+        const result = await processCss(
+            file,
+            makeBuildConfig(
+                {},
+                {
+                    replace: { '../node_modules/x/a.woff2': '/fonts/a.woff2' },
+                    css: { bundling: true, minify: false },
+                },
+            ),
+            new Map(),
+        )
+
+        expect(result).toBe("@font-face { src: url('/fonts/a.woff2'); }")
+    })
+
     it('reuses a cached bundle instead of re-resolving @import from disk', async () => {
         await mkdir(path.join(dir, 'partials'), { recursive: true })
         await writeFile(path.join(dir, 'partials', '_base.css'), 'body { margin: 0; }', 'utf8')

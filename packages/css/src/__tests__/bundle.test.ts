@@ -210,6 +210,17 @@ describe('bundleCss', () => {
         )
     })
 
+    it('applies options.transform to each file before rewriting its url()s', async () => {
+        const entry = await write('main.css', '@import "./partials/_a.css";')
+        await write('partials/_a.css', "@font-face { src: url('../fonts/a.woff2'); }")
+
+        const result = await bundleCss(entry, {
+            transform: (content) => content.replace('../fonts/a.woff2', '/cdn/a.woff2'),
+        })
+
+        expect(result.code).toBe("@font-face { src: url('/cdn/a.woff2'); }")
+    })
+
     it('throws for a missing entry file without an "imported from" note', async () => {
         await expect(bundleCss(join(dir, 'nope.css'))).rejects.toThrow(
             /file not found: .*nope\.css$/,
