@@ -107,10 +107,10 @@ Running `npm run version` locally (outside CI) requires a `GITHUB_TOKEN`
 environment variable, since the changelog generator queries the GitHub API
 for PR/commit links. Without one, it fails.
 
-The `NPM_TOKEN` secret is a Granular Access Token, which npm caps at a 90-day
-maximum lifetime — it needs periodic manual rotation (generate a new token on
-npmjs.com, update the GitHub repo secret) or `release.yml` will start failing
-to authenticate once it expires.
+`release.yml` publishes through npm trusted publishing (OIDC, `id-token: write`) — there is no
+`NPM_TOKEN` secret. Each published package must have a trusted publisher configured on npmjs.com
+(Settings → Trusted Publisher: GitHub Actions, repository `zellerindustries/minimaz-monorepo`, workflow
+`release.yml`), or the publish step fails with `ENEEDAUTH`/`E404`.
 
 ## Reporting bugs / requesting features
 
