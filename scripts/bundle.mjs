@@ -65,13 +65,18 @@ for (const entry of distEntries) {
 }
 
 /**
- * Copies each `[from, to]` pair, overwriting any existing file; throws if a source is missing.
+ * Copies each `[from, to]` pair, overwriting any existing file; throws, naming the package, if a copy fails
+ * (typically a missing source).
  *
  * @param {[string, string][]} files - Source/destination paths, relative to the package directory
  */
 async function copyFiles(files) {
     for (const [from, to] of files) {
-        await copyFile(from, to)
+        try {
+            await copyFile(from, to)
+        } catch (error) {
+            throw new Error(`${pkg.name}: cannot copy ${from} to ${to}`, { cause: error })
+        }
     }
 }
 

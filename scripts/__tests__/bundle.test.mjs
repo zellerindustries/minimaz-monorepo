@@ -56,6 +56,25 @@ describe('bundle.mjs', () => {
         expect(await readFile(join(pkgDir, 'dist', 'README.md'), 'utf8')).toBe('# fixture readme\n')
     })
 
+    it('overwrites a stale dist/README.md with the package README', async () => {
+        await writeFile(join(pkgDir, 'dist', 'README.md'), 'stale', 'utf8')
+
+        const result = runBundle()
+
+        expect(result.status, result.stderr).toBe(0)
+        expect(await readFile(join(pkgDir, 'dist', 'README.md'), 'utf8')).toBe('# fixture readme\n')
+    })
+
+    it('fails naming the package when its README.md is missing', async () => {
+        await rm(join(pkgDir, 'README.md'))
+
+        const result = runBundle()
+
+        expect(result.status).not.toBe(0)
+        expect(result.stderr).toContain('@fixture/pkg')
+        expect(result.stderr).toContain('README.md')
+    })
+
     it('overwrites a stale LICENSE with the current repo one', async () => {
         await writeFile(join(pkgDir, 'LICENSE'), 'stale', 'utf8')
 
