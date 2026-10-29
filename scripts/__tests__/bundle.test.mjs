@@ -24,6 +24,7 @@ describe('bundle.mjs', () => {
             JSON.stringify({ name: '@fixture/pkg', main: './dist/index.js' }),
             'utf8',
         )
+        await writeFile(join(pkgDir, 'README.md'), '# fixture readme\n', 'utf8')
         await writeFile(
             join(pkgDir, 'src', 'index.ts'),
             'export const answer: number = 42\n',
@@ -46,6 +47,13 @@ describe('bundle.mjs', () => {
         expect(await readFile(join(pkgDir, 'LICENSE'), 'utf8')).toBe(
             'MIT License\n\nfixture licence text\n',
         )
+    })
+
+    it("copies the package's README.md into dist/", async () => {
+        const result = runBundle()
+
+        expect(result.status, result.stderr).toBe(0)
+        expect(await readFile(join(pkgDir, 'dist', 'README.md'), 'utf8')).toBe('# fixture readme\n')
     })
 
     it('overwrites a stale LICENSE with the current repo one', async () => {

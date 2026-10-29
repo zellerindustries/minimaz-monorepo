@@ -67,4 +67,7 @@ for (const entry of distEntries) {
 // npm only auto-includes a LICENSE found in the package root, so ship the repo's one with every package.
 await copyFile('../../LICENSE', 'LICENSE')
 
+// Also ship the package README inside dist/, next to the bundled entry points.
+await copyFile('README.md', 'dist/README.md')
+
 console.log(`Bundled ${pkg.name}`)
