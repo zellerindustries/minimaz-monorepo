@@ -64,10 +64,22 @@ for (const entry of distEntries) {
     }
 }
 
-// npm only auto-includes a LICENSE found in the package root, so ship the repo's one with every package.
-await copyFile('../../LICENSE', 'LICENSE')
+/**
+ * Copies each `[from, to]` pair, overwriting any existing file; throws if a source is missing.
+ *
+ * @param {[string, string][]} files - Source/destination paths, relative to the package directory
+ */
+async function copyFiles(files) {
+    for (const [from, to] of files) {
+        await copyFile(from, to)
+    }
+}
 
-// Also ship the package README inside dist/, next to the bundled entry points.
-await copyFile('README.md', 'dist/README.md')
+await copyFiles([
+    // npm only auto-includes a LICENSE found in the package root, so ship the repo's one with every package.
+    ['../../LICENSE', 'LICENSE'],
+    // The package README also goes inside dist/, next to the bundled entry points.
+    ['README.md', 'dist/README.md'],
+])
 
 console.log(`Bundled ${pkg.name}`)
