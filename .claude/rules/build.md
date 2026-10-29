@@ -18,6 +18,11 @@ files, so it re-emits stray `*.test.js` (and test helpers under `__tests__/`) in
 `scripts/bundle.mjs` (the last step of every package's `build`) deletes those again, removing every `dist/**/__tests__`
 and `__mocks__` directory whole. `vitest.config.ts` excludes `**/dist/**`, so those stray copies never run as tests.
 
+The same script then copies the root `LICENSE` into the package directory and the package's own `README.md` into
+`dist/README.md`; a missing source fails the build with an error naming the package, so every package needs a
+`README.md`. `scripts/verify-packages.mjs` (part of `verify:release`) fails when a tarball lacks `LICENSE` or
+`dist/README.md`.
+
 If `tsc -b` reports a project "up to date" (no errors, nothing emitted) but its `dist/` is missing or incomplete,
 its `.tsbuildinfo` cache (under `node_modules/.cache/tsc/`) has gone stale relative to the actual output — this
 happens after switching branches/worktrees or an interrupted build. `tsc -b --force` (or `tsc -b <path> --force`
