@@ -238,7 +238,7 @@ export async function runDiscovery(
         const ext = extname(fullPath).toLowerCase()
         if (ext === '.css' && config.output.css.bundling) {
             const entry = resolve(fullPath)
-            const bundleResult = await bundleCssForBuild(fullPath)
+            const bundleResult = await bundleCssForBuild(fullPath, config.output.replace)
             cssBundleCache.set(entry, bundleResult)
 
             for (const inputPath of bundleResult.inputs) {

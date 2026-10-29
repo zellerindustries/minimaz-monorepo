@@ -15,15 +15,22 @@ import { rethrowPrefixedAsKnown } from './errors.js'
  * free of a logger dependency, so the classification happens here at the CLI
  * boundary.
  *
+ * `replacements` (`output.replace`) are applied to each file's source before
+ * `bundleCss` rebases its `url()`s, so keys match the text as authored.
+ *
  * @param {string} entryPath - Path to the entry CSS file
+ * @param {Record<string, string>} replacements - `output.replace` map applied to every bundled file
  * @returns {Promise<{ code: string; inputs: string[] }>} `bundleCss`'s result
  * @throws {KnownError} If `bundleCss` rejects with one of its own `bundleCss:` errors
  */
 export async function bundleCssForBuild(
     entryPath: string,
+    replacements: Record<string, string>,
 ): Promise<{ code: string; inputs: string[] }> {
     try {
-        return await bundleCss(entryPath)
+        return await bundleCss(entryPath, {
+            transform: (content) => applyReplacements(content, replacements),
+        })
     } catch (error: unknown) {
         if (error instanceof KnownError) {
             throw error
@@ -36,8 +43,8 @@ export async function bundleCssForBuild(
 
 /**
  * Processes a CSS file: inlines `@import`s when `output.css.bundling` is
- * enabled (applying `output.replace` a second time to the bundled result,
- * since `bundleCss` reads dependency files fresh from disk), otherwise
+ * enabled (`output.replace` is applied per file inside `bundleCss`, since it
+ * reads dependency files fresh from disk), otherwise
  * passes `file.content` through unchanged. Minifies via `minifyCss` when
  * `output.css.minify` is enabled.
  *
@@ -60,8 +67,8 @@ export async function processCss(
 
     if (config.output.css.bundling) {
         const cached = cssBundleCache.get(resolve(file.src))
-        const { code } = cached ?? (await bundleCssForBuild(file.src))
-        content = applyReplacements(code, config.output.replace)
+        const bundle = cached ?? (await bundleCssForBuild(file.src, config.output.replace))
+        content = bundle.code
     } else {
         content = file.content
     }

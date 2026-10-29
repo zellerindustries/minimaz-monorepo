@@ -46,12 +46,23 @@ function rewriteUrls(code: string, fileDir: string, entryDir: string): string {
     )
 }
 
+/** Options for `bundleCss`. */
+export interface BundleCssOptions {
+    /**
+     * Applied to every file's raw text (entry included) right after it is read, before its
+     * `@import`s are resolved and its `url()`s are rebased — so a replacement keyed on the
+     * text as authored still matches.
+     */
+    transform?: (content: string) => string
+}
+
 async function inlineImports(
     filePath: string,
     entryDir: string,
     visited: Set<string>,
     stack: string[],
     importedFrom: string | undefined,
+    transform: (content: string) => string,
 ): Promise<string> {
     const resolvedPath = resolve(filePath)
 
@@ -68,7 +79,7 @@ async function inlineImports(
 
     visited.add(resolvedPath)
 
-    const raw = await getFileContent(resolvedPath)
+    const raw = transform(await getFileContent(resolvedPath))
     const fileDir = dirname(resolvedPath)
     const nextStack = [...stack, resolvedPath]
 
@@ -104,6 +115,7 @@ async function inlineImports(
             visited,
             nextStack,
             resolvedPath,
+            transform,
         )
         output += conditions === '' ? inlined : `@media ${conditions} {\n${inlined}\n}`
     }
@@ -117,14 +129,19 @@ async function inlineImports(
  * `entryPath`'s own directory once concatenated into one file.
  *
  * @param {string} entryPath - Path to the entry CSS file
+ * @param {BundleCssOptions} [options] - Optional per-file source `transform`
  * @returns {Promise<{ code: string; inputs: string[] }>} Bundled CSS and every file touched (entry included, as absolute paths)
  */
-export async function bundleCss(entryPath: string): Promise<{ code: string; inputs: string[] }> {
+export async function bundleCss(
+    entryPath: string,
+    options: BundleCssOptions = {},
+): Promise<{ code: string; inputs: string[] }> {
     const resolvedEntry = resolve(entryPath)
     const entryDir = dirname(resolvedEntry)
     const visited = new Set<string>()
+    const transform = options.transform ?? ((content: string) => content)
 
-    const code = await inlineImports(resolvedEntry, entryDir, visited, [], undefined)
+    const code = await inlineImports(resolvedEntry, entryDir, visited, [], undefined, transform)
 
     return { code, inputs: [...visited] }
 }
