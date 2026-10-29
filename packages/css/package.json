@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/css",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "description": "Dependency-free CSS minifier and @import bundler.",
     "type": "module",
     "main": "./dist/index.js",
