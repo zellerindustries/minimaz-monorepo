@@ -1,5 +1,13 @@
 # @minimaz/cli
 
+## 0.4.2
+
+### Patch Changes
+
+- [`ef635d5`](https://github.com/zellerindustries/minimaz-monorepo/commit/ef635d58ca747876114c3ea55b915bf9caa1df30) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `bundleCss` accepts an optional `transform` applied to each file's source before its `@import`s are resolved and its `url()`s are rebased. `build` uses it to apply `output.replace` per file, so replace keys written against authored text (e.g. `../node_modules/…/font.woff2` in an imported stylesheet) match again instead of seeing the rebased `./node_modules/…` path.
+- Updated dependencies [[`ef635d5`](https://github.com/zellerindustries/minimaz-monorepo/commit/ef635d58ca747876114c3ea55b915bf9caa1df30)]:
+    - @minimaz/css@0.2.0
+
 ## 0.4.1
 
 ### Patch Changes
