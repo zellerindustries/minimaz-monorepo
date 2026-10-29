@@ -10,7 +10,14 @@ function pack(name, paths) {
     return { name, files: paths.map((path) => ({ path })) }
 }
 
-const goodFiles = ['LICENSE', 'README.md', 'package.json', 'dist/index.js', 'dist/index.d.ts']
+const goodFiles = [
+    'LICENSE',
+    'README.md',
+    'package.json',
+    'dist/README.md',
+    'dist/index.js',
+    'dist/index.d.ts',
+]
 
 describe('parsePackOutput', () => {
     it('parses a bare JSON array', () => {
@@ -56,6 +63,14 @@ describe('findProblems', () => {
         expect(problems[0]).toContain('@minimaz/a: contains no dist/ files')
     })
 
+    it('flags a missing dist/README.md', () => {
+        const files = goodFiles.filter((file) => file !== 'dist/README.md')
+
+        expect(findProblems([pack('@minimaz/a', files)])).toEqual([
+            '@minimaz/a: missing dist/README.md',
+        ])
+    })
+
     it.each([
         ['src/index.ts', 'source file'],
         ['dist/__tests__/core.js', 'test directory'],
@@ -82,7 +97,7 @@ describe('findProblems', () => {
     it('reports offenders across several packages', () => {
         const problems = findProblems([
             pack('@minimaz/a', goodFiles),
-            pack('@minimaz/b', ['package.json', 'dist/x.js']),
+            pack('@minimaz/b', ['package.json', 'dist/README.md', 'dist/x.js']),
             pack('@minimaz/c', [...goodFiles, 'src/x.ts']),
         ])
 
