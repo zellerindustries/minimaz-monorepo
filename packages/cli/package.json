@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/cli",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "description": "Command implementations for the minimaz/mz CLI. Not published as a bin itself — see @minimaz/sitekit.",
     "type": "module",
     "main": "./dist/index.js",
@@ -40,10 +40,10 @@
     "dependencies": {
         "@minimaz/bundler": "^0.3.0",
         "@minimaz/config": "^0.3.0",
-        "@minimaz/core": "^0.3.0",
+        "@minimaz/core": "^0.3.1",
         "@minimaz/css": "^0.1.2",
         "@minimaz/html": "^0.1.1",
-        "@minimaz/js": "^0.1.1",
+        "@minimaz/js": "^0.2.0",
         "@minimaz/logger": "^0.2.1",
         "@minimaz/local-server": "^0.3.0",
         "@minimaz/markdown": "^0.2.1",

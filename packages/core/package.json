@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/core",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Filesystem utilities (path checks, JSON reads, copy/remove/output helpers) shared across the Minimaz ecosystem.",
     "type": "module",
     "main": "./dist/index.js",
