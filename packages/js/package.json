@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/js",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Dependency-free JavaScript minifier.",
     "type": "module",
     "main": "./dist/index.js",
