@@ -1,9 +1,9 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-// Checks what `npm pack` would publish for every workspace: each tarball must carry LICENSE, package.json and
-// dist/, and must not carry sources, tests, build caches or secrets. Run after `npm run build` (the build step copies
-// LICENSE into each package): `node scripts/verify-packages.mjs`. Pure functions are exported for tests; main() only
+// Checks what `npm pack` would publish for every workspace: each tarball must carry LICENSE, package.json,
+// dist/ and dist/README.md, and must not carry sources, tests, build caches or secrets. Run after `npm run build`
+// (the build step copies LICENSE and the README into each package): `node scripts/verify-packages.mjs`. Pure functions are exported for tests; main() only
 // runs when this file is the process entry point.
 
 const forbiddenPatterns = [
@@ -54,6 +54,8 @@ export function findProblems(packs) {
         }
         if (!paths.some((path) => path.startsWith('dist/'))) {
             problems.push(`${pack.name}: contains no dist/ files (was the package built?)`)
+        } else if (!paths.includes('dist/README.md')) {
+            problems.push(`${pack.name}: missing dist/README.md`)
         }
         for (const path of paths) {
             for (const [pattern, label] of forbiddenPatterns) {

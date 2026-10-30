@@ -70,7 +70,9 @@ export async function runCli(pkgPath: string): Promise<void> {
     const templatesDir = getTemplatesDir(globalDir)
 
     const buildHandler: CommandFn = async () => {
-        await build(cwd)
+        await build(cwd, {
+            overwrite: parseBooleanFlag(args['overwrite'] as string | boolean | undefined) ?? false,
+        })
     }
     const clearHandler: CommandFn = async () => {
         await clear(cwd)

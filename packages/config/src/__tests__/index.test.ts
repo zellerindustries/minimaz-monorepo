@@ -115,7 +115,32 @@ describe('loadConfig', () => {
         }
         await writeFile(path.join(dir, configFileName), JSON.stringify(serveSection))
         const config = await loadConfig(dir)
-        expect(config).toEqual({ ...defaultConfig, ...defaultBuildConfig, ...serveSection })
+        expect(config).toEqual({
+            ...defaultConfig,
+            ...defaultBuildConfig,
+            serve: { ...serveSection.serve, portDefaulted: false },
+        })
+    })
+
+    it('defaults serve.port to 4173 and flags it as defaulted when the file omits it', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: {} }))
+        const config = await loadConfig(dir)
+        expect(config.serve.port).toBe(4173)
+        expect(config.serve.portDefaulted).toBe(true)
+    })
+
+    it('keeps an explicit serve.port and reports it as not defaulted', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: { port: 8080 } }))
+        const config = await loadConfig(dir)
+        expect(config.serve.port).toBe(8080)
+        expect(config.serve.portDefaulted).toBe(false)
+    })
+
+    it('treats an explicit serve.port of 0 as not defaulted', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: { port: 0 } }))
+        const config = await loadConfig(dir)
+        expect(config.serve.port).toBe(0)
+        expect(config.serve.portDefaulted).toBe(false)
     })
 
     it('fills in serve defaults when the serve section is present but empty', async () => {

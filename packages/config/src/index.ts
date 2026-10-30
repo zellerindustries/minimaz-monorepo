@@ -43,7 +43,8 @@ export const defaultBuildConfig: BuildConfig = {
 /** Defaults for the `serve` section of `MinimazConfig`, used to fill in whatever the config file omits. */
 export const defaultServeConfig: ServeConfig = {
     serve: {
-        port: 0,
+        port: 4173,
+        portDefaulted: true,
         host: '127.0.0.1',
         liveReload: true,
         cleanUrls: false,
@@ -290,6 +291,7 @@ function parseServeConfig(parsed: RawConfig): ServeConfig {
     return {
         serve: {
             port: serve?.port ?? defaultServeConfig.serve.port,
+            portDefaulted: serve?.port === undefined,
             host: serve?.host ?? defaultServeConfig.serve.host,
             liveReload: serve?.liveReload ?? defaultServeConfig.serve.liveReload,
             cleanUrls: serve?.cleanUrls ?? defaultServeConfig.serve.cleanUrls,

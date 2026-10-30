@@ -21,7 +21,7 @@ than writing configs from scratch.
 | `tsconfig.build.json` | Copy; `tsBuildInfoFile: …/<name>.build.tsbuildinfo`; `references` → each dependency's `tsconfig.build.json` |
 | `src/core.ts`, `src/types.ts`, `src/index.ts` | Logic / types / barrel (`export *`, named exports only). `main.ts` only for a CLI entry |
 | `src/__tests__/core.test.ts` | Tests, written first. Imports need `../core.js` |
-| `README.md` | Usage, API list, and a "Depends on …" line |
+| `README.md` | Usage, API list, and a "Depends on …" line. Required: `scripts/bundle.mjs` copies it to `dist/README.md` and fails the build without it |
 
 Scripts (identical in every package):
 

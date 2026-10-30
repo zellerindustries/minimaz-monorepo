@@ -86,7 +86,7 @@ describe('runCli dispatch', () => {
         await run('build')
         await run('clear')
 
-        expect(build).toHaveBeenCalledWith(process.cwd())
+        expect(build).toHaveBeenCalledWith(process.cwd(), { overwrite: false })
         expect(clear).toHaveBeenCalledWith(process.cwd())
     })
 
@@ -96,7 +96,7 @@ describe('runCli dispatch', () => {
         await run('i')
         await run('t')
 
-        expect(build).toHaveBeenCalledWith(process.cwd())
+        expect(build).toHaveBeenCalledWith(process.cwd(), { overwrite: false })
         expect(clear).toHaveBeenCalledWith(process.cwd())
         expect(init).toHaveBeenCalledWith(
             'minimaz-project',
@@ -216,6 +216,16 @@ describe('runCli dispatch', () => {
         await run('build', '-v')
         expect(process.env['VERBOSE']).toBe('true')
         expect(build).toHaveBeenCalledOnce()
+    })
+
+    it('passes --overwrite to build', async () => {
+        await run('build', '--overwrite')
+        await run('b')
+        await run('b', '--overwrite=false')
+
+        expect(build).toHaveBeenNthCalledWith(1, process.cwd(), { overwrite: true })
+        expect(build).toHaveBeenNthCalledWith(2, process.cwd(), { overwrite: false })
+        expect(build).toHaveBeenNthCalledWith(3, process.cwd(), { overwrite: false })
     })
 
     it('passes --overwrite to config', async () => {

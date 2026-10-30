@@ -53,9 +53,10 @@ export const commandsHelp: Record<string, CommandHelp> = {
         description: 'Scaffold or build Markdown documentation',
     },
     build: {
-        usage: 'minimaz build',
+        usage: 'minimaz build [--overwrite]',
         aliases: ['b'],
-        description: 'Build the project into the configured output directory',
+        description:
+            'Build the project into the configured output directory; an existing output directory is confirmed first, or requires --overwrite when not interactive',
     },
     clear: {
         usage: 'minimaz clear',
@@ -65,6 +66,6 @@ export const commandsHelp: Record<string, CommandHelp> = {
     serve: {
         usage: 'minimaz serve',
         description:
-            "Serve the configured build output directory over HTTP, per minimaz.config.json's serve section",
+            "Serve the configured build output directory over HTTP, per minimaz.config.json's serve section (default port 4173, set with serve.port)",
     },
 }

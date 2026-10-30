@@ -22,7 +22,7 @@ minimaz init [name] [--template=<name>] [--npm] [--git] [--gitprovider=<provider
 minimaz config [--overwrite]
 minimaz template [path] [--list] [--delete=<name>] [--update[=<name>]]
 minimaz docs <init|build>
-minimaz build
+minimaz build [--overwrite]
 minimaz clear
 minimaz serve
 ```
@@ -46,7 +46,10 @@ Single-letter aliases: `h` (help), `v` (version), `i` (init), `t` (template), `b
   unterminated code fence), listing each as `<file>: <error>`; bundled files are separated by a horizontal rule.
 - `build` — build `input.dir` into `output.dir` per `minimaz.config.json`, minifying/bundling CSS, JS, TS and HTML.
   Refuses to run (without deleting anything) when `output.dir` isn't inside the project, when it overlaps
-  `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. With
+  `input.dir` or a local `input.externals` source, or when `input.dir` is missing or empty. If `output.dir`
+  already exists, it asks `[y/N]` before replacing it (declining aborts and leaves it untouched); without a TTY
+  it refuses instead, and `--overwrite` skips the question. Terminals that aren't detected as interactive (e.g.
+  some Git Bash/mintty setups without winpty) refuse with a hint to use `--overwrite`. With
   `output.js.bundling: true`, relative JS/TS imports are rewritten to the emitted `.js` paths (native ES modules,
   one output file per source file, not concatenated, so HTML must use `<script type="module">`; npm/bare
   specifiers are left untouched, and an unresolvable relative import is an error). The build is written to a sibling
@@ -57,7 +60,8 @@ Single-letter aliases: `h` (help), `v` (version), `i` (init), `t` (template), `b
   leave one behind, and the next build cleans it up (`minimaz init`'s `.gitignore` ignores both).
 - `clear` — delete `output.dir`, with the same safety checks as `build`.
 - `serve` — start a local HTTP server on `output.dir`, honoring `minimaz.config.json`'s `serve` section (clean
-  URLs, SPA fallback, directory listing, cache-control, live reload).
+  URLs, SPA fallback, directory listing, cache-control, live reload). `serve.port` defaults to `4173`, with a
+  warning when it isn't set; `serve` fails if the port is already in use.
 
 This covers `minimaz-cli`'s full command set — see `.claude/status.md` in the monorepo root for current status and
 known gaps (e.g. `validate` is currently single-file only, unlike the original's recursive directory mode).

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { configFileName } from '@minimaz/config'
-import { KnownError } from '@minimaz/logger'
+import { KnownError, log } from '@minimaz/logger'
 import { serve } from '../main.js'
 import * as localServer from '@minimaz/local-server'
 import type * as LocalServerModule from '@minimaz/local-server'
@@ -75,6 +75,50 @@ describe('serve', () => {
             directoryListing: true,
             cacheControl: true,
         })
+    })
+
+    it('warns and serves on 4173 when serve.port is not configured', async () => {
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(
+            path.join(cwd, configFileName),
+            JSON.stringify({ output: { dir: './dist' } }),
+        )
+        const warn = vi.spyOn(log, 'warn').mockImplementation(() => undefined)
+        vi.mocked(localServer.startLocalServer).mockResolvedValue({
+            url: 'http://127.0.0.1:4173',
+            port: 4173,
+            close: vi.fn(),
+        })
+
+        await serve(cwd, { keepAlive: false })
+
+        expect(warn).toHaveBeenCalledOnce()
+        const message = JSON.stringify(warn.mock.calls[0]?.[0])
+        expect(message).toContain('serve.port')
+        expect(message).toContain('4173')
+        expect(localServer.startLocalServer).toHaveBeenCalledWith(
+            expect.objectContaining({ port: 4173 }),
+        )
+        warn.mockRestore()
+    })
+
+    it.each([5000, 0])('does not warn when serve.port is set to %i', async (port) => {
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(
+            path.join(cwd, configFileName),
+            JSON.stringify({ output: { dir: './dist' }, serve: { port } }),
+        )
+        const warn = vi.spyOn(log, 'warn').mockImplementation(() => undefined)
+        vi.mocked(localServer.startLocalServer).mockResolvedValue({
+            url: 'http://127.0.0.1:1',
+            port,
+            close: vi.fn(),
+        })
+
+        await serve(cwd, { keepAlive: false })
+
+        expect(warn).not.toHaveBeenCalled()
+        warn.mockRestore()
     })
 
     describe('keepAlive', () => {
