@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/local-server",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Lightweight, dependency-free local HTTP server with live reload for serving a built site during development.",
     "author": "Hans Zeller <info@zellerindustries.com>",
     "license": "MIT",
