@@ -39,7 +39,7 @@ describe('help', () => {
             help('build')
         })
 
-        expect(lines).toContain('[app] minimaz build')
+        expect(lines).toContain('[app] minimaz build [--overwrite]')
         expect(lines).not.toContain('[app] minimaz clear')
         expect(lines).not.toContain('[app] Usage:\n')
     })

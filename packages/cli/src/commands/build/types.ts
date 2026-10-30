@@ -1,4 +1,14 @@
 /**
+ * Options for the `build` command.
+ */
+export interface BuildCommandOptions {
+    /** Replace an existing output.dir without asking */
+    overwrite?: boolean
+    /** Whether a prompt can be shown (default: process.stdin.isTTY === true) */
+    interactive?: boolean
+}
+
+/**
  * A single file being processed by the `build` command: its source path,
  * destination path, already-read (and replacement-applied, where
  * applicable) content, and lowercased extension.

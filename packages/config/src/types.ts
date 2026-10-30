@@ -49,6 +49,8 @@ export interface BuildConfig {
 export interface ServeConfig {
     serve: {
         port: number
+        /** True when `port` fell back to the default because the config file did not set it. */
+        portDefaulted: boolean
         host: string
         liveReload: boolean
         cleanUrls: boolean

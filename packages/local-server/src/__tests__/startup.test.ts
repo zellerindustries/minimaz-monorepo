@@ -42,7 +42,7 @@ describe('startLocalServer startup', () => {
         expect(handle.url).toBe(`http://127.0.0.1:${String(handle.port)}`)
     })
 
-    it('reports a port that is already in use as a KnownError', async () => {
+    it('rejects with a KnownError naming the port when it is already in use', async () => {
         const first = await startLocalServer({ dir, liveReload: false })
         handles.push(first)
 

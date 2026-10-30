@@ -1,7 +1,8 @@
 import { resolve } from 'node:path'
 import { loadConfig } from '@minimaz/config'
-import { getDirElements, isPathInside, pathsOverlap, remove } from '@minimaz/core'
+import { getDirElements, isPathInside, pathExists, pathsOverlap, remove } from '@minimaz/core'
 import { KnownError, log } from '@minimaz/logger'
+import { askYesNo } from '../prompts.js'
 import {
     getBuildOldDirName,
     getBuildTempDirName,
@@ -15,7 +16,7 @@ import {
 } from './core.js'
 
 import type { MinimazConfig } from '@minimaz/config'
-import type { CssBundleCache } from './types.js'
+import type { BuildCommandOptions, CssBundleCache } from './types.js'
 
 /**
  * Builds the project according to `minimaz.config.json`, using a two-pass
@@ -30,6 +31,10 @@ import type { CssBundleCache } from './types.js'
  * @param {string} cwdArg - Directory to look for `minimaz.config.json` in
  *   (a relative path resolves against `process.cwd()`); `input.dir`/
  *   `output.dir` are resolved relative to it.
+ * @param {BuildCommandOptions} options - `overwrite` replaces an existing
+ *   `output.dir` without asking; otherwise an existing `output.dir` is only
+ *   replaced after a `[y/N]` prompt, which needs `interactive` (default:
+ *   `process.stdin.isTTY === true`).
  * @throws {KnownError} When the resolved `output.dir` isn't strictly inside
  *   `cwd` (refuses to ever delete the project root, an ancestor of it, or an
  *   unrelated directory), when `output.dir` equals, contains, or is nested
@@ -38,9 +43,10 @@ import type { CssBundleCache } from './types.js'
  *   empty, when a relative import or relative dynamic import in bundled JS/TS
  *   can't be resolved, or when swapping the finished build into
  *   `output.dir` fails (the message names the temp directory still holding
- *   it).
+ *   it), when `output.dir` already exists and the run is non-interactive
+ *   without `overwrite`, or when the user declines the replace prompt.
  */
-export async function build(cwdArg: string): Promise<void> {
+export async function build(cwdArg: string, options: BuildCommandOptions = {}): Promise<void> {
     const cwd = resolve(cwdArg)
     const config = await loadConfig(cwd, { initCommand: 'minimaz init' })
 
@@ -103,7 +109,12 @@ export async function build(cwdArg: string): Promise<void> {
         throw new KnownError(`build: input directory is missing or empty: ${inDirPath}`)
     }
 
+    // Before the gate: a restored backup is an existing output like any other.
     await recoverOldOutDir(outDirPath)
+
+    if (options.overwrite !== true && (await pathExists(outDirPath))) {
+        await confirmOverwrite(config.output.dir, options.interactive ?? process.stdin.isTTY)
+    }
 
     const tempDirPath = getBuildTempDirName(outDirPath)
 
@@ -120,6 +131,32 @@ export async function build(cwdArg: string): Promise<void> {
     await replaceOutDir(tempDirPath, outDirPath)
 
     log.success(`Build completed. Output saved in ${config.output.dir}`)
+}
+
+/**
+ * Asks before replacing an existing `output.dir`; refuses outright when no
+ * prompt can be shown.
+ *
+ * @param {string} outDir - `output.dir` as configured, for the messages
+ * @param {boolean | undefined} interactive - Whether a prompt can be shown
+ * @throws {KnownError} When non-interactive or the user answers "no"
+ */
+async function confirmOverwrite(outDir: string, interactive: boolean | undefined): Promise<void> {
+    if (interactive !== true) {
+        throw new KnownError(
+            `build: "${outDir}" already exists. Re-run with --overwrite to replace it.`,
+        )
+    }
+
+    const confirmed = await askYesNo(
+        `build: "${outDir}" already exists. Delete it and rebuild? [y/N]`,
+        'n',
+    )
+    if (!confirmed) {
+        throw new KnownError(
+            `build: aborted, "${outDir}" was left untouched. Use --overwrite to replace it without asking.`,
+        )
+    }
 }
 
 /**
