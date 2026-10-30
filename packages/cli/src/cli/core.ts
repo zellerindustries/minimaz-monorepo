@@ -182,6 +182,8 @@ export function boolFlag(args: Args, ...names: string[]): boolean {
  * Normalizes a raw CLI flag value into a boolean, or `undefined` when the
  * flag wasn't provided at all (distinct from an explicit false) — callers
  * use `undefined` to know they should fall back to an interactive prompt.
+ * The strings `false`, `0`, `n`, `no` and `off` (any case) are false; any
+ * other string is true.
  *
  * @param {string | boolean} [flag] - Raw flag value from parsed CLI args
  * @returns {boolean | undefined}
@@ -195,7 +197,7 @@ export function parseBooleanFlag(flag?: string | boolean): boolean | undefined {
     }
 
     const val = flag.toLowerCase()
-    if (val === 'false' || val === '0' || val === 'n') {
+    if (val === 'false' || val === '0' || val === 'n' || val === 'no' || val === 'off') {
         return false
     }
     return true

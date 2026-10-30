@@ -115,11 +115,11 @@ describe('parseBooleanFlag', () => {
         expect(parseBooleanFlag(false)).toBe(false)
     })
 
-    it('treats false, 0 and n (any case) as false and any other string as true', () => {
-        for (const value of ['false', 'FALSE', '0', 'n', 'N']) {
+    it('treats false, 0, n, no and off (any case) as false and any other string as true', () => {
+        for (const value of ['false', 'FALSE', '0', 'n', 'N', 'no', 'NO', 'off', 'Off']) {
             expect(parseBooleanFlag(value)).toBe(false)
         }
-        for (const value of ['true', 'yes', '1', '']) {
+        for (const value of ['true', 'yes', 'on', '1', '']) {
             expect(parseBooleanFlag(value)).toBe(true)
         }
     })

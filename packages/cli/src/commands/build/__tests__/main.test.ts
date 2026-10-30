@@ -3,9 +3,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathExists } from '@minimaz/core'
 import { KnownError } from '@minimaz/logger'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { askYesNo } from '../../prompts.js'
 import { getBuildOldDirName, getBuildTempDirName } from '../core.js'
 import { build } from '../main.js'
+
+vi.mock('../../prompts.js', () => ({
+    askYesNo: vi.fn(),
+}))
 
 describe('build', () => {
     let cwd: string
@@ -346,7 +351,7 @@ describe('build', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
 
-        await expect(build(cwd)).rejects.toThrow()
+        await expect(build(cwd, { overwrite: true })).rejects.toThrow(/file not found/)
 
         expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
         expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
@@ -362,7 +367,7 @@ describe('build', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'stale.txt'), 'stale', 'utf8')
 
-        await build(cwd)
+        await build(cwd, { overwrite: true })
 
         expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
         expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
@@ -395,7 +400,7 @@ describe('build', () => {
         await mkdir(path.join(cwd, getBuildOldDirName('dist')), { recursive: true })
         await writeFile(path.join(cwd, getBuildOldDirName('dist'), 'junk.txt'), 'x', 'utf8')
 
-        await build(cwd)
+        await build(cwd, { overwrite: true })
 
         expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
         expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
@@ -410,10 +415,25 @@ describe('build', () => {
             'utf8',
         )
 
-        await expect(build(cwd)).rejects.toThrow()
+        await expect(build(cwd, { overwrite: true })).rejects.toThrow(/file not found/)
 
         expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
         expect((await readdir(cwd)).sort()).toEqual(['dist', 'minimaz.config.json', 'src'])
+    })
+
+    it('puts a restored crashed-swap backup through the overwrite gate', async () => {
+        await writeBrokenCssProject()
+        await mkdir(path.join(cwd, getBuildOldDirName('dist')), { recursive: true })
+        await writeFile(
+            path.join(cwd, getBuildOldDirName('dist'), 'old.txt'),
+            'last good build',
+            'utf8',
+        )
+
+        await expect(build(cwd, { interactive: false })).rejects.toThrow(/--overwrite/)
+
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        expect(await pathExists(path.join(cwd, getBuildTempDirName('dist')))).toBe(false)
     })
 
     it('refuses a previous-output backup dir that overlaps input.dir, leaving the source intact', async () => {
@@ -590,7 +610,7 @@ describe('build with output.js.bundling', () => {
         const typed = await readDist('typed.js')
 
         await writeConfig(true)
-        await build(cwd)
+        await build(cwd, { overwrite: true })
 
         expect(await readDist('plain.js')).toBe(plain)
         expect(await readDist('typed.js')).toBe(typed)
@@ -639,7 +659,7 @@ describe('build with output.js.bundling', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
 
-        const result = build(cwd)
+        const result = build(cwd, { overwrite: true })
 
         await expect(result).rejects.toBeInstanceOf(KnownError)
         await expect(result).rejects.toThrow(/Dynamic import\("\.\/x"\)/)
@@ -654,7 +674,7 @@ describe('build with output.js.bundling', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
 
-        const result = build(cwd)
+        const result = build(cwd, { overwrite: true })
 
         await expect(result).rejects.toBeInstanceOf(KnownError)
         await expect(result).rejects.toThrow(/Cannot resolve "\.\/missing"/)
@@ -668,7 +688,7 @@ describe('build with output.js.bundling', () => {
         await mkdir(path.join(cwd, 'dist'), { recursive: true })
         await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
 
-        const result = build(cwd)
+        const result = build(cwd, { overwrite: true })
 
         await expect(result).rejects.toBeInstanceOf(KnownError)
         await expect(result).rejects.toThrow(/main\.ts.*syntax error/s)
@@ -698,5 +718,139 @@ describe('build with output.js.bundling', () => {
 
         expect(await readDist('main.js')).toBe("import '../shared.js'\n")
         expect(await pathExists(path.join(cwd, 'dist', 'shared.js'))).toBe(false)
+    })
+})
+
+describe('build with an existing output directory', () => {
+    let cwd: string
+
+    beforeEach(async () => {
+        cwd = await mkdtemp(path.join(tmpdir(), 'cli-build-overwrite-'))
+        vi.mocked(askYesNo).mockReset()
+    })
+
+    afterEach(async () => {
+        await rm(cwd, { recursive: true, force: true })
+    })
+
+    async function writeProject(): Promise<void> {
+        await writeFile(
+            path.join(cwd, 'minimaz.config.json'),
+            JSON.stringify({
+                input: { dir: 'src' },
+                output: { dir: 'dist', html: { minify: false } },
+            }),
+            'utf8',
+        )
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'index.html'), '<html></html>', 'utf8')
+    }
+
+    async function writeOldOutput(): Promise<void> {
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+        await writeFile(path.join(cwd, 'dist', 'old.txt'), 'last good build', 'utf8')
+    }
+
+    async function expectNoScratchDirs(): Promise<void> {
+        expect(await pathExists(path.join(cwd, getBuildTempDirName('dist')))).toBe(false)
+        expect(await pathExists(path.join(cwd, getBuildOldDirName('dist')))).toBe(false)
+    }
+
+    it('throws a KnownError naming --overwrite when output.dir exists and the run is non-interactive', async () => {
+        await writeProject()
+        await writeOldOutput()
+
+        const result = build(cwd, { interactive: false })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/--overwrite/)
+        expect(askYesNo).not.toHaveBeenCalled()
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        await expectNoScratchDirs()
+    })
+
+    it('asks before replacing and aborts with a KnownError on "no"', async () => {
+        await writeProject()
+        await writeOldOutput()
+        vi.mocked(askYesNo).mockResolvedValue(false)
+
+        const result = build(cwd, { interactive: true })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        expect(askYesNo).toHaveBeenCalledTimes(1)
+        const [query, defaultAnswer] = vi.mocked(askYesNo).mock.calls[0] ?? []
+        expect(query).toContain('dist')
+        expect(query).toContain('[y/N]')
+        expect(defaultAnswer).toBe('n')
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        await expectNoScratchDirs()
+    })
+
+    it('replaces the output when the prompt is answered "yes"', async () => {
+        await writeProject()
+        await writeOldOutput()
+        vi.mocked(askYesNo).mockResolvedValue(true)
+
+        await build(cwd, { interactive: true })
+
+        expect(askYesNo).toHaveBeenCalledTimes(1)
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        await expectNoScratchDirs()
+    })
+
+    it('replaces the output without asking when overwrite is true', async () => {
+        await writeProject()
+        await writeOldOutput()
+
+        await build(cwd, { overwrite: true, interactive: false })
+
+        expect(askYesNo).not.toHaveBeenCalled()
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        await expectNoScratchDirs()
+    })
+
+    it.each([
+        ['without overwrite', {}],
+        ['with overwrite', { overwrite: true }],
+    ])('does not ask when output.dir does not exist (%s)', async (_label, options) => {
+        await writeProject()
+
+        await build(cwd, { ...options, interactive: true })
+
+        expect(askYesNo).not.toHaveBeenCalled()
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual(['index.html'])
+        await expectNoScratchDirs()
+    })
+
+    it('keeps the previous output when an --overwrite build fails', async () => {
+        await writeFile(
+            path.join(cwd, 'minimaz.config.json'),
+            JSON.stringify({
+                input: { dir: 'src' },
+                output: { dir: 'dist', css: { bundling: true, minify: false } },
+            }),
+            'utf8',
+        )
+        await mkdir(path.join(cwd, 'src'), { recursive: true })
+        await writeFile(path.join(cwd, 'src', 'main.css'), '@import "./missing.css";', 'utf8')
+        await writeOldOutput()
+
+        await expect(build(cwd, { overwrite: true })).rejects.toThrow(/file not found/)
+
+        expect(askYesNo).not.toHaveBeenCalled()
+        expect(await readFile(path.join(cwd, 'dist', 'old.txt'), 'utf8')).toBe('last good build')
+        await expectNoScratchDirs()
+    })
+
+    it('gates an existing but empty output.dir', async () => {
+        await writeProject()
+        await mkdir(path.join(cwd, 'dist'), { recursive: true })
+
+        const result = build(cwd, { interactive: false })
+
+        await expect(result).rejects.toBeInstanceOf(KnownError)
+        await expect(result).rejects.toThrow(/--overwrite/)
+        expect(await readdir(path.join(cwd, 'dist'))).toEqual([])
+        await expectNoScratchDirs()
     })
 })

@@ -25,12 +25,19 @@ export interface ServeCommandOptions {
  * @returns {Promise<void>} Resolves once the server has stopped (or
  *   immediately after starting, when `options.keepAlive` is `false`)
  * @throws {KnownError} When the configured `output.dir` does not exist —
- *   run `minimaz build` first.
+ *   run `minimaz build` first; or when the configured port is already in
+ *   use (propagated from `startLocalServer`).
  */
 export async function serve(cwdArg: string, options: ServeCommandOptions = {}): Promise<void> {
     const keepAlive = options.keepAlive ?? true
     const cwd = resolve(cwdArg)
     const config = await loadConfig(cwd, { initCommand: 'minimaz init' })
+    if (config.serve.portDefaulted) {
+        log.warn([
+            'serve: "serve.port" is not set in minimaz.config.json',
+            'using the default port 4173',
+        ])
+    }
     const outDirPath = resolve(cwd, config.output.dir)
 
     if (!(await pathExists(outDirPath))) {
