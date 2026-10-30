@@ -177,6 +177,24 @@ describe('mz binary (e2e)', () => {
     )
 
     it(
+        'serve exits 1 when the port is held by a listener on all interfaces',
+        async () => {
+            const blocker = createServer()
+            servers.push(blocker)
+            await new Promise<void>((resolve) => blocker.listen(0, resolve))
+            const address = blocker.address()
+            if (address === null || typeof address === 'string') {
+                throw new Error('no port')
+            }
+            const dir = await builtProject({ port: address.port })
+            const { code, output } = await runToExit(dir, ['serve'])
+            expect(code, output).toBe(1)
+            expect(output).toContain('already in use')
+        },
+        testTimeoutMs,
+    )
+
+    it(
         'serve warns when serve.port is not set',
         async () => {
             const dir = await builtProject()
