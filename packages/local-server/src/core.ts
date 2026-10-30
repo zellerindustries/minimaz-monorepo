@@ -5,6 +5,7 @@ import { createLogger, KnownError } from '@minimaz/logger'
 import { writeText } from './http.js'
 import { createLiveReload, injectReloadScript } from './live-reload.js'
 import { resolveMimeType } from './mime.js'
+import { assertPortFree } from './port-probe.js'
 import { renderDirectoryListing, resolveRequest } from './static-handler.js'
 
 import type { LocalServerHandle, LocalServerOptions } from './types.js'
@@ -243,6 +244,9 @@ async function handleRequest(
  *
  * @param {LocalServerOptions} options - The server's configuration
  * @returns {Promise<LocalServerHandle>} The running server's handle
+ * @throws {KnownError} When `options.dir` isn't a directory, or a non-zero
+ *   `options.port` is already in use — on `host` itself or by a listener on
+ *   all interfaces, which Windows doesn't report as `EADDRINUSE`
  */
 export async function startLocalServer(options: LocalServerOptions): Promise<LocalServerHandle> {
     const dir = options.dir
@@ -251,6 +255,10 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
     const requestedPort = options.port ?? 0
 
     await assertServableDirectory(dir)
+
+    if (requestedPort !== 0) {
+        await assertPortFree(host, requestedPort)
+    }
 
     const liveReload = liveReloadEnabled ? createLiveReload(dir) : undefined
     const etagCache = new Map<string, CachedEtag>()
