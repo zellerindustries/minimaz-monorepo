@@ -49,11 +49,24 @@ for that package, running its `__tests__/` files) — run these from inside the 
   to format manually.
 - TypeScript strict mode, NodeNext modules, named exports only (no default
   exports), `.js` extensions in relative imports.
-- JSDoc on every exported function.
+- JSDoc on every exported function (`@param` and `@returns`); ESLint enforces `jsdoc/require-jsdoc` and
+  `jsdoc/require-param` on exported functions in non-test source.
+- ESLint also rejects import cycles (`import-x/no-cycle`), nested ternaries, blocks nested deeper than 4
+  (`max-depth`), default exports (tool configs such as `eslint.config.mjs` and `vitest.config.ts` are exempt)
+  and unused `eslint-disable` directives. In tests, focused (`.only`) or disabled (`.skip`) tests and tests
+  without an assertion fail lint (`vitest/no-focused-tests`, `vitest/no-disabled-tests`,
+  `vitest/expect-expect`).
 - No new dependency without a clear reason — several packages (`@minimaz/css`,
   `@minimaz/js`, `@minimaz/json`) are deliberately dependency-free; see their
   design docs under `.claude/superpowers/specs/` for the reasoning if you're
   wondering whether a given package should stay that way.
+
+### Dependency audit overrides
+
+The root `package.json` pins `minimatch` to 11 (for `eslint` and `@typescript-eslint/typescript-estree`) and `glob`
+to 14 (for `rimraf`) through `overrides`, to clear dev-only `npm audit` advisories. Remove an override once the
+dependency ships a release that already uses the patched version. `eslint-plugin-import-x` still depends on
+`minimatch` 10, so two moderate dev-only audit findings remain.
 
 ## Before opening a pull request
 
