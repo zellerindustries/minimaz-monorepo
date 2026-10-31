@@ -289,6 +289,7 @@ describe('createLiveReload', () => {
             await writeFile(join(served, 'index.html'), 'v3')
 
             await waitForReload(res, before)
+            expect(res.reloadCount()).toBeGreaterThan(before)
         })
 
         it('still reloads on a file change after the directory is deleted and recreated', async () => {
@@ -312,6 +313,7 @@ describe('createLiveReload', () => {
             await writeFile(join(served, 'changed.txt'), 'x')
 
             await waitForReload(res, before)
+            expect(res.reloadCount()).toBeGreaterThan(before)
         })
 
         it('keeps retrying while the directory does not exist yet, then reloads once it appears', async () => {
@@ -326,6 +328,7 @@ describe('createLiveReload', () => {
             await mkdir(served)
 
             await waitForReload(res, 0)
+            expect(res.reloadCount()).toBeGreaterThan(0)
         })
 
         it('does not treat a plain file at the watched path as a directory', async () => {

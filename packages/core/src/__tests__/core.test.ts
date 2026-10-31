@@ -319,8 +319,10 @@ describe('pathsOverlap', () => {
         // On Windows a different drive makes path.relative return an absolute path; on POSIX the
         // two unrelated trees only produce ../ segments. Either way they must not overlap.
         const a = path.resolve(path.parse(process.cwd()).root, 'one', 'tree')
-        const other =
-            process.platform === 'win32' ? (a.startsWith('C:') ? 'D:\\x' : 'C:\\x') : '/zzz'
+        let other = '/zzz'
+        if (process.platform === 'win32') {
+            other = a.startsWith('C:') ? 'D:\\x' : 'C:\\x'
+        }
 
         expect(pathsOverlap(a, other)).toBe(false)
     })
