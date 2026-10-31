@@ -68,6 +68,17 @@
         "typescript-eslint": "8.71.1",
         "vitest": "5.0.3"
     },
+    "overrides": {
+        "eslint": {
+            "minimatch": "^11.0.1"
+        },
+        "@typescript-eslint/typescript-estree": {
+            "minimatch": "^11.0.1"
+        },
+        "rimraf": {
+            "glob": "^14.0.2"
+        }
+    },
     "lint-staged": {
         "*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}": [
             "eslint --fix",
