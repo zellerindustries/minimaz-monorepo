@@ -98,6 +98,9 @@ running both leaves one section unpopulated by either —
 harmless today since `loadConfig` fills in defaults, but see `.claude/status.md`'s "Known cleanup opportunities"
 before assuming the two are unified.
 
+`loadConfig` also returns `serve.portDefaulted`, `true` when the file didn't set `serve.port` (omitted, `null` or
+not a number); the `serve` command uses it to decide whether to warn.
+
 ## The CLI
 
 `@minimaz/cli` implements the `minimaz`/`mz` commands — `help`, `version`, `validate`, `init`, `config`,
@@ -117,6 +120,22 @@ it (swallowed validation errors, wrong version reporting, unknown commands exiti
 back to unminified output, `--key=value` parsing dropping everything after a second `=`, and more) — see
 `.claude/status.md`'s "Known bugs found (and fixed) while porting" for the full list before porting new code from
 `minimaz-cli`.
+
+### `build` and `serve` behavior
+
+`build` runs its safety checks first: `output.dir` must be strictly inside the project and must not overlap
+`input.dir` or a local `input.externals` source. It then builds into `<output.dir>.minimaz-tmp` and swaps the
+result into place, so a failed build keeps the previous output. A backup left behind by a crashed swap
+(`<output.dir>.minimaz-old`) is restored before anything else. If `output.dir` already exists, `build` asks
+`[y/N]` in a terminal (default no); without a terminal it fails with an error naming `--overwrite`.
+`--overwrite` skips the question and also accepts a value (`--overwrite=false`): `false`, `0`, `n`, `no` and
+`off` mean no, anything else means yes.
+
+`serve` listens on port `4173` by default and logs a warning when `serve.port` isn't set in
+`minimaz.config.json` (also when it is `null`). An explicit `"port": 0` picks a random free port, without the
+warning. If the port is taken, `serve` stops with `Port N is already in use`. `@minimaz/local-server` detects this
+with a TCP connect probe on `127.0.0.1`/`::1` before listening, because on Windows a bind next to a listener on
+all interfaces (`0.0.0.0`/`::`) doesn't fail with `EADDRINUSE`.
 
 ## Testing
 
