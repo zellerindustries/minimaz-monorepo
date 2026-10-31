@@ -50,7 +50,8 @@ for `packages/css/src/minify.ts`), not in a separate test package. `npm test` fr
 only that package's tests.
 
 Some tests read other packages' built `dist/` (e.g. `@minimaz/cli`'s `init` tests load `@minimaz/templates`'s
-seeds), so run `npm run build` before `npm test` on a fresh checkout.
+seeds), and the end-to-end tests in `toolkits/sitekit` run the built `dist/cli/main.js`, so run `npm run build`
+before `npm test` on a fresh checkout.
 
 ## Trying the CLI locally
 

@@ -49,7 +49,7 @@ try {
 ### `serve` fields
 
 - `port` — `number` — default `4173` — TCP port to listen on (`0` picks a random free port). The returned config also carries
-  `portDefaulted: boolean`, `true` when the file didn't set `port`.
+  `portDefaulted: boolean`, `true` when the file didn't set `port` (omitted, `null` or not a number).
 - `host` — `string` — default `'127.0.0.1'` — interface to bind the server to.
 - `liveReload` — `boolean` — default `true` — inject the SSE-based live-reload client into served HTML.
 - `cleanUrls` — `boolean` — default `false` — fall back to `<path>.html` when an extensionless path has no
