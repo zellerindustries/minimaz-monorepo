@@ -291,7 +291,7 @@ function parseServeConfig(parsed: RawConfig): ServeConfig {
     return {
         serve: {
             port: serve?.port ?? defaultServeConfig.serve.port,
-            portDefaulted: serve?.port === undefined,
+            portDefaulted: typeof serve?.port !== 'number',
             host: serve?.host ?? defaultServeConfig.serve.host,
             liveReload: serve?.liveReload ?? defaultServeConfig.serve.liveReload,
             cleanUrls: serve?.cleanUrls ?? defaultServeConfig.serve.cleanUrls,

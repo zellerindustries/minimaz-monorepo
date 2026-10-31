@@ -818,3 +818,16 @@ describe('structurallyEqual', () => {
         expect(structuralDiff(parse('a; b'), parse('a; c'))).toBe('$.body[1].expression.name')
     })
 })
+
+describe('print directives and keys', () => {
+    it('prints a directive with its original quotes', () => {
+        expect(min("'use strict'; f()")).toBe("'use strict';f()")
+    })
+
+    it('prints computed, numeric and private-name keys', () => {
+        expect(min('class A { [a](){} 1(){} static #p(){} }')).toBe(
+            'class A{[a](){}1(){}static#p(){}}',
+        )
+        expect(min("({ [a]: 1, 1: 2, 'x': 3 })")).toBe('({[a]:1,1:2,x:3})')
+    })
+})
