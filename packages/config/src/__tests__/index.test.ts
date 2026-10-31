@@ -279,6 +279,62 @@ describe('loadConfig', () => {
             'the config root must be an object (got array)',
         ])
     })
+
+    it('rejects a JSON null root, naming it as null', async () => {
+        await writeFile(path.join(dir, configFileName), 'null')
+        const error: unknown = await loadConfig(dir).catch((caught: unknown) => caught)
+        expect(error).toBeInstanceOf(ConfigValidationError)
+        expect((error as ConfigValidationError).errors).toEqual([
+            'the config root must be an object (got null)',
+        ])
+    })
+
+    it.each([-1, 65536, 1.5])('rejects serve.port %s as out of range', async (port) => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: { port } }))
+        const error: unknown = await loadConfig(dir).catch((caught: unknown) => caught)
+        expect(error).toBeInstanceOf(ConfigValidationError)
+        expect((error as ConfigValidationError).errors).toEqual([
+            `"serve.port" must be an integer port between 0 and 65535 (got number)`,
+        ])
+    })
+
+    it('accepts the port boundaries 0 and 65535', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: { port: 65535 } }))
+        expect((await loadConfig(dir)).serve.port).toBe(65535)
+    })
+
+    it('rejects a non-object section and reports its type', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: [], input: 'x' }))
+        const error: unknown = await loadConfig(dir).catch((caught: unknown) => caught)
+        expect((error as ConfigValidationError).errors).toEqual([
+            '"input" must be an object (got string)',
+            '"serve" must be an object (got array)',
+        ])
+    })
+
+    it('treats an explicit null serve section as unset (port defaulted)', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: null }))
+        const config = await loadConfig(dir)
+        expect(config.serve).toEqual(defaultServeConfig.serve)
+    })
+
+    it('falls back to the default serve.port when it is null', async () => {
+        await writeFile(path.join(dir, configFileName), JSON.stringify({ serve: { port: null } }))
+        const config = await loadConfig(dir)
+        expect(config.serve.port).toBe(4173)
+        expect(config.serve.portDefaulted).toBe(true)
+    })
+
+    it('warns about unknown keys inside serve and ignores them', async () => {
+        const warnSpy = vi.spyOn(log, 'warn').mockImplementation(() => undefined)
+        await writeFile(
+            path.join(dir, configFileName),
+            JSON.stringify({ serve: { port: 9000, prot: 1 } }),
+        )
+        const config = await loadConfig(dir)
+        expect(config.serve.port).toBe(9000)
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown key "serve.prot"'))
+    })
 })
 
 describe('resolveDocsOutputDirs', () => {

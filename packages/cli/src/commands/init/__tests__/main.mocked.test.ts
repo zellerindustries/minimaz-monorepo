@@ -4,12 +4,12 @@ import path from 'node:path'
 import { pathExists } from '@minimaz/core'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { askQuestion, executeCommand } from '../../../cli/index.js'
+import { askQuestion, executeCommand } from '../../../cli/core.js'
 import { init } from '../main.js'
 
 // Never prompts on stdin or runs a real npm/git process; main.test.ts covers
 // the flag-driven (no prompt) paths against the real helpers.
-vi.mock('../../../cli/index.js', () => ({
+vi.mock('../../../cli/core.js', () => ({
     executeCommand: vi.fn(() => Promise.resolve()),
     askQuestion: vi.fn(() => Promise.resolve('y')),
 }))

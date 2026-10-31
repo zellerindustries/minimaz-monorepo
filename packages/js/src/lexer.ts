@@ -82,6 +82,28 @@ function isLineTerminator(c: number): boolean {
     return c === 10 || c === 13 || c === 0x2028 || c === 0x2029
 }
 
+function hasLineTerminator(code: string, from: number, to: number): boolean {
+    for (let i = from; i < to; i++) {
+        if (isLineTerminator(code.charCodeAt(i))) {
+            return true
+        }
+    }
+    return false
+}
+
+function radixForPrefix(c1: string): number {
+    switch (c1) {
+        case 'x':
+            return 16
+        case 'o':
+            return 8
+        case 'b':
+            return 2
+        default:
+            return 0
+    }
+}
+
 /**
  * On-demand JavaScript lexer. It never guesses whether `/` starts a regex: the parser passes
  * `regexAllowed` to {@link Lexer.next}, or re-reads a `/` token with {@link Lexer.rescanRegex} when
@@ -245,11 +267,8 @@ export class Lexer {
                     if (close === -1) {
                         throw new ParseError('unterminated comment', this.pos)
                     }
-                    for (let i = this.pos + 2; i < close; i++) {
-                        if (isLineTerminator(code.charCodeAt(i))) {
-                            nl = true
-                            break
-                        }
+                    if (hasLineTerminator(code, this.pos + 2, close)) {
+                        nl = true
                     }
                     this.pos = close + 2
                 } else {
@@ -363,7 +382,7 @@ export class Lexer {
         const c0 = code.charAt(start)
         const c1 = code.charAt(start + 1).toLowerCase()
         let result: LexToken
-        const radix = c1 === 'x' ? 16 : c1 === 'o' ? 8 : c1 === 'b' ? 2 : 0
+        const radix = radixForPrefix(c1)
         if (c0 === '0' && radix !== 0) {
             this.pos += 2
             const digits = this.readDigitSeq(radix)

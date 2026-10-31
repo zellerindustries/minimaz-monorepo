@@ -52,9 +52,13 @@
         "@tsconfig/node24": "24.0.5",
         "@types/node": "24.13.6",
         "@vitest/coverage-v8": "5.0.3",
+        "@vitest/eslint-plugin": "1.6.28",
         "esbuild": "0.28.2",
         "eslint": "10.11.0",
         "eslint-config-prettier": "10.1.8",
+        "eslint-import-resolver-typescript": "4.4.5",
+        "eslint-plugin-import-x": "4.17.1",
+        "eslint-plugin-jsdoc": "65.4.2",
         "globals": "17.12.0",
         "husky": "9.1.7",
         "lint-staged": "17.6.0",
@@ -63,6 +67,17 @@
         "typescript": "6.0.3",
         "typescript-eslint": "8.71.1",
         "vitest": "5.0.3"
+    },
+    "overrides": {
+        "eslint": {
+            "minimatch": "^11.0.1"
+        },
+        "@typescript-eslint/typescript-estree": {
+            "minimatch": "^11.0.1"
+        },
+        "rimraf": {
+            "glob": "^14.0.2"
+        }
     },
     "lint-staged": {
         "*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}": [
@@ -74,6 +89,7 @@
         ]
     },
     "allowScripts": {
-        "esbuild@0.28.2": true
+        "esbuild@0.28.2": true,
+        "unrs-resolver@1.12.2": true
     }
 }

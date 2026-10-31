@@ -1,5 +1,11 @@
 # @minimaz/config
 
+## 0.4.1
+
+### Patch Changes
+
+- [`a8e98d0`](https://github.com/zellerindustries/minimaz-monorepo/commit/a8e98d0657f0db6a20ae5c243190cba64f7fae4d) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `serve.port: null` now counts as unset: `serve.portDefaulted` is `true`, so `mz serve` warns like it does for a missing port.
+
 ## 0.4.0
 
 ### Minor Changes

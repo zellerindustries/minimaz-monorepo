@@ -140,7 +140,10 @@ function rewriteTarget(target, options, isImage) {
         warn(`${sourceFile}: link "${target}" points at a path that does not exist`)
         return { target }
     }
-    const mode = isImage ? 'raw' : kind === 'dir' ? 'tree' : 'blob'
+    let mode = kind === 'dir' ? 'tree' : 'blob'
+    if (isImage) {
+        mode = 'raw'
+    }
     // encodeURI leaves '#' and '?' alone; after decoding they belong to the path, not to a fragment or query.
     const path =
         resolved === '.' ? '' : `/${encodeURI(resolved).replace(/#/g, '%23').replace(/\?/g, '%3F')}`
@@ -233,6 +236,22 @@ function normalizeLabel(label) {
 }
 
 /**
+ * Returns an attribute's value exactly as written in the tag, quotes included.
+ * @param {RegExpMatchArray} attribute - an `attributePattern` match: group 2 is a double-quoted value, group 3 a
+ *   single-quoted one, group 4 an unquoted one.
+ * @returns {string} the value with its original quotes.
+ */
+function rawAttributeValue(attribute) {
+    if (attribute[2] !== undefined) {
+        return `"${attribute[2]}"`
+    }
+    if (attribute[3] !== undefined) {
+        return `'${attribute[3]}'`
+    }
+    return attribute[4]
+}
+
+/**
  * Rewrites the relative `href` of an `<a>` or `src` of an `<img>` tag found in raw HTML.
  * @param {string} tag - `a` or `img`, any case.
  * @param {string} source - the whole tag as written, e.g. `<a href="x.md">`.
@@ -253,12 +272,7 @@ function rewriteHtmlTag(tag, source, attrs, options) {
             alt = value
         }
         if (name === wanted && value !== undefined && found === null) {
-            const raw =
-                attribute[2] === undefined
-                    ? attribute[3] === undefined
-                        ? attribute[4]
-                        : `'${attribute[3]}'`
-                    : `"${attribute[2]}"`
+            const raw = rawAttributeValue(attribute)
             found = {
                 value,
                 start: attrsStart + attribute.index + attribute[0].length - raw.length,
@@ -314,28 +328,26 @@ function rewriteLine(line, options) {
         let end = start + match[0].length
         if (groups.tag !== undefined) {
             const result = rewriteHtmlTag(groups.tag, original, groups.attrs ?? '', options)
-            if ('drop' in result) {
-                if (groups.tag.toLowerCase() === 'img') {
-                    replacement = result.alt
-                } else {
-                    // Only an <a> whose content is plain text can be unwrapped on a single line.
-                    const closing = /^[^<]*<\/a\s*>/i.exec(masked.slice(end))
-                    if (closing === null) {
-                        options.warn(
-                            `${options.sourceFile}: ${original} points into .claude/ but cannot be unwrapped (not a single plain-text link); left unchanged`,
-                        )
-                        pattern.lastIndex = end
-                        continue
-                    }
-                    const inner = line.slice(
-                        end,
-                        end + closing[0].length - closing[0].replace(/^[^<]*/, '').length,
-                    )
-                    replacement = rewriteLine(inner, options)
-                    end += closing[0].length
-                }
-            } else {
+            if (!('drop' in result)) {
                 replacement = result.source
+            } else if (groups.tag.toLowerCase() === 'img') {
+                replacement = result.alt
+            } else {
+                // Only an <a> whose content is plain text can be unwrapped on a single line.
+                const closing = /^[^<]*<\/a\s*>/i.exec(masked.slice(end))
+                if (closing === null) {
+                    options.warn(
+                        `${options.sourceFile}: ${original} points into .claude/ but cannot be unwrapped (not a single plain-text link); left unchanged`,
+                    )
+                    pattern.lastIndex = end
+                    continue
+                }
+                const inner = line.slice(
+                    end,
+                    end + closing[0].length - closing[0].replace(/^[^<]*/, '').length,
+                )
+                replacement = rewriteLine(inner, options)
+                end += closing[0].length
             }
         } else if (groups.target !== undefined) {
             const bang = groups.bang ?? ''

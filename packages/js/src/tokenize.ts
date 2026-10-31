@@ -83,7 +83,13 @@ export function isIdentifierChar(char: string): boolean {
     return /[A-Za-z0-9_$\\#]/.test(char)
 }
 
-/** Whether `tokens[index]` is a property name, i.e. directly follows `.` or `?.`. */
+/**
+ * Whether `tokens[index]` is a property name, i.e. directly follows `.` or `?.`.
+ *
+ * @param {readonly Token[]} tokens - Token stream to inspect
+ * @param {number} index - Index of the candidate token
+ * @returns {boolean} True if the token follows `.` or `?.`
+ */
 export function isMemberName(tokens: readonly Token[], index: number): boolean {
     const before = tokens[index - 1]
     return before?.type === 'punct' && (before.value === '.' || before.value === '?.')

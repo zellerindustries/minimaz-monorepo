@@ -5,8 +5,15 @@ import { join } from 'node:path'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { startLocalServer } from '../core.js'
+import { assertPortFree } from '../port-probe.js'
 import type { LocalServerHandle } from '../types.js'
+import type * as PortProbe from '../port-probe.js'
 import type { AddressInfo, Server } from 'node:net'
+
+vi.mock('../port-probe.js', async (importOriginal) => {
+    const original = await importOriginal<typeof PortProbe>()
+    return { assertPortFree: vi.fn(original.assertPortFree) }
+})
 
 describe('startLocalServer startup', () => {
     let dir: string
@@ -129,6 +136,7 @@ describe('startLocalServer startup', () => {
         it('rejects when the port is held by a listener on ::', async (context) => {
             const port = await listenBlocker('::')
             if (port === undefined) {
+                // eslint-disable-next-line vitest/no-disabled-tests -- IPv6 is unavailable on this host, so there is no :: listener to test against
                 context.skip()
                 return
             }
@@ -146,5 +154,36 @@ describe('startLocalServer startup', () => {
         handles.push(handle)
 
         expect(handle.port).toBe(port)
+    })
+
+    it('surfaces a non-EADDRINUSE listen failure as-is, not as a port-in-use error', async () => {
+        const error: unknown = await startLocalServer({
+            dir,
+            host: '256.256.256.256',
+            liveReload: false,
+        }).catch((caught: unknown) => caught)
+
+        expect(error).toBeInstanceOf(Error)
+        expect(error).not.toBeInstanceOf(KnownError)
+        expect((error as NodeJS.ErrnoException).code).toMatch(/^(ENOTFOUND|EADDRNOTAVAIL|EAI_)/)
+    })
+
+    it('reports a port taken between the probe and the bind as already in use', async () => {
+        const blocker = createServer()
+        await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve))
+        const port = (blocker.address() as AddressInfo).port
+        // The pre-bind probe is what normally catches this; skip it to reach listen()'s EADDRINUSE.
+        vi.mocked(assertPortFree).mockResolvedValueOnce(undefined)
+
+        try {
+            const error: unknown = await startLocalServer({ dir, port, liveReload: false }).catch(
+                (caught: unknown) => caught,
+            )
+
+            expect(error).toBeInstanceOf(KnownError)
+            expect((error as KnownError).message).toBe(`Port ${String(port)} is already in use`)
+        } finally {
+            await new Promise((resolve) => blocker.close(resolve))
+        }
     })
 })

@@ -82,7 +82,16 @@ export default defineConfig({
             include: workspaceDirs.map((dir) => `${dir}/src/**`),
 
             // 4. CRITICAL FIX: Preserve built-in default exclusions
-            exclude: [...coverageConfigDefaults.exclude, '**/*.d.ts', '**/index.ts'],
+            // Pure re-export barrels are excluded per package; @minimaz/config's index.ts holds
+            // real logic (loadConfig, defaults, validation), so it must stay measured.
+            exclude: [
+                ...coverageConfigDefaults.exclude,
+                '**/*.d.ts',
+                ...packageProjects
+                    .map((project) => project.root.replaceAll('\\', '/'))
+                    .filter((dir) => dir !== 'packages/config')
+                    .map((dir) => `${dir}/src/index.ts`),
+            ],
         },
     },
 })

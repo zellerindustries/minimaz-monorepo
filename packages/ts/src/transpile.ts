@@ -9,6 +9,7 @@ import ts from 'typescript'
  *
  * @param {string} code - TypeScript source to transpile
  * @param {{ jsx?: boolean }} [options] - Set `jsx: true` for `.tsx` input
+ * @param {boolean} [options.jsx] - Whether the input is TSX
  * @returns {string} Transpiled JavaScript
  */
 export function transpileTs(code: string, options?: { jsx?: boolean }): string {

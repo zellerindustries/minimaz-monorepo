@@ -92,6 +92,36 @@ function joinParagraphLines(lines: string[]): string {
     return parts.join('')
 }
 
+// Appends a list item's continuation lines (blank, or indented to at least `contentColumn`) to
+// `itemLines` with that indent stripped, then drops trailing blank lines. Returns the index of the
+// first line that is not part of the item.
+function collectListItemLines(
+    lines: string[],
+    from: number,
+    contentColumn: number,
+    itemLines: string[],
+): number {
+    let i = from
+    while (i < lines.length) {
+        const candidate = lines[i] ?? ''
+        if (candidate.trim() === '') {
+            itemLines.push('')
+            i++
+            continue
+        }
+        const indentLen = /^ */.exec(candidate)?.[0].length ?? 0
+        if (indentLen < contentColumn) {
+            break
+        }
+        itemLines.push(candidate.slice(contentColumn))
+        i++
+    }
+    while (itemLines.length > 0 && (itemLines[itemLines.length - 1] ?? '').trim() === '') {
+        itemLines.pop()
+    }
+    return i
+}
+
 function parseBlocks(lines: string[], startLine: number, errors: string[]): Block[] {
     const blocks: Block[] = []
     let i = 0
@@ -182,28 +212,7 @@ function parseBlocks(lines: string[], startLine: number, errors: string[]): Bloc
                 const itemStart = startLine + i
                 const contentColumn = itemMarker.contentColumn
                 const itemLines: string[] = [itemMarker.rest]
-                i++
-                while (i < lines.length) {
-                    const candidate = lines[i] ?? ''
-                    if (candidate.trim() === '') {
-                        itemLines.push('')
-                        i++
-                        continue
-                    }
-                    const indentLen = /^ */.exec(candidate)?.[0].length ?? 0
-                    if (indentLen >= contentColumn) {
-                        itemLines.push(candidate.slice(contentColumn))
-                        i++
-                    } else {
-                        break
-                    }
-                }
-                while (
-                    itemLines.length > 0 &&
-                    (itemLines[itemLines.length - 1] ?? '').trim() === ''
-                ) {
-                    itemLines.pop()
-                }
+                i = collectListItemLines(lines, i + 1, contentColumn, itemLines)
                 items.push({
                     children: parseBlocks(itemLines, itemStart, errors),
                 })
@@ -279,6 +288,39 @@ function findClosingRun(
         j++
     }
     return null
+}
+
+interface EmphasisClose {
+    markerLen: number
+    closePos: number
+}
+
+// Tries to consume the longest possible marker first, so "***x***" matches as strong+emphasis
+// together rather than leaving a dangling single "*" once the double-marker case is tried.
+function findEmphasisClose(
+    text: string,
+    i: number,
+    ch: string,
+    runLen: number,
+    allowIntraword: boolean,
+): EmphasisClose | null {
+    for (let markerLen = Math.min(runLen, 3); markerLen >= 1; markerLen--) {
+        const closePos = findClosingRun(text, i + runLen, ch, markerLen, allowIntraword)
+        if (closePos !== null) {
+            return { markerLen, closePos }
+        }
+    }
+    return null
+}
+
+function emphasisNode(markerLen: number, children: Inline[]): Inline {
+    if (markerLen >= 3) {
+        return { type: 'strong', children: [{ type: 'emphasis', children }] }
+    }
+    if (markerLen === 2) {
+        return { type: 'strong', children }
+    }
+    return { type: 'emphasis', children }
 }
 
 function findBacktickClose(text: string, from: number, runLen: number): number {
@@ -445,40 +487,17 @@ function parseInline(text: string): Inline[] {
                 runLen++
             }
             const allowIntraword = ch === '*'
-            if (canOpenRun(text, i, runLen, allowIntraword)) {
-                // Try to consume the longest possible marker first, so "***x***"
-                // matches as strong+emphasis together rather than leaving a
-                // dangling single "*" once the double-marker case is tried.
-                const tryLens = runLen >= 3 ? [3, 2, 1] : runLen === 2 ? [2, 1] : [1]
-                let matched = false
-                for (const markerLen of tryLens) {
-                    const closePos = findClosingRun(text, i + runLen, ch, markerLen, allowIntraword)
-                    if (closePos !== null) {
-                        const extra = runLen - markerLen
-                        if (extra > 0) {
-                            buffer += ch.repeat(extra)
-                        }
-                        flush()
-                        const inner = text.slice(i + runLen, closePos)
-                        const children = parseInline(inner)
-                        if (markerLen >= 3) {
-                            nodes.push({
-                                type: 'strong',
-                                children: [{ type: 'emphasis', children }],
-                            })
-                        } else if (markerLen === 2) {
-                            nodes.push({ type: 'strong', children })
-                        } else {
-                            nodes.push({ type: 'emphasis', children })
-                        }
-                        i = closePos + markerLen
-                        matched = true
-                        break
-                    }
-                }
-                if (matched) {
-                    continue
-                }
+            const match = canOpenRun(text, i, runLen, allowIntraword)
+                ? findEmphasisClose(text, i, ch, runLen, allowIntraword)
+                : null
+            if (match !== null) {
+                // Unused opening markers (e.g. one "*" of "***x**") stay literal text.
+                buffer += ch.repeat(runLen - match.markerLen)
+                flush()
+                const inner = text.slice(i + runLen, match.closePos)
+                nodes.push(emphasisNode(match.markerLen, parseInline(inner)))
+                i = match.closePos + match.markerLen
+                continue
             }
             buffer += ch.repeat(runLen)
             i += runLen
