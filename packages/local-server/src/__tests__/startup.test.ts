@@ -129,6 +129,7 @@ describe('startLocalServer startup', () => {
         it('rejects when the port is held by a listener on ::', async (context) => {
             const port = await listenBlocker('::')
             if (port === undefined) {
+                // eslint-disable-next-line vitest/no-disabled-tests -- IPv6 is unavailable on this host, so there is no :: listener to test against
                 context.skip()
                 return
             }

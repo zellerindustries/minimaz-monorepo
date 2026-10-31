@@ -701,7 +701,12 @@ class Parser {
      */
     private parseVar(noIn: boolean, forHead: boolean): VariableDeclaration {
         const start = this.tok.start
-        const kind = this.tok.value === 'var' ? 'var' : this.tok.value === 'let' ? 'let' : 'const'
+        let kind: VariableDeclaration['kind'] = 'const'
+        if (this.tok.value === 'var') {
+            kind = 'var'
+        } else if (this.tok.value === 'let') {
+            kind = 'let'
+        }
         this.advance()
         const declarations: VariableDeclarator[] = []
         do {

@@ -26,6 +26,7 @@ export class TsValidationError extends ValidationError {
  *
  * @param {string} code - TypeScript source to validate
  * @param {{ jsx?: boolean }} [options] - Set `jsx: true` for `.tsx` input
+ * @param {boolean} [options.jsx] - Whether the input is TSX
  * @throws {TsValidationError} If the source has a syntax error
  */
 export function validateTs(code: string, options?: { jsx?: boolean }): void {

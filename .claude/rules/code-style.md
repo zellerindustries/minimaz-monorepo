@@ -26,6 +26,15 @@ paths:
     - No `.forEach` (use `for...of`).
     - No `console` outside `packages/logger/src/core.ts`.
     - No `any` — use proper types or `unknown`. Prefix unused vars with `_`.
+    - No default exports (`no-restricted-exports`; `eslint.config.mjs`/`vitest.config.ts` exempt).
+    - `no-nested-ternary`, `max-depth` 4 — extract a helper or use an early return / `if`-`else` chain.
+    - Unused `eslint-disable` directives are errors (`reportUnusedDisableDirectives`).
+    - `import-x/no-cycle` on TS files (TypeScript resolver).
+    - JSDoc: `jsdoc/require-jsdoc` (exported functions) and `jsdoc/require-param` (exported functions only) in
+      non-test `src/`.
+    - Tests: `vitest/no-focused-tests`, `vitest/no-disabled-tests`, `vitest/expect-expect` (helpers that call
+      `expect()` are listed in `assertFunctionNames`). A deliberate conditional skip gets a reasoned
+      `eslint-disable-next-line`.
 - JSDoc (`@param`/`@returns`) on every exported function.
 - Discriminated unions for AST-like nodes; type predicates for runtime validation (e.g. `isOutputFormat`).
 - User mistakes (bad argument, missing file, bad `@import`) are thrown as `KnownError`, never a plain `Error` —

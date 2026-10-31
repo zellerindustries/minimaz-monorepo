@@ -1,6 +1,6 @@
 import { join, outputFile } from '@minimaz/core'
 import { log } from '@minimaz/logger'
-import { askQuestion, executeCommand } from '../../cli/index.js'
+import { askQuestion, executeCommand } from '../../cli/core.js'
 import { createPkgTemplate, gitignoreTemplate } from './constants.js'
 
 /**

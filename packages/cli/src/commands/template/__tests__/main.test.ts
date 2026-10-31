@@ -10,7 +10,7 @@ import {
 } from '@minimaz/templates'
 import { KnownError } from '@minimaz/logger'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { askQuestion } from '../../../cli/index.js'
+import { askQuestion } from '../../../cli/core.js'
 import { template } from '../main.js'
 
 vi.mock('@minimaz/templates', () => ({
@@ -21,7 +21,7 @@ vi.mock('@minimaz/templates', () => ({
     updateTemplateFrom: vi.fn(() => Promise.resolve()),
 }))
 
-vi.mock('../../../cli/index.js', () => ({
+vi.mock('../../../cli/core.js', () => ({
     askQuestion: vi.fn(() => Promise.resolve('')),
 }))
 

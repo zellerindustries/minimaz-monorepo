@@ -2,14 +2,14 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { askQuestion, executeCommand } from '../../../cli/index.js'
+import { askQuestion, executeCommand } from '../../../cli/core.js'
 import { initGit, initNpm } from '../core.js'
 
 // Fully stubbed - never runs a real npm/git/gh/glab process or prompts on
 // stdin. Branch-decision coverage for initGit's provider handling lives
 // here; core.test.ts covers "local" and the unsupported-provider error
 // against a real git invocation.
-vi.mock('../../../cli/index.js', () => ({
+vi.mock('../../../cli/core.js', () => ({
     executeCommand: vi.fn(() => Promise.resolve()),
     askQuestion: vi.fn(() => Promise.resolve('local')),
 }))
