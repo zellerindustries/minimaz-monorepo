@@ -170,3 +170,9 @@ describe('tokenize', () => {
         expect(summary("s = 'a\\\nb'")).toEqual(['word:s', 'punct:=', "string:'a\\\nb'"])
     })
 })
+
+describe('tokenize regex errors', () => {
+    it('throws when a backslash inside a regex is followed by a line break', () => {
+        expect(() => tokenize('x = /a\\\n/')).toThrow(/^minifyJs: unterminated regex at offset 4/)
+    })
+})

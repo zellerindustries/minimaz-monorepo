@@ -696,3 +696,19 @@ describe('structure', () => {
         expect(g.children[0]?.strict).toBe(true)
     })
 })
+
+describe('analyze exports and labels', () => {
+    it('collects every identifier bound by a destructured exported declaration', () => {
+        const { analysis } = run('export var { a, b: [c], ...d } = x; export var [e = 1, ...f] = y')
+        const exported = [...analysis.root.bindings.values()]
+            .filter((binding) => binding.exported)
+            .map((binding) => binding.name)
+        expect(exported.sort()).toEqual(['a', 'c', 'd', 'e', 'f'])
+    })
+
+    it('treats a function behind nested labels in a statement position as block-scoped', () => {
+        const { analysis } = run('if (x) a: b: function f(){}')
+        const blockScopes = analysis.root.children.filter((scope) => scope.kind === 'block')
+        expect(blockScopes.some((scope) => scope.bindings.has('f'))).toBe(true)
+    })
+})
