@@ -100,7 +100,7 @@ not manual version bumps.
    versions and writes `CHANGELOG.md` entries from your changeset files.
 3. Merging that "Version Packages" PR is what actually publishes to npm — the
    same workflow runs `npm run release` (`npm run build && changeset publish`)
-   and pushes the resulting git tags.
+   and a following "Push release tags" step pushes the resulting git tags.
 
 The bot-opened "Version Packages" PR does **not** run `ci.yml` — GitHub does
 not trigger workflows from pull requests authored by the default
@@ -109,12 +109,13 @@ not trigger workflows from pull requests authored by the default
 `GITHUB_TOKEN` to a personal access token (a separate decision, since that
 grants broader write access).
 
-`changesets/action` also automatically creates a GitHub Release per published
-package/version tag — releases are no longer manually cut, but they are still
-created, just by the bot rather than by hand.
+The tags are pushed by a dedicated step in `release.yml`, not by `changesets/action`: changeset v3's
+`publish` no longer prints the `New tag:` lines the action matches on, so the action neither pushes the tags nor
+creates GitHub Releases. No GitHub Releases are created automatically.
 
 After a Release run on `main`, `.github/workflows/wiki.yml` syncs `docs/` to the GitHub wiki
-(`scripts/wiki-sync.mjs`).
+(`scripts/wiki-sync.mjs`) only when a release tag points at the run's head commit (a manual dispatch on `main`
+always syncs).
 
 Running `npm run version` locally (outside CI) requires a `GITHUB_TOKEN`
 environment variable, since the changelog generator queries the GitHub API

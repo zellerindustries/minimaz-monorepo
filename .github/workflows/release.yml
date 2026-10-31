@@ -40,3 +40,9 @@ jobs:
                   publish: npm run release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            # changeset v3's `publish` no longer prints the "New tag:" lines changesets/action matches on, so the
+            # action never pushes the tags `changeset publish` creates. Push them here: the Wiki workflow only
+            # syncs when a release tag points at the Release run's head commit.
+            - name: Push release tags
+              run: git push origin --tags
