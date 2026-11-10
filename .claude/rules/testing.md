@@ -29,7 +29,7 @@ paths:
 - Some tests read another package's built output: `@minimaz/cli`'s `init` and seed tests load the seeds from
   `@minimaz/templates`'s gitignored `dist/seeds`. A stale or missing `dist/` fails them, so run `npm run build`
   before `npm test` on a fresh checkout or after changing a seed (`npm run verify` already orders them that way).
-- Never let a test import a module whose top level does real work (a build, a clean). The old `tools/builder` and
-  `tools/cleaner` packages did exactly that, so every `npm test` ran a workspace build and a repo-wide clean
+- Never let a test import a module whose top level does real work (a build, a clean). An earlier builder and
+  cleaner did exactly that, so every `npm test` ran a workspace build and a repo-wide clean
   mid-run, randomly deleting `dist/*.js` ("Failed to resolve entry for package", once misattributed to antivirus).
 - Verify with the root scripts, not a package's own: see the `verifying-monorepo-changes` skill.

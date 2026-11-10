@@ -23,10 +23,12 @@ import { boolFlag, initEnv, parseArgs, parseBooleanFlag, stringFlag } from './co
 
 /**
  * Best-effort `~/.minimaz` bootstrap, run when `npm_lifecycle_event` is
- * `"postinstall"`. Never throws — a failure here must not fail `npm
- * install` for whoever installed this package (including this monorepo's
- * own contributors, since every workspace's `postinstall` runs on a root
- * `npm install` too).
+ * `"postinstall"` during a global install (`npm_config_global`). Never
+ * throws — a failure here must not fail `npm install` for whoever installed
+ * this package.
+ *
+ * A local install (a site depending on minimaz, or this monorepo's own
+ * `npm install`) must not touch the user's home directory, so it is skipped.
  */
 async function postInstall(): Promise<void> {
     log.info('Post install: running')
@@ -50,7 +52,9 @@ async function postInstall(): Promise<void> {
  */
 export async function runCli(pkgPath: string): Promise<void> {
     if (process.env['npm_lifecycle_event'] === 'postinstall' && process.argv.length <= 2) {
-        await postInstall()
+        if (process.env['npm_config_global'] === 'true') {
+            await postInstall()
+        }
         return
     }
 
