@@ -111,7 +111,7 @@ two-pass discovery/processing pipeline onto `@minimaz/css`/`@minimaz/js`/`@minim
 published `minimaz`/`mz` binary — a thin passthrough that calls `@minimaz/cli`'s exported `runCli()`. See each
 package's own README, or run `minimaz help`, for per-command usage.
 
-`@minimaz/sitekit` runs `config(false)` on `npm postinstall` to bootstrap `~/.minimaz/` (global settings + bundled
+`@minimaz/sitekit` runs `config(false)` on a global `npm postinstall` (local installs skip it) to bootstrap `~/.minimaz/` (global settings + bundled
 templates) on install, wrapped so a postinstall failure never fails the install itself. `@minimaz/cli` no longer
 has its own postinstall script — it isn't published with a bin, so there's nothing for it to bootstrap.
 

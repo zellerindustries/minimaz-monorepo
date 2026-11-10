@@ -44,9 +44,11 @@ describe('runCli dispatch', () => {
     const originalWorkdir = process.env['CLI_WORKDIR']
     const originalLifecycleEvent = process.env['npm_lifecycle_event']
     const originalDebug = process.env['DEBUG']
+    const originalGlobalInstall = process.env['npm_config_global']
 
     beforeEach(() => {
         delete process.env['npm_lifecycle_event']
+        delete process.env['npm_config_global']
         vi.spyOn(console, 'log').mockImplementation(() => undefined)
         vi.spyOn(console, 'warn').mockImplementation(() => undefined)
         vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -69,6 +71,11 @@ describe('runCli dispatch', () => {
             delete process.env['npm_lifecycle_event']
         } else {
             process.env['npm_lifecycle_event'] = originalLifecycleEvent
+        }
+        if (originalGlobalInstall === undefined) {
+            delete process.env['npm_config_global']
+        } else {
+            process.env['npm_config_global'] = originalGlobalInstall
         }
         if (originalDebug === undefined) {
             delete process.env['DEBUG']
@@ -384,12 +391,22 @@ describe('runCli dispatch', () => {
     describe('npm postinstall', () => {
         beforeEach(() => {
             process.env['npm_lifecycle_event'] = 'postinstall'
+            process.env['npm_config_global'] = 'true'
         })
 
         it('bootstraps the global directory without overwriting', async () => {
             await run()
 
             expect(config).toHaveBeenCalledWith('GLOBAL', 'TEMPLATES', false)
+        })
+
+        it('does nothing on a local (non-global) install', async () => {
+            delete process.env['npm_config_global']
+
+            await run()
+
+            expect(config).not.toHaveBeenCalled()
+            expect(build).not.toHaveBeenCalled()
         })
 
         it('never fails the install when bootstrapping fails', async () => {
