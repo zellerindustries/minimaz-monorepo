@@ -1,6 +1,6 @@
 {
     "name": "@minimaz/cli",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Command implementations for the minimaz/mz CLI. Not published as a bin itself — see @minimaz/sitekit.",
     "type": "module",
     "main": "./dist/index.js",
