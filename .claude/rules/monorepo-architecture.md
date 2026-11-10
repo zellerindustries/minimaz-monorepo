@@ -20,12 +20,9 @@ The root `tsconfig.json` references every `packages/*` package plus `toolkits/si
 `npm run typecheck:watch` and type-checks `vitest.config.ts`. There is no root `tsconfig.build.json`: root `build`
 delegates to each package's own `tsconfig.build.json`, which references its dependencies' build configs. Build order always comes from project references, not from `package.json` dependencies.
 
-Every package's `build` is `tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs`. `scripts/bundle.mjs` is a
-plain ESM script (no package, no build step, run from the package directory): it reads `main`/`bin` from
-`package.json`, bundles each `dist/<name>.js` from `src/<name>.ts` with esbuild (a root devDependency — minified,
-ESM, `node24`, dependencies/devDependencies + Node built-ins external so `@minimaz/*` imports still resolve through
-the workspace at runtime), then deletes stray `*.test`/`*.spec` output from `dist/`. Keep it dependency-free of the
-workspace packages — importing one would mean building that package before anything can be bundled.
+Every package's `build` is `tsc -b tsconfig.build.json && node ../../scripts/bundle.mjs` (how it works:
+`docs/architecture.md`, "Build pipeline"). Keep `scripts/bundle.mjs` dependency-free of the workspace packages —
+importing one would mean building that package before anything can be bundled.
 
 ## Package dependency graph
 
@@ -86,31 +83,19 @@ helper package exists for every cross-cutting concern (e.g. wrapped JSON-parse e
 duplicated in `@minimaz/core`, `@minimaz/json`, and `@minimaz/validate` rather than factored out — see the "Known
 cleanup opportunities" section of `.claude/status.md` for why, and check that section before "fixing" duplication).
 
-`site-builder`'s `init`/`config`/`template` and `docs-builder`'s standalone `docs init|build` were both retired
-and folded into `@minimaz/cli` as regular subcommands — `@minimaz/cli` now has full `minimaz-cli` command-name
-parity, including `build` and `clear`. `build` ports `minimaz-cli`'s two-pass discovery/processing pipeline using
-`@minimaz/css`/`@minimaz/js`/`@minimaz/html`/`@minimaz/ts` instead of `esbuild`. JS/TS "bundling"
-(`output.js.bundling: true`) is native-ESM import rewriting via `@minimaz/bundler`'s `resolveFileImports`: each
-source file still produces one output file, there is no single-file concatenation and no npm inlining (bare
-specifiers are left untouched). `runCli()`
-(`packages/cli/src/cli/main.ts`) bootstraps `~/.minimaz/` on `npm postinstall`
-(detected via `npm_lifecycle_event`), wrapped so a failure there never fails the install itself. Only
+`@minimaz/cli` has full `minimaz-cli` command-name parity (`site-builder` and `docs-builder` were folded into it).
+JS/TS "bundling" (`output.js.bundling: true`) is native-ESM import rewriting via `@minimaz/bundler`'s
+`resolveFileImports`: one output file per source file, no npm inlining (bare specifiers are left untouched).
+`runCli()` (`packages/cli/src/cli/main.ts`) bootstraps `~/.minimaz/` on a global `npm postinstall` (detected via
+`npm_lifecycle_event` + `npm_config_global`), wrapped so a failure there never fails the install itself. Only
 `@minimaz/sitekit` declares the `postinstall` script (`node dist/cli/main.js || exit 0`); its `main.ts` is a thin
 `runCli()` passthrough.
 
-`@minimaz/config`'s `loadConfig` understands **both** schemas: the docs-builder shape (`docs.input.dir`,
-`docs.output.bundle`, `docs.output.formats`) and the build-oriented schema (`input`/`output`, `mapping`,
-externals, exclude, CSS/JS/HTML processing options) ported from `minimaz-cli` — both sections are always present
-in `loadConfig`'s result, independently defaulted. `init` writes the chosen template's own config (a build config by
-default, docs-only for the `docs` template) and `docs init` writes a docs-only one; each bails if
-`minimaz.config.json` already exists, so running both leaves one section un-populated by either — harmless today since
-`loadConfig` defaults whichever section is missing, but see `.claude/status.md`'s "Known cleanup opportunities" before
-assuming this is unified.
-
-Every ported function fixes silent-failure bugs found in the original `minimaz-cli` (e.g. swallowed validation
-errors, wrong version reporting, unknown commands exiting 0, minifiers falling back to unminified output on
-failure) rather than replicating them — see `.claude/status.md`'s "Known bugs found (and fixed) while porting"
-section for the full list before porting new code from `minimaz-cli`.
+Config schemas (docs vs build, both always present and independently defaulted) and the `init`/`docs init`
+"each leaves one section unpopulated" quirk are described in `docs/architecture.md`, "Config system"; check
+`.claude/status.md`'s "Known cleanup opportunities" before assuming they are unified. Ported `minimaz-cli` code
+fixes its silent-failure bugs rather than replicating them — read `.claude/status.md`'s "Known bugs found (and
+fixed) while porting" before porting more.
 
 ## Per-package layout convention
 

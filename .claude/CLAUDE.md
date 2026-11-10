@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-`minimaz-monorepo` is an npm-workspace-based rewrite of `minimaz-cli` (a sibling repo, `../minimaz-cli`) into
+`minimaz-monorepo` is an npm-workspace-based rewrite of `minimaz-cli` (retired / not present in this workspace) into
 modular, independently-versioned `@minimaz/*` packages. It is **not yet a replacement** for `minimaz-cli` — that
 remains the stable, published tool. Requires Node.js >=24, npm >=11.
 
@@ -32,8 +32,15 @@ npm test                # every workspace's own `test` (one Vitest project each)
 npm run test:watch      # vitest (watch mode, all projects in one process)
 npm run test:coverage   # vitest run --coverage (v8 provider, all projects)
 npm run verify:release  # verify + changeset status + pack dry-run + scripts/verify-packages.mjs (tarball contents)
-npx vitest run <path>   # run a single test file
+npx vitest run --project @minimaz/cli packages/cli/src/cli/__tests__/main.dispatch.test.ts  # one test file (from the root)
 ```
+
+On a fresh checkout run `npm run build` before `npm test` (some tests read other packages' built `dist/`). If
+`@minimaz/*` imports fail with "Cannot find package" (e.g. after the repo was moved, leaving stale
+`node_modules/@minimaz/*` junctions), run `npm install --ignore-scripts` to relink the workspaces.
+
+`@minimaz/sitekit`'s `postinstall` bootstraps `~/.minimaz/` only on a **global** install (`npm_config_global`); a
+local install in a site skips it, so seed with `npx mz config`.
 
 The root `build`/`clean`/`typecheck`/`lint`/`test` scripts delegate to each workspace's own script
 (`npm run <x> --workspaces --if-present`), so a package's `package.json` script is the single source of truth.
