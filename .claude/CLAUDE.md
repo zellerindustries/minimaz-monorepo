@@ -65,6 +65,10 @@ Git hooks are wired via husky + lint-staged (`prepare: husky`) — formatting/li
 automatically on commit, no need to format manually. The pre-push hook runs `npm run verify`; `npm run release` first runs `verify:release` (adds `changeset status --since=main` and a `npm pack --dry-run` of every workspace),
 so a push blocks on the same gate as CI.
 
+The repo setting "Allow GitHub Actions to create and approve pull requests" is off and can't be enabled, so the
+Release job pushes `changeset-release/main` and then fails at the PR step. Open the "Version Packages" PR by hand
+(`gh pr create --base main --head changeset-release/main --title "Version Packages"`); merging it publishes.
+
 ### Release process
 
 Per-package versioning/changelogs are managed by Changesets (`.changeset/config.json`):
@@ -84,8 +88,8 @@ just a version bump by hand.
 
 ### Project skills and worktrees
 
-`.claude/skills/` holds repo-specific skills: `adding-a-workspace-package`, `verifying-monorepo-changes`,
-`writing-changesets`, `checking-release-readiness` (run before merging a `release/*`/`hotfix/*` branch to `main`). `.claude/` is tracked except `worktrees/`, `settings.local.json` and `superpowers/` (gitignored, local-only specs
+`.claude/skills/` links the minimaz skills `adding-a-workspace-package`, `verifying-monorepo-changes`,
+`writing-changesets`, `checking-release-readiness` (run before merging a `release/*`/`hotfix/*` branch to `main`). They live in `developing-projects/.claude/skills/` and are linked here by gitignored relative symlinks. `.claude/` is tracked except `worktrees/`, `settings.local.json`, `superpowers/` and those links (gitignored, local-only specs
 and plans), so a new worktree (`.worktrees/`) has `status.md` but not specs/plans: copy what's needed in.
 
 ## Rules
