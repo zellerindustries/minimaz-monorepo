@@ -68,6 +68,10 @@ Thumbs.db
 .claude/superpowers/
 .superpowers/
 .worktrees/
+.claude/skills/adding-a-workspace-package
+.claude/skills/checking-release-readiness
+.claude/skills/verifying-monorepo-changes
+.claude/skills/writing-changesets
 
 # Copied from the root LICENSE by scripts/bundle.mjs at build time
 packages/*/LICENSE

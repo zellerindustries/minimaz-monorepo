@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { bundleCss } from '../bundle.js'
 
@@ -90,8 +90,8 @@ describe('bundleCss', () => {
         expect((await bundleCss(entry)).code).toBe(css)
     })
 
-    it('leaves non-relative @import statements in place', async () => {
-        const css = '@import "https://fonts.example.com/x.css";\n@import "theme.css";\na {}'
+    it('leaves remote @import statements in place', async () => {
+        const css = '@import "https://fonts.example.com/x.css";\na {}'
         const entry = await write('main.css', css)
 
         const result = await bundleCss(entry)
@@ -117,19 +117,6 @@ describe('bundleCss', () => {
 
         expect(code).toContain('url(./sub/img.png)')
         expect(code).not.toContain('sub/sub')
-    })
-
-    it("rewrites a nested file's non-relative @import url(...) against the entry directory", async () => {
-        await mkdir(join(dir, 'sub'), { recursive: true })
-        const entry = await write('entry.css', '@import "./sub/b.css";')
-        await write('sub/b.css', '@import url(c.css); @import url("d.css"); @import "e.css";')
-
-        const result = await bundleCss(entry)
-
-        expect(result.code).toBe(
-            '@import url(./sub/c.css); @import url("./sub/d.css"); @import "e.css";',
-        )
-        expect(result.inputs).toHaveLength(2)
     })
 
     it('rewrites quoted urls once through nested imports, leaving others alone', async () => {
@@ -225,5 +212,141 @@ describe('bundleCss', () => {
         await expect(bundleCss(join(dir, 'nope.css'))).rejects.toThrow(
             /file not found: .*nope\.css$/,
         )
+    })
+
+    describe('bare specifiers', () => {
+        async function writePackage(
+            name: string,
+            files: Record<string, string>,
+            exportsMap: Record<string, string>,
+            base = 'node_modules',
+        ): Promise<string> {
+            const pkgDir = join(dir, base, name)
+            await mkdir(pkgDir, { recursive: true })
+            await writeFile(
+                join(pkgDir, 'package.json'),
+                JSON.stringify({ name, version: '1.0.0', exports: exportsMap }),
+                'utf8',
+            )
+            for (const [file, content] of Object.entries(files)) {
+                await mkdir(dirname(join(pkgDir, file)), { recursive: true })
+                await writeFile(join(pkgDir, file), content, 'utf8')
+            }
+            return pkgDir
+        }
+
+        it('inlines a bare package root resolved through exports "."', async () => {
+            const pkgDir = await writePackage(
+                'css-kit',
+                { 'src/index.css': 'kit { a: b; }' },
+                { '.': './src/index.css' },
+            )
+            const entry = await write('main.css', '@import "css-kit";\nh1 { color: red; }')
+
+            const result = await bundleCss(entry)
+
+            expect(result.code).toBe('kit { a: b; }\nh1 { color: red; }')
+            expect(result.inputs).toEqual([entry, join(pkgDir, 'src', 'index.css')])
+        })
+
+        it('inlines a subpath exposed by exports, in the url() form', async () => {
+            await writePackage(
+                'css-kit',
+                { 'src/reset.css': 'reset { a: b; }' },
+                { './src/reset.css': './src/reset.css' },
+            )
+            const entry = await write('main.css', "@import url('css-kit/src/reset.css');")
+
+            expect((await bundleCss(entry)).code).toBe('reset { a: b; }')
+        })
+
+        it('inlines a scoped package', async () => {
+            await writePackage(
+                '@scope/pkg',
+                { 'file.css': 's { a: b; }' },
+                { './file.css': './file.css' },
+            )
+            const entry = await write('main.css', '@import "@scope/pkg/file.css";')
+
+            expect((await bundleCss(entry)).code).toBe('s { a: b; }')
+        })
+
+        it('rebases url() inside the package css against the entry directory', async () => {
+            await writePackage(
+                'css-kit',
+                { 'src/index.css': 'a { background: url(../img/x.png) }' },
+                { '.': './src/index.css' },
+            )
+            const entry = await write('main.css', '@import "css-kit";')
+
+            expect((await bundleCss(entry)).code).toBe(
+                'a { background: url(./node_modules/css-kit/img/x.png) }',
+            )
+        })
+
+        it('wraps a package import with a condition list in @media', async () => {
+            await writePackage('css-kit', { 'index.css': 'k { a: b; }' }, { '.': './index.css' })
+            const entry = await write('main.css', '@import "css-kit" screen and (min-width: 1px);')
+
+            expect((await bundleCss(entry)).code).toBe(
+                '@media screen and (min-width: 1px) {\nk { a: b; }\n}',
+            )
+        })
+
+        it('throws for an unresolvable specifier, naming the spec and the importer', async () => {
+            const entry = await write('main.css', '@import "nope-pkg";')
+
+            await expect(bundleCss(entry)).rejects.toThrow(
+                /cannot resolve "nope-pkg" imported from .*main\.css/,
+            )
+        })
+
+        it('leaves an https import untouched', async () => {
+            const entry = await write('main.css', '@import "https://example.com/a.css";')
+
+            const result = await bundleCss(entry)
+
+            expect(result.code).toBe('@import "https://example.com/a.css";')
+            expect(result.inputs).toEqual([entry])
+        })
+
+        it('resolves a nested bare import from the package file own directory', async () => {
+            const outer = await writePackage(
+                'outer-kit',
+                { 'index.css': '@import "inner-kit";\nouter { a: b; }' },
+                { '.': './index.css' },
+            )
+            // Only resolvable from inside outer-kit, not from the entry directory.
+            const inner = await writePackage(
+                'inner-kit',
+                { 'index.css': 'inner { a: b; }' },
+                { '.': './index.css' },
+                join('node_modules', 'outer-kit', 'node_modules'),
+            )
+            const entry = await write('main.css', '@import "outer-kit";')
+
+            const result = await bundleCss(entry)
+
+            expect(result.code).toBe('inner { a: b; }\nouter { a: b; }')
+            expect(result.inputs).toEqual([
+                entry,
+                join(outer, 'index.css'),
+                join(inner, 'index.css'),
+            ])
+        })
+
+        it('detects a circular import that goes through a package', async () => {
+            await writePackage(
+                'loop-kit',
+                {
+                    'index.css': '@import "./other.css";',
+                    'other.css': '@import "loop-kit";',
+                },
+                { '.': './index.css' },
+            )
+            const entry = await write('main.css', '@import "loop-kit";')
+
+            await expect(bundleCss(entry)).rejects.toThrow(/circular @import detected/)
+        })
     })
 })

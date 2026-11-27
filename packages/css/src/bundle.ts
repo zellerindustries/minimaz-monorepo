@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { dirname, relative, resolve } from 'node:path'
 import { getFileContent, pathExists } from '@minimaz/core'
 
@@ -14,6 +15,20 @@ function isUntouchableUrl(spec: string): boolean {
         spec.startsWith('#') ||
         spec.startsWith('/')
     )
+}
+
+/**
+ * Resolves a bare specifier (`css-kit`, `@scope/pkg/file.css`) with Node package
+ * resolution from the importing file, so the package's `exports` map applies.
+ */
+function resolveBareSpecifier(spec: string, importerPath: string): string {
+    try {
+        return createRequire(importerPath).resolve(spec)
+    } catch (error) {
+        throw new Error(`bundleCss: cannot resolve "${spec}" imported from ${importerPath}`, {
+            cause: error,
+        })
+    }
 }
 
 function toPosix(path: string): string {
@@ -96,9 +111,9 @@ async function inlineImports(
         output += rewriteUrls(raw.slice(cursor, match.index), fileDir, entryDir)
         cursor = match.index + fullMatch.length
 
-        if (spec === undefined || !isRelativeSpecifier(spec)) {
-            // Not inlined, but a url() spec still resolves against this file's
-            // directory, so it must be rewritten like any other url().
+        if (spec === undefined || isUntouchableUrl(spec)) {
+            // Remote and absolute imports are copied through; rewriteUrls still
+            // handles any relative url() inside the condition list.
             output += rewriteUrls(fullMatch, fileDir, entryDir)
             continue
         }
@@ -109,8 +124,13 @@ async function inlineImports(
             )
         }
 
+        // Relative paths resolve against this file; bare ones through node_modules.
+        const target = isRelativeSpecifier(spec)
+            ? resolve(fileDir, spec)
+            : resolveBareSpecifier(spec, resolvedPath)
+
         const inlined = await inlineImports(
-            resolve(fileDir, spec),
+            target,
             entryDir,
             visited,
             nextStack,
