@@ -1,5 +1,11 @@
 # @minimaz/css
 
+## 0.3.0
+
+### Minor Changes
+
+- [`31f8aa2`](https://github.com/zellerindustries/minimaz-monorepo/commit/31f8aa2b06677e7c5f81b4fa882103d155be1b25) Thanks [@zeller-dev](https://github.com/zeller-dev)! - `bundleCss` now inlines bare `@import` specifiers (`@import "css-kit"`, `@import url("@scope/pkg/file.css")`) by resolving them with Node package resolution from the importing file, honoring the package's `exports` map. A bare specifier that cannot be resolved now throws instead of being copied through literally.
+
 ## 0.2.0
 
 ### Minor Changes

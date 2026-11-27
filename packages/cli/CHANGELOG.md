@@ -1,5 +1,12 @@
 # @minimaz/cli
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [[`31f8aa2`](https://github.com/zellerindustries/minimaz-monorepo/commit/31f8aa2b06677e7c5f81b4fa882103d155be1b25)]:
+    - @minimaz/css@0.3.0
+
 ## 0.5.1
 
 ### Patch Changes
