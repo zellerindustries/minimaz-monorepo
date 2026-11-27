@@ -24,9 +24,12 @@ const { code, inputs } = await bundleCss('src/styles/entry.css')
 
 - `minifyCss(code)` — strips whitespace and comments from CSS. No `esbuild`.
 - `bundleCss(entryPath, options?)` — resolves and inlines `@import` statements starting from `entryPath`, returning the
-  bundled code plus the list of files it read. Only relative (`./`, `../`) imports are inlined; an import with a
-  media condition is wrapped in `@media`, one with `supports()` or `layer` throws, and bare-specifier or remote
-  imports are left as-is (a `url()` one in a nested file gets its path rewritten against the entry directory).
+  bundled code plus the list of files it read. Relative (`./`, `../`) imports are inlined, and so are bare specifiers
+  (`@import "css-kit"`, `@import url("@scope/pkg/file.css")`), which resolve with Node package resolution from the
+  importing file, so the package's `exports` map applies and a bare import inside a package file resolves from that
+  file's directory. A bare specifier that cannot be resolved throws. An import with a media condition is wrapped in
+  `@media`, one with `supports()` or `layer` throws, and remote or absolute imports (`http(s):`, `//`, `data:`, `/`)
+  are left as-is.
   `options.transform(content)` is applied to every file's source (entry included) before its imports are resolved
   and its `url()`s are rewritten, so a text replacement still matches the paths as authored.
 
