@@ -1,5 +1,11 @@
 # @minimaz/cli
 
+## 0.5.1
+
+### Patch Changes
+
+- [`a5f3672`](https://github.com/zellerindustries/minimaz-monorepo/commit/a5f36728e2c2e40d8aaa66e86e931e499cb51973) Thanks [@zeller-dev](https://github.com/zeller-dev)! - The `~/.minimaz` bootstrap now runs only on global installs. Installing minimaz locally in a site no longer runs it.
+
 ## 0.5.0
 
 ### Minor Changes
